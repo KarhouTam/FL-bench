@@ -22,4 +22,9 @@ def iid_partition(
         stats[i]["x"] = len(data_indices[i])
         stats[i]["y"] = Counter(targets_numpy[data_indices[i]].tolist())
 
+    num_samples = np.array(list(map(lambda stat_i: stat_i["x"], stats.values())))
+    stats["sample per client"] = {
+        "std": num_samples.mean(),
+        "stddev": num_samples.std(),
+    }
     return data_indices, stats

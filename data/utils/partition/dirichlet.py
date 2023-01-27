@@ -6,10 +6,7 @@ from torch.utils.data import Dataset
 
 
 def dirichlet(
-    ori_dataset: Dataset,
-    num_clients: int,
-    alpha: float,
-    least_samples: int,
+    ori_dataset: Dataset, num_clients: int, alpha: float, least_samples: int
 ) -> Tuple[List[List[int]], Dict]:
     num_classes = len(ori_dataset.classes)
     min_size = 0
@@ -41,4 +38,9 @@ def dirichlet(
         stats[i]["x"] = len(targets_numpy[data_indices[i]])
         stats[i]["y"] = Counter(targets_numpy[data_indices[i]].tolist())
 
+    num_samples = np.array(list(map(lambda stat_i: stat_i["x"], stats.values())))
+    stats["sample per client"] = {
+        "std": num_samples.mean(),
+        "stddev": num_samples.std(),
+    }
     return data_indices, stats

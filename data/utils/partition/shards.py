@@ -44,4 +44,10 @@ def allocate_shards(
         stats[i] = {"x": None, "y": None}
         stats[i]["x"] = len(idx)
         stats[i]["y"] = Counter(targets_numpy[idx].tolist())
+
+    num_samples = np.array(list(map(lambda stat_i: stat_i["x"], stats.values())))
+    stats["sample per client"] = {
+        "std": num_samples.mean(),
+        "stddev": num_samples.std(),
+    }
     return data_indices, stats

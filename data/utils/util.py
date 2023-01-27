@@ -116,6 +116,12 @@ def process_femnist(split):
 
         clients_4_test = list(range(len(clients_4_train), i))
 
+    num_samples = np.array(list(map(lambda stat_i: stat_i["x"], stats.values())))
+    stats["sample per client"] = {
+        "std": num_samples.mean(),
+        "stddev": num_samples.std(),
+    }
+
     return datasets, stats, len(datasets), clients_4_train, clients_4_test
 
 
@@ -189,6 +195,12 @@ def process_celeba(split):
 
         clients_4_test = list(range(len(clients_4_train), i))
 
+    num_samples = np.array(list(map(lambda stat_i: stat_i["x"], stats.values())))
+    stats["sample per client"] = {
+        "std": num_samples.mean(),
+        "stddev": num_samples.std(),
+    }
+
     return datasets, stats, len(datasets), clients_4_train, clients_4_test
 
 
@@ -254,5 +266,11 @@ def generate_synthetic_data(args):
         stats[client_id] = {}
         stats[client_id]["x"] = samples_per_user[client_id]
         stats[client_id]["y"] = Counter(y_split[client_id].tolist())
+
+    num_samples = np.array(list(map(lambda stat_i: stat_i["x"], stats.values())))
+    stats["sample per client"] = {
+        "std": num_samples.mean(),
+        "stddev": num_samples.std(),
+    }
 
     return all_datasets, stats
