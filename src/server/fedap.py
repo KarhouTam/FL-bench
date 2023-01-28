@@ -1,6 +1,7 @@
 import math
 from collections import OrderedDict
 from copy import deepcopy
+import random
 from typing import List
 
 import torch
@@ -17,41 +18,80 @@ from client.fedap import FedAPClient
 class FedAPServer(FedAvgServer):
     def __init__(self):
         args = get_fedap_argparser().parse_args()
-        super().__init__("FedAP", args, unique_model=True, default_trainer=False)
+        algo_name = {"original": "FedAP", "f": "f-FedAP", "d": "d-FedAP"}
+        super().__init__(
+            algo_name[args.version], args, unique_model=True, default_trainer=False
+        )
         self.trainer = FedAPClient(deepcopy(self.model), self.args, self.logger)
         self.weight_matrix = torch.zeros(
             (self.client_num_in_total, self.client_num_in_total), device=self.device
         )
+        self.warmup_round = 0
+        if 0 < self.args.warmup_round < 1:
+            self.warmup_round = int(self.args.global_epoch * self.args.warmup_round)
+        elif 1 <= self.args.warmup_round < self.args.global_epoch:
+            self.warmup_round = self.args.warmup_round
 
     def train(self):
-        if self.args.pretrain_epoch > 0 and self.args.pretrain_ratio > 0:
+        if True:
             # Pre-training phase
             self.trainer.pretrain = True
             pretrain_params = OrderedDict(
                 zip(self.trainable_params_name, trainable_params(self.model))
             )
-
-            pretrain_progress_bar = (
+            warmup_progress_bar = (
                 track(
-                    range(self.args.pretrain_epoch),
-                    "[bold green]Pre-Training...",
+                    range(self.warmup_round),
+                    "[bold green]Warming-up...",
                     console=self.logger,
                 )
                 if not self.args.log
-                else tqdm(range(self.args.pretrain_epoch), "Pre-Training...")
+                else tqdm(range(self.args.pretrain_epoch), "Warming-up...")
             )
-            for E in pretrain_progress_bar:
-                for client_id in self.train_clients:
-                    new_params, _, _ = self.trainer.train(
+            for E in warmup_progress_bar:
+                self.current_epoch = E
+                if self.args.version == "f":
+                    self.selected_clients = self.client_sample_stream[E]
+                else:
+                    self.selected_clients = list(range(self.client_num_in_total))
+
+                client_params_cache = []
+                weight_cache = []
+                for client_id in self.selected_clients:
+                    (
+                        new_params,
+                        weight,
+                        self.clients_metrics[client_id][E],
+                    ) = self.trainer.train(
                         client_id,
                         pretrain_params,
                         return_diff=False,
+                        evaluate=self.args.eval,
                         verbose=((E + 1) % self.args.verbose_gap) == 0,
                     )
+                    if self.args.version == "f":
+                        client_params_cache.append(new_params)
+                        weight_cache.append(weight)
+                    else:
+                        for old_param, new_param in zip(
+                            pretrain_params.values(), new_params
+                        ):
+                            old_param.data = new_param.data
+
+                if self.args.version == "f":
+                    w = torch.tensor(weight_cache, device=self.device) / sum(
+                        weight_cache
+                    )
                     for old_param, new_param in zip(
-                        pretrain_params.values(), new_params
+                        pretrain_params.values(), zip(*client_params_cache)
                     ):
-                        old_param.data = new_param.data
+                        old_param.data = (
+                            (torch.stack(new_param, dim=-1).to(self.device) * w)
+                            .sum(dim=-1)
+                            .data
+                        )
+
+                self.log_info()
 
             # update clients params to pretrain params
             self.model.load_state_dict(pretrain_params, strict=False)
@@ -83,15 +123,21 @@ class FedAPServer(FedAvgServer):
                             tv.append(
                                 torch.var(item, dim=[0, 2, 3]).detach().cpu().numpy()
                             )
-                        else:
-                            tm.append(torch.mean(item, dim=0).detach().cpu().numpy())
-                            tv.append(torch.var(item, dim=0).detach().cpu().numpy())
                     avgmeta.update(batchsize, tm, tv)
             bn_mean_list.append(avgmeta.getmean())
             bn_var_list.append(avgmeta.getvar())
         self.generate_weight_matrix(bn_mean_list, bn_var_list)
 
         # regular training
+        self.train_progress_bar = (
+            track(
+                range(self.warmup_round, self.args.global_epoch),
+                "[bold green]Training...",
+                console=self.logger,
+            )
+            if not self.args.log
+            else tqdm(range(self.args.global_epoch), "Training...")
+        )
         self.trainer.pretrain = False
         for E in self.train_progress_bar:
             self.current_epoch = E
@@ -107,9 +153,11 @@ class FedAPServer(FedAvgServer):
             client_params_cache = []
             for client_id in self.selected_clients:
                 client_local_params = self.generate_client_params(client_id)
-                new_params, self.clients_metrics[client_id][E] = self.trainer.train(
+                new_params, _, self.clients_metrics[client_id][E] = self.trainer.train(
                     client_id=client_id,
                     new_parameters=client_local_params,
+                    return_diff=False,
+                    evaluate=self.args.eval,
                     verbose=((E + 1) % self.args.verbose_gap) == 0,
                 )
 
@@ -119,14 +167,20 @@ class FedAPServer(FedAvgServer):
             self.log_info()
 
     def get_form(self):
-        tmpm = []
-        tmpv = []
+        tmp_mean = []
+        tmp_var = []
         for name in self.model.state_dict().keys():
             if "running_mean" in name:
-                tmpm.append(self.model.state_dict()[name].detach().to("cpu").numpy())
+                tmp_mean.append(
+                    self.model.state_dict()[name].detach().to("cpu").numpy()
+                )
             if "running_var" in name:
-                tmpv.append(self.model.state_dict()[name].detach().to("cpu").numpy())
-        return tmpm, tmpv
+                tmp_var.append(self.model.state_dict()[name].detach().to("cpu").numpy())
+
+        if self.args.version == "d":
+            tmp_mean = [tmp_mean[-1]]
+            tmp_var = [tmp_var[-1]]
+        return tmp_mean, tmp_var
 
     def generate_weight_matrix(
         self, bnmlist: List[torch.Tensor], bnvlist: List[torch.Tensor]

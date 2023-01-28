@@ -82,8 +82,6 @@ class FedAvgClient:
             self.args.weight_decay,
         )
 
-        self.visited_time: Dict[int, int] = {}  # for `incremental data` setting
-
     def get_client_local_dataset(self):
         if self.args.dataset not in ["femnist", "celeba", "synthetic"]:
             idx_train, idx_test = (

@@ -15,11 +15,11 @@ class FedAPClient(FedBNClient):
     def get_client_local_dataset(self):
         super().get_client_local_dataset()
         num_pretrain_samples = int(self.args.pretrain_ratio * len(self.trainset))
-        if self.pretrain:
-            self.trainset.indices = self.trainset.indices[:num_pretrain_samples]
-            self.visited_time[self.client_id] = 0
-        else:
-            self.trainset.indices = self.trainset.indices[num_pretrain_samples:]
+        if self.args.version != "f":
+            if self.pretrain:
+                self.trainset.indices = self.trainset.indices[:num_pretrain_samples]
+            else:
+                self.trainset.indices = self.trainset.indices[num_pretrain_samples:]
 
     @torch.no_grad()
     def get_all_features(
@@ -35,4 +35,11 @@ class FedAPClient(FedBNClient):
             batch_size_list.append(len(x))
 
         self.save_state()
+
+        if self.args.version == "d":
+            for i, features in enumerate(features_list):
+                for j in range(len(features)):
+                    if len(features[j].shape) == 4 and len(features[j + 1].shape) < 4:
+                        features_list[i] = [features[j]]
+                        break
         return features_list, batch_size_list

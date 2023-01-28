@@ -166,8 +166,11 @@ def get_fedprox_argparser() -> ArgumentParser:
 
 def get_fedap_argparser() -> ArgumentParser:
     parser = get_fedavg_argparser()
-    parser.add_argument("-pr", "--pretrain_ratio", type=float, default=0.0)
-    parser.add_argument("-pe", "--pretrain_epoch", type=int, default=0)
+    parser.add_argument(
+        "--version", type=str, choices=["original", "f", "d"], default="original"
+    )
+    parser.add_argument("--pretrain_ratio", type=float, default=0.3)
+    parser.add_argument("--warmup_round", type=float, default=0.5)
     parser.add_argument("--model_momentum", type=float, default=0.5)
     return parser
 
