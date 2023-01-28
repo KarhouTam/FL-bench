@@ -1,7 +1,6 @@
 import math
 from collections import OrderedDict
 from copy import deepcopy
-import random
 from typing import List
 
 import torch
@@ -33,71 +32,73 @@ class FedAPServer(FedAvgServer):
             self.warmup_round = self.args.warmup_round
 
     def train(self):
-        if True:
-            # Pre-training phase
+        # Pre-training phase
+        if self.args.version != "f" and 0 < self.args.pretrain_ratio < 1:
             self.trainer.pretrain = True
-            pretrain_params = OrderedDict(
-                zip(self.trainable_params_name, trainable_params(self.model))
+        else:
+            raise RuntimeError(
+                "FedAP or d-FedAP need `pretrain_ratio` in the range of [0, 1]."
             )
-            warmup_progress_bar = (
-                track(
-                    range(self.warmup_round),
-                    "[bold green]Warming-up...",
-                    console=self.logger,
+        pretrain_params = OrderedDict(
+            zip(self.trainable_params_name, trainable_params(self.model))
+        )
+        warmup_progress_bar = (
+            track(
+                range(self.warmup_round),
+                "[bold green]Warming-up...",
+                console=self.logger,
+            )
+            if not self.args.log
+            else tqdm(range(self.args.pretrain_epoch), "Warming-up...")
+        )
+        for E in warmup_progress_bar:
+            self.current_epoch = E
+            if self.args.version == "f":
+                self.selected_clients = self.client_sample_stream[E]
+            else:
+                self.selected_clients = list(range(self.client_num_in_total))
+
+            client_params_cache = []
+            weight_cache = []
+            for client_id in self.selected_clients:
+                (
+                    new_params,
+                    weight,
+                    self.clients_metrics[client_id][E],
+                ) = self.trainer.train(
+                    client_id,
+                    pretrain_params,
+                    return_diff=False,
+                    evaluate=self.args.eval,
+                    verbose=((E + 1) % self.args.verbose_gap) == 0,
                 )
-                if not self.args.log
-                else tqdm(range(self.args.pretrain_epoch), "Warming-up...")
-            )
-            for E in warmup_progress_bar:
-                self.current_epoch = E
                 if self.args.version == "f":
-                    self.selected_clients = self.client_sample_stream[E]
+                    client_params_cache.append(new_params)
+                    weight_cache.append(weight)
                 else:
-                    self.selected_clients = list(range(self.client_num_in_total))
-
-                client_params_cache = []
-                weight_cache = []
-                for client_id in self.selected_clients:
-                    (
-                        new_params,
-                        weight,
-                        self.clients_metrics[client_id][E],
-                    ) = self.trainer.train(
-                        client_id,
-                        pretrain_params,
-                        return_diff=False,
-                        evaluate=self.args.eval,
-                        verbose=((E + 1) % self.args.verbose_gap) == 0,
-                    )
-                    if self.args.version == "f":
-                        client_params_cache.append(new_params)
-                        weight_cache.append(weight)
-                    else:
-                        for old_param, new_param in zip(
-                            pretrain_params.values(), new_params
-                        ):
-                            old_param.data = new_param.data
-
-                if self.args.version == "f":
-                    w = torch.tensor(weight_cache, device=self.device) / sum(
-                        weight_cache
-                    )
                     for old_param, new_param in zip(
-                        pretrain_params.values(), zip(*client_params_cache)
+                        pretrain_params.values(), new_params
                     ):
-                        old_param.data = (
-                            (torch.stack(new_param, dim=-1).to(self.device) * w)
-                            .sum(dim=-1)
-                            .data
-                        )
+                        old_param.data = new_param.data
 
-                self.log_info()
+            if self.args.version == "f":
+                w = torch.tensor(weight_cache, device=self.device) / sum(weight_cache)
+                for old_param, new_param in zip(
+                    pretrain_params.values(), zip(*client_params_cache)
+                ):
+                    old_param.data = (
+                        (torch.stack(new_param, dim=-1).to(self.device) * w)
+                        .sum(dim=-1)
+                        .data
+                    )
 
-            # update clients params to pretrain params
-            self.model.load_state_dict(pretrain_params, strict=False)
-            self.client_trainable_params = [
-                deepcopy(trainable_params(self.model)) for _ in self.train_clients
-            ]
+            self.log_info()
+
+        # update clients params to pretrain params
+        self.model.load_state_dict(pretrain_params, strict=False)
+        self.client_trainable_params = [
+            deepcopy(trainable_params(self.model)) for _ in self.train_clients
+        ]
 
         # generate weight matrix
         bn_mean_list, bn_var_list = [], []
