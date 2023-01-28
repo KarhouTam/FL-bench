@@ -53,11 +53,11 @@ So easy, right? 😎
 
 ```shell
 cd data/utils
-python run.py -a 0.1 -cn 100
+python run.py -d cifar10 -a 0.1 -cn 100
 cd ../../
 
 cd src/server
-python {$algo}.py
+python ${algo}.py
 ```
 
 About methods of generating federated dastaset, go check `data/utils/README.md` for full details.
