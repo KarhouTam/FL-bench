@@ -42,22 +42,25 @@ class FedAvgCNN(nn.Module):
         self.all_features = []
         self.need_all_features_flag = False
 
-        if need_all_features:
-            self.need_all_features_flag = True
-            target_modules = [
-                module
-                for module in self.base.modules()
-                if isinstance(module, nn.Conv2d) or isinstance(module, nn.Linear)
-            ]
+    def need_all_features(self):
+        self.need_all_features_flag = True
+        target_modules = [
+            module
+            for module in self.base.modules()
+            if isinstance(module, nn.Conv2d) or isinstance(module, nn.Linear)
+        ]
 
-            def get_feature_hook_fn(model, input, output):
-                self.all_features.append(output)
+        def get_feature_hook_fn(model, input, output):
+            self.all_features.append(output)
 
-            for module in target_modules:
-                module.register_forward_hook(get_feature_hook_fn)
+        for module in target_modules:
+            module.register_forward_hook(get_feature_hook_fn)
 
     def forward(self, x):
-        return self.classifier(F.relu(self.base(x)))
+        out = self.classifier(F.relu(self.base(x)))
+        if self.need_all_features_flag:
+            self.all_features = []
+        return out
 
     def get_final_features(self, x, detach=True):
         func = (lambda x: x.clone().detach()) if detach else lambda x: x
@@ -113,22 +116,25 @@ class LeNet5(nn.Module):
         self.all_features = []
         self.need_all_features_flag = False
 
-        if need_all_features:
-            self.need_all_features_flag = True
-            target_modules = [
-                module
-                for module in self.base.modules()
-                if isinstance(module, nn.Conv2d) or isinstance(module, nn.Linear)
-            ]
+    def need_all_features(self):
+        self.need_all_features_flag = True
+        target_modules = [
+            module
+            for module in self.base.modules()
+            if isinstance(module, nn.Conv2d) or isinstance(module, nn.Linear)
+        ]
 
-            def get_feature_hook_fn(model, input, output):
-                self.all_features.append(output)
+        def get_feature_hook_fn(model, input, output):
+            self.all_features.append(output)
 
-            for module in target_modules:
-                module.register_forward_hook(get_feature_hook_fn)
+        for module in target_modules:
+            module.register_forward_hook(get_feature_hook_fn)
 
     def forward(self, x):
-        return self.classifier(F.relu(self.base(x)))
+        out = self.classifier(F.relu(self.base(x)))
+        if self.need_all_features_flag:
+            self.all_features = []
+        return out
 
     def get_final_features(self, x, detach=True):
         func = (lambda x: x.clone().detach()) if detach else (lambda x: x)
@@ -224,22 +230,25 @@ class MobileNetV2(nn.Module):
         self.all_features = []
         self.need_all_features_flag = False
 
-        if need_all_features:
-            self.need_all_features_flag = True
-            target_modules = [
-                module
-                for module in self.base.features.modules()
-                if isinstance(module, nn.Conv2d)
-            ]
+    def need_all_features(self):
+        self.need_all_features_flag = True
+        target_modules = [
+            module
+            for module in self.base.features.modules()
+            if isinstance(module, nn.Conv2d)
+        ]
 
-            def get_feature_hook_fn(model, input, output):
-                self.all_features.append(output)
+        def get_feature_hook_fn(model, input, output):
+            self.all_features.append(output)
 
-            for module in target_modules:
-                module.register_forward_hook(get_feature_hook_fn)
+        for module in target_modules:
+            module.register_forward_hook(get_feature_hook_fn)
 
     def forward(self, x):
-        return self.classifier(F.relu6(self.base(x)))
+        out = self.classifier(F.relu(self.base(x)))
+        if self.need_all_features_flag:
+            self.all_features = []
+        return out
 
     def get_final_features(self, x, detach=True):
         for dropout in self.dropouts:
