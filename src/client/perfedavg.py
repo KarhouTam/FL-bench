@@ -24,12 +24,12 @@ class PerFedAvgClient(FedAvgClient):
         self,
         client_id: int,
         new_parameters: OrderedDict[str, torch.nn.Parameter],
-        retrun_diff=True,
+        return_diff=True,
         evaluate=True,
         verbose=False,
     ):
         delta, _, stats = super().train(
-            client_id, new_parameters, retrun_diff, evaluate, verbose
+            client_id, new_parameters, return_diff, evaluate, verbose
         )
         # Per-FedAvg's model aggregation doesn't need weight.
         return delta, 1.0, stats
