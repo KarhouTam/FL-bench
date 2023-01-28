@@ -49,7 +49,7 @@ class FedAPServer(FedAvgServer):
                 console=self.logger,
             )
             if not self.args.log
-            else tqdm(range(self.args.pretrain_epoch), "Warming-up...")
+            else tqdm(range(self.warmup_round), "Warming-up...")
         )
         for E in warmup_progress_bar:
             self.current_epoch = E
