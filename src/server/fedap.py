@@ -138,7 +138,7 @@ class FedAPServer(FedAvgServer):
                 console=self.logger,
             )
             if not self.args.log
-            else tqdm(range(self.args.global_epoch), "Training...")
+            else tqdm(range(self.warmup_round, self.args.global_epoch), "Training...")
         )
         self.trainer.pretrain = False
         for E in self.train_progress_bar:
