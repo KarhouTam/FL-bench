@@ -33,12 +33,13 @@ class FedAPServer(FedAvgServer):
 
     def train(self):
         # Pre-training phase
-        if self.args.version != "f" and 0 < self.args.pretrain_ratio < 1:
-            self.trainer.pretrain = True
-        else:
-            raise RuntimeError(
-                "FedAP or d-FedAP need `pretrain_ratio` in the range of [0, 1]."
-            )
+        if self.args.version != "f":
+            if 0 < self.args.pretrain_ratio < 1:
+                self.trainer.pretrain = True
+            else:
+                raise RuntimeError(
+                    "FedAP or d-FedAP need `pretrain_ratio` in the range of [0, 1]."
+                )
         pretrain_params = OrderedDict(
             zip(self.trainable_params_name, trainable_params(self.model))
         )
