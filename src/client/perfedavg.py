@@ -34,8 +34,8 @@ class PerFedAvgClient(FedAvgClient):
         # Per-FedAvg's model aggregation doesn't need weight.
         return delta, 1.0, stats
 
-    def get_client_local_dataset(self):
-        super().get_client_local_dataset()
+    def load_dataset(self):
+        super().load_dataset()
         self.iter_trainloader = iter(self.trainloader)
 
     def _train(self):

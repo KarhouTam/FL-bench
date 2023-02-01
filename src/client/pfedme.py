@@ -29,7 +29,7 @@ class pFedMeClient(FedAvgClient):
         verbose=False,
     ):
         self.client_id = client_id
-        self.get_client_local_dataset()
+        self.load_dataset()
         self.set_parameters(new_parameters)
         self.local_parameters = deepcopy(trainable_params(new_parameters))
         # self.iter_trainloader = iter(self.trainloader)

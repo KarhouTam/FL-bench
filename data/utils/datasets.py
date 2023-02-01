@@ -12,13 +12,29 @@ from torch.utils.data import Dataset
 
 
 class FEMNIST(Dataset):
-    def __init__(self, data, targets) -> None:
-        self.data = torch.tensor(data, dtype=torch.float).reshape(-1, 1, 28, 28)
-        self.targets = torch.tensor(targets, dtype=torch.long)
+    def __init__(self, root, args=None, transform=None, target_transform=None) -> None:
+        if not os.path.isfile(root / "data.npy") or not os.path.isfile(
+            root / "targets.npy"
+        ):
+            raise RuntimeError(
+                "run data/utils/run.py -d femnist for generating the data.npy and targets.npy first."
+            )
+
+        data = np.load(root / "data.npy")
+        targets = np.load(root / "targets.npy")
+
+        self.data = torch.from_numpy(data).float().reshape(-1, 1, 28, 28)
+        self.targets = torch.from_numpy(targets).long()
         self.classes = list(range(62))
+        self.transform = transform
+        self.target_transform = target_transform
 
     def __getitem__(self, index):
         data, target = self.data[index], self.targets[index]
+        if self.transform is not None:
+            data = self.transform(data)
+        if self.target_transform is not None:
+            target = self.target_transform(target)
         return data, target
 
     def __len__(self):
@@ -26,9 +42,19 @@ class FEMNIST(Dataset):
 
 
 class Synthetic(Dataset):
-    def __init__(self, X, Y):
-        self.data = X
-        self.targets = Y
+    def __init__(self, root, args=None, transform=None, target_transform=None) -> None:
+        if not os.path.isfile(root / "data.npy") or not os.path.isfile(
+            root / "targets.npy"
+        ):
+            raise RuntimeError(
+                "run data/utils/run.py -d femnist for generating the data.npy and targets.npy first."
+            )
+
+        data = np.load(root / "data.npy")
+        targets = np.load(root / "targets.npy")
+
+        self.data = torch.from_numpy(data).float()
+        self.targets = torch.from_numpy(targets).long()
 
     def __getitem__(self, index):
         return self.data[index], self.targets[index]
@@ -38,9 +64,19 @@ class Synthetic(Dataset):
 
 
 class CelebA(Dataset):
-    def __init__(self, data, targets, transform=None, target_transform=None):
-        self.data = torch.stack(data)  # [3, 218, 178]
-        self.targets = torch.tensor(targets, dtype=torch.long)
+    def __init__(self, root, args=None, transform=None, target_transform=None) -> None:
+        if not os.path.isfile(root / "data.npy") or not os.path.isfile(
+            root / "targets.npy"
+        ):
+            raise RuntimeError(
+                "run data/utils/run.py -d femnist for generating the data.npy and targets.npy first."
+            )
+
+        data = np.load(root / "data.npy")
+        targets = np.load(root / "targets.npy")
+
+        self.data = torch.from_numpy(data).permute([0, -1, 1, 2]).float()
+        self.targets = torch.from_numpy(targets).long()
         self.transform = transform
         self.target_transform = target_transform
         self.classes = [0, 1]
@@ -420,10 +456,13 @@ DATASETS = {
     "mnist": MNIST,
     "emnist": EMNIST,
     "fmnist": FashionMNIST,
+    "femnist": FEMNIST,
     "medmnistS": MedMNIST,
     "medmnistC": MedMNIST,
     "medmnistA": MedMNIST,
     "covid19": COVID19,
+    "celeba": CelebA,
+    "synthetic": Synthetic,
     "svhn": SVHN,
     "usps": USPS,
     "tiny_imagenet": TinyImagenet,

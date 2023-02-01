@@ -27,7 +27,7 @@ class FedFomoClient(FedAvgClient):
         verbose=False,
     ):
         self.client_id = client_id
-        self.get_client_local_dataset()
+        self.load_dataset()
         self.set_parameters(received_params)
         stats = self.log_while_training(evaluate, verbose)
         return (
@@ -36,8 +36,8 @@ class FedFomoClient(FedAvgClient):
             stats,
         )
 
-    def get_client_local_dataset(self):
-        super().get_client_local_dataset()
+    def load_dataset(self):
+        super().load_dataset()
         self.valset = deepcopy(self.trainset)
         num_val_samples = int(len(self.trainset) * self.args.valset_ratio)
         self.valset.indices = self.trainset.indices[:num_val_samples]

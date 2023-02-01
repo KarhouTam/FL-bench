@@ -12,8 +12,8 @@ class FedAPClient(FedBNClient):
         self.model.need_all_features()
         self.pretrain = False
 
-    def get_client_local_dataset(self):
-        super().get_client_local_dataset()
+    def load_dataset(self):
+        super().load_dataset()
         num_pretrain_samples = int(self.args.pretrain_ratio * len(self.trainset))
         if self.args.version != "f":
             if self.pretrain:
@@ -26,7 +26,7 @@ class FedAPClient(FedBNClient):
         self, client_id: int, new_parameters: OrderedDict[str, torch.nn.Parameter]
     ):
         self.client_id = client_id
-        self.get_client_local_dataset()
+        self.load_dataset()
         self.set_parameters(new_parameters)
         features_list = []
         batch_size_list = []

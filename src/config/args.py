@@ -264,3 +264,10 @@ def get_feddyn_argparser() -> ArgumentParser:
     parser = get_fedavg_argparser()
     parser.add_argument("--alpha", type=float, default=0.01)
     return parser
+
+
+def get_apfl_argparser() -> ArgumentParser:
+    parser = get_fedavg_argparser()
+    parser.add_argument("--alpha", type=float, default=0.5)
+    parser.add_argument("--adaptive_alpha", type=int, default=1)
+    return parser

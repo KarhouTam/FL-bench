@@ -26,8 +26,8 @@ class FedLCClient(FedAvgClient):
 
         self.criterion = logit_calibrated_loss
 
-    def get_client_local_dataset(self):
-        super().get_client_local_dataset()
+    def load_dataset(self):
+        super().load_dataset()
         label_counter = Counter(self.dataset.targets[self.trainset.indices].tolist())
         self.label_distrib.zero_()
         for cls, count in label_counter.items():

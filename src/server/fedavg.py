@@ -46,7 +46,7 @@ class FedAvgServer:
         self.test_clients: List[int] = None
         self.client_num_in_total: int = None
         with open(
-            _PROJECT_DIR / "data" / self.args.dataset / "seperation.json", "r"
+            _PROJECT_DIR / "data" / self.args.dataset / "separation.json", "r"
         ) as f:
             seperation = json.load(f)
         if self.args.dataset_args["split"] == "user":

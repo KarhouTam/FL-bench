@@ -22,7 +22,7 @@ class SCAFFOLDClient(FedAvgClient):
         verbose=False,
     ):
         self.client_id = client_id
-        self.get_client_local_dataset()
+        self.load_dataset()
         self.set_parameters(new_parameters)
         if self.client_id not in self.c_local.keys():
             self.c_diff = c_global

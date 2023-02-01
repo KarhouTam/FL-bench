@@ -2,15 +2,13 @@ import json
 import os
 from argparse import Namespace
 from collections import Counter
+import pickle
 from typing import Dict
 
 import torch
 import numpy as np
 from path import Path
 from PIL import Image
-from torchvision.transforms.functional import pil_to_tensor
-
-from datasets import FEMNIST, CelebA, Synthetic
 
 _DATA_ROOT = Path(__file__).parent.parent.abspath()
 
@@ -20,12 +18,9 @@ def prune_args(args: Namespace) -> Dict:
     # general settings
     args_dict["dataset"] = args.dataset
     args_dict["client_num_in_total"] = args.client_num_in_total
-    args_dict["testset_ratio"] = args.testset_ratio
+    args_dict["fraction"] = args.fraction
     args_dict["seed"] = args.seed
-
     args_dict["split"] = args.split
-    if args.split == "user":
-        args_dict["train_user_ratio"] = args.fraction
 
     if args.dataset == "emnist":
         args_dict["emnist_split"] = args.emnist_split
@@ -57,8 +52,11 @@ def process_femnist(split):
     train_dir = _DATA_ROOT / "femnist" / "data" / "train"
     test_dir = _DATA_ROOT / "femnist" / "data" / "test"
     stats = {}
-    i = 0
-    datasets = []
+    client_cnt = 0
+    data_cnt = 0
+    all_data = []
+    all_targets = []
+    data_indices = {}
     # load data of train clients
     if split == "sample":
         train_filename_list = sorted(os.listdir(train_dir))
@@ -69,60 +67,106 @@ def process_femnist(split):
             with open(test_dir / test_js_file, "r") as f:
                 test = json.load(f)
             for writer in train["users"]:
-                stats[i] = {}
+                stats[client_cnt] = {}
                 train_data = train["user_data"][writer]["x"]
                 train_targets = train["user_data"][writer]["y"]
                 test_data = test["user_data"][writer]["x"]
                 test_targets = test["user_data"][writer]["y"]
 
-                all_data = train_data + test_data
-                all_targets = train_targets + test_targets
-                stats[i]["x"] = len(all_data)
-                stats[i]["y"] = Counter(all_targets)
+                data = train_data + test_data
+                targets = train_targets + test_targets
+                all_data.append(np.array(data))
+                all_targets.append(np.array(targets))
+                data_indices[client_cnt] = {
+                    "train": list(range(data_cnt, data_cnt + len(train_data))),
+                    "test": list(
+                        range(data_cnt + len(train_data), data_cnt + len(data))
+                    ),
+                }
+                stats[client_cnt]["x"] = len(data)
+                stats[client_cnt]["y"] = Counter(targets)
 
-                datasets.append(FEMNIST(all_data, all_targets))
-                i += 1
+                data_cnt += len(data)
+                client_cnt += 1
 
-        clients_4_test = list(range(i))
-        clients_4_train = list(range(i))
+        clients_4_test = list(range(client_cnt))
+        clients_4_train = list(range(client_cnt))
+
+        num_samples = np.array(list(map(lambda stat_i: stat_i["x"], stats.values())))
+        stats["sample per client"] = {
+            "std": num_samples.mean(),
+            "stddev": num_samples.std(),
+        }
 
     else:
+        stats["train"] = {}
+        stats["test"] = {}
         for js_filename in os.listdir(train_dir):
             with open(train_dir / js_filename, "r") as f:
                 json_data = json.load(f)
             for writer in json_data["users"]:
-                stats[i] = {"x": None, "y": None}
+                stats["train"][client_cnt] = {"x": None, "y": None}
                 data = json_data["user_data"][writer]["x"]
                 targets = json_data["user_data"][writer]["y"]
-                stats["train"][i]["x"] = len(data)
-                stats["train"][i]["y"] = Counter(targets)
-                datasets.append(FEMNIST(data, targets))
-                i += 1
 
-        clients_4_train = list(range(i))
+                all_data.append(np.array(data))
+                all_targets.append(np.array(targets))
+                data_indices[client_cnt] = {
+                    "train": list(range(data_cnt, data_cnt + len(data))),
+                    "test": [],
+                }
+                stats["train"][client_cnt]["x"] = len(data)
+                stats["train"][client_cnt]["y"] = Counter(targets)
+
+                data_cnt += len(data)
+                client_cnt += 1
+
+        clients_4_train = list(range(client_cnt))
+
+        num_samples = np.array(
+            list(map(lambda stat_i: stat_i["x"], stats["train"].values()))
+        )
+        stats["train"]["sample per client"] = {
+            "std": num_samples.mean(),
+            "stddev": num_samples.std(),
+        }
 
         # load data of test clients
         for js_filename in os.listdir(test_dir):
             with open(test_dir / js_filename, "r") as f:
                 json_data = json.load(f)
             for writer in json_data["users"]:
-                stats[i] = {"x": None, "y": None}
+                stats["test"][client_cnt] = {"x": None, "y": None}
                 data = json_data["user_data"][writer]["x"]
                 targets = json_data["user_data"][writer]["y"]
-                stats["test"][i]["x"] = len(data)
-                stats["test"][i]["y"] = Counter(targets)
-                datasets.append(FEMNIST(data, targets))
-                i += 1
+                all_data.append(np.array(data))
+                all_targets.append(np.array(targets))
+                data_indices[client_cnt] = {
+                    "train": [],
+                    "test": list(range(data_cnt, data_cnt + len(data))),
+                }
+                stats["test"][client_cnt]["x"] = len(data)
+                stats["test"][client_cnt]["y"] = Counter(targets)
 
-        clients_4_test = list(range(len(clients_4_train), i))
+                data_cnt += len(data)
+                client_cnt += 1
 
-    num_samples = np.array(list(map(lambda stat_i: stat_i["x"], stats.values())))
-    stats["sample per client"] = {
-        "std": num_samples.mean(),
-        "stddev": num_samples.std(),
-    }
+        clients_4_test = list(range(len(clients_4_train), client_cnt))
 
-    return datasets, stats, len(datasets), clients_4_train, clients_4_test
+        num_samples = np.array(
+            list(map(lambda stat_i: stat_i["x"], stats["test"].values()))
+        )
+        stats["test"]["sample per client"] = {
+            "std": num_samples.mean(),
+            "stddev": num_samples.std(),
+        }
+
+    np.save(_DATA_ROOT / "femnist" / "data", np.concatenate(all_data))
+    np.save(_DATA_ROOT / "femnist" / "targets", np.concatenate(all_targets))
+    with open(_DATA_ROOT / "femnist" / "partition.pkl", "wb") as f:
+        pickle.dump(data_indices, f)
+
+    return stats, client_cnt, clients_4_train, clients_4_test
 
 
 def process_celeba(split):
@@ -137,71 +181,150 @@ def process_celeba(split):
         test = json.load(f)
 
     stats = {}
-    datasets = []
-    i = 0
+    data_cnt = 0
+    all_data = []
+    all_targets = []
+    data_indices = {}
+    client_cnt = 0
     clients_4_test, clients_4_train = None, None
 
     if split == "sample":
-        for i, ori_id in enumerate(train["users"]):
-            stats[i] = {"x": None, "y": None}
-            data = []
-            targets = []
-            targets = train["user_data"][ori_id]["y"] + test["user_data"][ori_id]["y"]
-            for img_name in (
-                train["user_data"][ori_id]["x"] + test["user_data"][ori_id]["x"]
-            ):
-                data.append(pil_to_tensor(Image.open(raw_data_dir / img_name)))
-            stats[i]["x"] = train["num_samples"][i] + test["num_samples"][i]
-            stats[i]["y"] = Counter(targets)
+        for client_cnt, ori_id in enumerate(train["users"]):
+            stats[client_cnt] = {"x": None, "y": None}
+            train_data = np.stack(
+                [
+                    np.asarray(Image.open(raw_data_dir / img_name))
+                    for img_name in train["user_data"][ori_id]["x"]
+                ],
+                axis=0,
+            )
+            test_data = np.stack(
+                [
+                    np.asarray(Image.open(raw_data_dir / img_name))
+                    for img_name in test["user_data"][ori_id]["x"]
+                ],
+                axis=0,
+            )
+            train_targets = train["user_data"][ori_id]["y"]
+            test_targets = test["user_data"][ori_id]["y"]
 
-            datasets.append(CelebA(data, targets))
-            i += 1
+            data = np.concatenate([train_data, test_data])
+            targets = train_targets + test_targets
+            if all_data == []:
+                all_data = data
+            else:
+                all_data = np.concatenate([all_data, data])
+            if all_targets == []:
+                all_targets = targets
+            else:
+                all_targets = np.concatenate([all_targets, targets])
+            data_indices[client_cnt] = {
+                "train": list(range(data_cnt, data_cnt + len(train_data))),
+                "test": list(range(data_cnt + len(train_data), data_cnt + len(data))),
+            }
+            stats[client_cnt]["x"] = (
+                train["num_samples"][client_cnt] + test["num_samples"][client_cnt]
+            )
+            stats[client_cnt]["y"] = Counter(targets)
 
-        clients_4_train = list(range(i))
-        clients_4_test = list(range(i))
+            data_cnt += len(data)
+            client_cnt += 1
+
+        clients_4_train = list(range(client_cnt))
+        clients_4_test = list(range(client_cnt))
+        num_samples = np.array(list(map(lambda stat_i: stat_i["x"], stats.values())))
+        stats["sample per client"] = {
+            "std": num_samples.mean(),
+            "stddev": num_samples.std(),
+        }
 
     else:  # t == "user"
         # process data of train clients
         stats["train"] = {}
-        for i, ori_id in enumerate(train["users"]):
-            stats[i] = {"x": None, "y": None}
-            data = []
-            targets = []
+        for client_cnt, ori_id in enumerate(train["users"]):
+            stats[client_cnt] = {"x": None, "y": None}
+            data = np.stack(
+                [
+                    np.asarray(Image.open(raw_data_dir / img_name))
+                    for img_name in train["user_data"][ori_id]["x"]
+                ],
+                axis=0,
+            )
             targets = train["user_data"][ori_id]["y"]
-            for img_name in train["user_data"][ori_id]["x"]:
-                data.append(pil_to_tensor(Image.open(raw_data_dir / img_name)))
+            if all_data == []:
+                all_data = data
+            else:
+                all_data = np.concatenate([all_data, data])
+            if all_targets == []:
+                all_targets = targets
+            else:
+                all_targets = np.concatenate([all_targets, targets])
+            data_indices[client_cnt] = {
+                "train": list(range(data_cnt, data_cnt + len(data))),
+                "test": [],
+            }
+            stats[client_cnt]["x"] = train["num_samples"][client_cnt]
+            stats[client_cnt]["y"] = Counter(targets)
 
-            stats[i]["x"] = train["num_samples"][i]
-            stats[i]["y"] = Counter(targets)
-            datasets.append(CelebA(data, targets))
-            i += 1
+            data_cnt += len(data)
+            client_cnt += 1
 
-        clients_4_train = list(range(i))
+        clients_4_train = list(range(client_cnt))
+
+        num_samples = np.array(
+            list(map(lambda stat_i: stat_i["x"], stats["train"].values()))
+        )
+        stats["sample per client"] = {
+            "std": num_samples.mean(),
+            "stddev": num_samples.std(),
+        }
 
         # process data of test clients
         stats["test"] = {}
-        for i, ori_id in enumerate(test["users"]):
-            stats[i] = {"x": None, "y": None}
-            data = []
-            targets = []
+        for client_cnt, ori_id in enumerate(test["users"]):
+            stats[client_cnt] = {"x": None, "y": None}
+            data = np.stack(
+                [
+                    np.asarray(Image.open(raw_data_dir / img_name))
+                    for img_name in test["user_data"][ori_id]["x"]
+                ],
+                axis=0,
+            )
             targets = test["user_data"][ori_id]["y"]
-            for img_name in test["user_data"][ori_id]["x"]:
-                data.append(pil_to_tensor(Image.open(raw_data_dir / img_name)))
+            if all_data == []:
+                all_data = data
+            else:
+                all_data = np.concatenate([all_data, data])
+            if all_targets == []:
+                all_targets = targets
+            else:
+                all_targets = np.concatenate([all_targets, targets])
+            data_indices[client_cnt] = {
+                "train": [],
+                "test": list(range(data_cnt, data_cnt + len(data))),
+            }
+            stats["test"][client_cnt]["x"] = test["num_samples"][client_cnt]
+            stats["test"][client_cnt]["y"] = Counter(targets)
 
-            stats["test"][i]["x"] = test["num_samples"][i]
-            stats["test"][i]["y"] = Counter(targets)
-            datasets.append(CelebA(data, targets))
-            i += 1
+            data_cnt += len(data)
+            client_cnt += 1
 
-        clients_4_test = list(range(len(clients_4_train), i))
+        clients_4_test = list(range(len(clients_4_train), client_cnt))
 
-    num_samples = np.array(list(map(lambda stat_i: stat_i["x"], stats.values())))
-    stats["sample per client"] = {
-        "std": num_samples.mean(),
-        "stddev": num_samples.std(),
-    }
+        num_samples = np.array(
+            list(map(lambda stat_i: stat_i["x"], stats["test"].values()))
+        )
+        stats["sample per client"] = {
+            "std": num_samples.mean(),
+            "stddev": num_samples.std(),
+        }
 
-    return datasets, stats, len(datasets), clients_4_train, clients_4_test
+    np.save(_DATA_ROOT / "celeba" / "data", all_data)
+    np.save(_DATA_ROOT / "celeba" / "targets", all_targets)
+    with open(_DATA_ROOT / "celeba" / "partition.pkl", "wb") as f:
+        pickle.dump(data_indices, f)
+
+    return stats, client_cnt, clients_4_train, clients_4_test
 
 
 def generate_synthetic_data(args):
@@ -219,12 +342,12 @@ def generate_synthetic_data(args):
     # samples_per_user = [10 for _ in range(args.client_num_in_total)]
     W_global = np.zeros((args.dimension, NUM_CLASS))
     b_global = np.zeros(NUM_CLASS)
-    X_split = [[] for _ in range(args.client_num_in_total)]
-    y_split = [[] for _ in range(args.client_num_in_total)]
 
-    mean_b = mean_W = np.random.normal(0, args.gamma, args.client_num_in_total)
+    mean_W = np.random.normal(0, args.gamma, args.client_num_in_total)
+    mean_b = mean_W
     B = np.random.normal(0, args.beta, args.client_num_in_total)
     mean_x = np.zeros((args.client_num_in_total, args.dimension))
+
     diagonal = np.zeros(args.dimension)
     for j in range(args.dimension):
         diagonal[j] = np.power((j + 1), -1.2)
@@ -240,8 +363,14 @@ def generate_synthetic_data(args):
         W_global = np.random.normal(0, 1, (args.dimension, NUM_CLASS))
         b_global = np.random.normal(0, 1, NUM_CLASS)
 
-    all_datasets = []
+    all_data = []
+    all_targets = []
+    data_cnt = 0
+    data_indices = {}
     stats = {}
+    if args.split == "user":
+        stats["train"] = {}
+        stats["test"] = {}
     for client_id in range(args.client_num_in_total):
 
         W = np.random.normal(mean_W[client_id], 1, (args.dimension, NUM_CLASS))
@@ -251,21 +380,52 @@ def generate_synthetic_data(args):
             W = W_global
             b = b_global
 
-        xx = np.random.multivariate_normal(
+        data = np.random.multivariate_normal(
             mean_x[client_id], cov_x, samples_per_user[client_id]
         )
-        yy = np.zeros(samples_per_user[client_id])
+        targets = np.zeros(samples_per_user[client_id])
 
         for j in range(samples_per_user[client_id]):
-            tmp = np.dot(xx[j], W) + b
-            yy[j] = np.argmax(softmax(tmp))
+            true_logit = np.dot(data[j], W) + b
+            targets[j] = np.argmax(softmax(true_logit))
 
-        X_split[client_id] = torch.tensor(xx, dtype=torch.float)
-        y_split[client_id] = torch.tensor(yy, dtype=torch.long)
-        all_datasets.append(Synthetic(X_split[client_id], y_split[client_id]))
-        stats[client_id] = {}
-        stats[client_id]["x"] = samples_per_user[client_id]
-        stats[client_id]["y"] = Counter(y_split[client_id].tolist())
+        all_data.append(data)
+        all_targets.append(targets)
+
+        if args.split == "sample":
+            num_train_samples = int(len(data) * args.fraction)
+            data_indices[client_id] = {
+                "train": list(range(data_cnt, data_cnt + num_train_samples)),
+                "test": list(range(data_cnt + num_train_samples, data_cnt + len(data))),
+            }
+            stats[client_id] = {}
+            stats[client_id]["x"] = samples_per_user[client_id]
+            stats[client_id]["y"] = Counter(targets.tolist())
+
+        else:
+            if client_id < int(args.client_num_in_total * args.fraction):
+                data_indices[client_id] = {
+                    "train": list(range(data_cnt, len(data))),
+                    "test": [],
+                }
+                stats["train"][client_id] = {}
+                stats["train"][client_id]["x"] = samples_per_user[client_id]
+                stats["train"][client_id]["y"] = Counter(targets.tolist())
+            else:
+                data_indices[client_id] = {
+                    "train": [],
+                    "test": list(range(data_cnt, data_cnt + len(data))),
+                }
+                stats["test"][client_id] = {}
+                stats["test"][client_id]["x"] = samples_per_user[client_id]
+                stats["test"][client_id]["y"] = Counter(targets.tolist())
+
+        data_cnt += len(data)
+
+    np.save(_DATA_ROOT / "synthetic" / "data", np.concatenate(all_data))
+    np.save(_DATA_ROOT / "synthetic" / "targets", np.concatenate(all_targets))
+    with open(_DATA_ROOT / "synthetic" / "partition.pkl", "wb") as f:
+        pickle.dump(data_indices, f)
 
     num_samples = np.array(list(map(lambda stat_i: stat_i["x"], stats.values())))
     stats["sample per client"] = {
@@ -273,4 +433,4 @@ def generate_synthetic_data(args):
         "stddev": num_samples.std(),
     }
 
-    return all_datasets, stats
+    return stats

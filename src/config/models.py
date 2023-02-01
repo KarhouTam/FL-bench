@@ -22,7 +22,7 @@ class FedAvgCNN(nn.Module):
             "cifar10": (3, 1600, 10),
             "cifar100": (3, 1600, 100),
             "tiny_imagenet": (3, 3200, 200),
-            "celeba": (3, 1, 2),
+            "celeba": (3, 133824, 2),
             "svhn": (3, 1600, 10),
             "usps": (1, 800, 10),
         }
@@ -91,7 +91,7 @@ class LeNet5(nn.Module):
             "cifar10": (3, 400, 10),
             "svhn": (3, 400, 10),
             "cifar100": (3, 400, 100),
-            "celeba": (3, 66912, 2),
+            "celeba": (3, 33456, 2),
             "usps": (1, 200, 10),
             "tiny_imagenet": (3, 2704, 200),
         }
@@ -163,10 +163,8 @@ class TwoNN(nn.Module):
             "femnist": (784, 62),
             "cifar10": (3072, 10),
             "svhn": (3072, 10),
-            "covid19": (54656, 4),
             "cifar100": (3072, 100),
             "usps": (1536, 10),
-            "tiny_imagenet": (6144, 200),
             "synthetic": (60, 10),  # default dimension and classes
         }
 

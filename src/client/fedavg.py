@@ -33,29 +33,27 @@ class FedAvgClient:
         )
         self.client_id: int = None
 
-        if self.args.dataset not in ["femnist", "celeba", "synthetic"]:
+        # load dataset and clients data indices
+        partition_path = _PROJECT_DIR / "data" / args.dataset / "partition.pkl"
+        if os.path.isfile(partition_path) is False:
+            raise RuntimeError("Please split the dataset first.")
+        with open(partition_path, "rb") as f:
+            self.data_indices: Dict[int, Dict[str, List[int]]] = pickle.load(f)
 
-            # load dataset and clients data indices
-            partition_path = _PROJECT_DIR / "data" / args.dataset / "partition.pkl"
-            if os.path.isfile(partition_path) is False:
-                raise RuntimeError("Please split the dataset first.")
-            with open(partition_path, "rb") as f:
-                self.data_indices: Dict[int, Dict[str, List[int]]] = pickle.load(f)
+        # set data/targets transform
+        transform = Compose(
+            [Normalize(MEAN[self.args.dataset], STD[self.args.dataset])]
+        )
+        # transform = None
+        target_transform = None
 
-            # set data/targets transform
-            transform = Compose(
-                [Normalize(MEAN[self.args.dataset], STD[self.args.dataset])]
-            )
-            # transform = None
-            target_transform = None
-
-            # load the whole dataset
-            self.dataset = DATASETS[self.args.dataset](
-                root=_PROJECT_DIR / "data" / args.dataset,
-                args=args.dataset_args,
-                transform=transform,
-                target_transform=target_transform,
-            )
+        # load the whole dataset
+        self.dataset = DATASETS[self.args.dataset](
+            root=_PROJECT_DIR / "data" / args.dataset,
+            args=args.dataset_args,
+            transform=transform,
+            target_transform=target_transform,
+        )
 
         self.trainloader: DataLoader = None
         self.testloader: DataLoader = None
@@ -82,27 +80,13 @@ class FedAvgClient:
             self.args.weight_decay,
         )
 
-    def get_client_local_dataset(self):
-        if self.args.dataset not in ["femnist", "celeba", "synthetic"]:
-            idx_train, idx_test = (
-                self.data_indices[self.client_id]["train"],
-                self.data_indices[self.client_id]["test"],
-            )
-            self.trainset = Subset(self.dataset, indices=idx_train)
-            self.testset = Subset(self.dataset, indices=idx_test)
-        else:
-            pickles_dir = _PROJECT_DIR / "data" / self.args.dataset / "pickles"
-            try:
-                pickle_path = pickles_dir / f"{self.client_id}.pkl"
-                with open(pickle_path, "rb") as f:
-                    client_dataset = pickle.load(f)
-            except:
-                raise RuntimeError("Please preprocess and create pickles first.")
-
-            self.dataset = client_dataset["dataset"]
-            self.trainset = Subset(self.dataset, indices=client_dataset["train"])
-            self.testset = Subset(self.dataset, indices=client_dataset["test"])
-
+    def load_dataset(self):
+        idx_train, idx_test = (
+            self.data_indices[self.client_id]["train"],
+            self.data_indices[self.client_id]["test"],
+        )
+        self.trainset = Subset(self.dataset, indices=idx_train)
+        self.testset = Subset(self.dataset, indices=idx_test)
         self.trainloader = DataLoader(self.trainset, self.args.batch_size)
         self.testloader = DataLoader(self.testset, self.args.batch_size)
 
@@ -165,7 +149,7 @@ class FedAvgClient:
         verbose=False,
     ):
         self.client_id = client_id
-        self.get_client_local_dataset()
+        self.load_dataset()
         self.set_parameters(new_parameters)
         stats = self.log_while_training(evaluate=evaluate, verbose=verbose)
 
@@ -212,7 +196,7 @@ class FedAvgClient:
 
     def test(self, client_id, new_parameters):
         self.client_id = client_id
-        self.get_client_local_dataset()
+        self.load_dataset()
         self.set_parameters(new_parameters)
         loss_before, loss_after = 0, 0
         correct_before, correct_after = 0, 0
