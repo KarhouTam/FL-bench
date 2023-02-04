@@ -22,6 +22,8 @@
 
 - ***Local*** -- Local training only (without communication).
 
+- ***APFL*** -- [Adaptive Personalized Federated Learning (ArXiv)](http://arxiv.org/abs/2003.13461)
+
 - ***FedBN*** -- [FedBN: Federated Learning On Non-IID Features Via Local Batch Normalization (ICLR 2021)](http://arxiv.org/abs/2102.07623)
 
 - ***FedPer*** -- [Federated Learning with Personalization Layers (AISTATS 2020)](http://arxiv.org/abs/1912.00818)
