@@ -1,3 +1,4 @@
+import pickle
 import sys
 import json
 import os
@@ -45,18 +46,15 @@ class FedAvgServer:
         self.train_clients: List[int] = None
         self.test_clients: List[int] = None
         self.client_num_in_total: int = None
-        with open(
-            _PROJECT_DIR / "data" / self.args.dataset / "separation.json", "r"
-        ) as f:
-            seperation = json.load(f)
-        if self.args.dataset_args["split"] == "user":
-            self.train_clients = seperation["train"]
-            self.test_clients = seperation["test"]
-            self.client_num_in_total = seperation["total"]
-        else:  # "sample"
-            self.train_clients = seperation["id"]
-            self.test_clients = seperation["id"]
-            self.client_num_in_total = seperation["total"]
+        try:
+            partition_path = _PROJECT_DIR / "data" / self.args.dataset / "partition.pkl"
+            with open(partition_path, "rb") as f:
+                partition = pickle.load(f)
+        except:
+            raise FileNotFoundError(f"Please partition {args.dataset} first.")
+        self.train_clients = partition["separation"]["train"]
+        self.test_clients = partition["separation"]["test"]
+        self.client_num_in_total = partition["separation"]["total"]
 
         # init model(s) parameters
         self.device = torch.device(

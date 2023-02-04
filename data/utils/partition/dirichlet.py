@@ -11,6 +11,8 @@ def dirichlet(
     num_classes = len(ori_dataset.classes)
     min_size = 0
     stats = {}
+    partition = {"separation": None, "data_indices": None}
+
     targets_numpy = np.array(ori_dataset.targets, dtype=np.int32)
     idx = [np.where(targets_numpy == i)[0] for i in range(num_classes)]
 
@@ -43,4 +45,7 @@ def dirichlet(
         "std": num_samples.mean(),
         "stddev": num_samples.std(),
     }
-    return data_indices, stats
+
+    partition["data_indices"] = data_indices
+
+    return partition, stats

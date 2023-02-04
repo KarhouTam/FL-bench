@@ -9,6 +9,8 @@ from torch.utils.data import Dataset
 def allocate_shards(
     ori_dataset: Dataset, num_clients: int, num_shards: int
 ) -> Tuple[List[List[int]], Dict[str, Dict[str, int]]]:
+    partition = {"separation": None, "data_indices": None}
+
     shards_total = num_clients * num_shards
     # one shard's length indicate how many data samples that belongs to one class that one client can obtain.
     size_of_shards = int(len(ori_dataset) / shards_total)
@@ -50,4 +52,7 @@ def allocate_shards(
         "std": num_samples.mean(),
         "stddev": num_samples.std(),
     }
-    return data_indices, stats
+
+    partition["data_indices"] = data_indices
+
+    return partition, stats

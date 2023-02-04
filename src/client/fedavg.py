@@ -1,4 +1,3 @@
-import os
 import pickle
 from argparse import Namespace
 from collections import OrderedDict
@@ -33,21 +32,22 @@ class FedAvgClient:
         )
         self.client_id: int = None
 
-        # load dataset and clients data indices
-        partition_path = _PROJECT_DIR / "data" / args.dataset / "partition.pkl"
-        if os.path.isfile(partition_path) is False:
-            raise RuntimeError("Please split the dataset first.")
-        with open(partition_path, "rb") as f:
-            self.data_indices: Dict[int, Dict[str, List[int]]] = pickle.load(f)
+        # load dataset and clients' data indices
+        try:
+            partition_path = _PROJECT_DIR / "data" / self.args.dataset / "partition.pkl"
+            with open(partition_path, "rb") as f:
+                partition = pickle.load(f)
+        except:
+            raise FileNotFoundError(f"Please partition {args.dataset} first.")
 
-        # set data/targets transform
+        self.data_indices = partition["data_indices"]
+
         transform = Compose(
             [Normalize(MEAN[self.args.dataset], STD[self.args.dataset])]
         )
         # transform = None
         target_transform = None
 
-        # load the whole dataset
         self.dataset = DATASETS[self.args.dataset](
             root=_PROJECT_DIR / "data" / args.dataset,
             args=args.dataset_args,

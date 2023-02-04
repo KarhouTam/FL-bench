@@ -1,4 +1,3 @@
-import sys
 import json
 import os
 import pickle
@@ -18,7 +17,6 @@ _CURRENT_DIR = Path(__file__).parent.abspath()
 
 def main(args):
     dataset_root = _CURRENT_DIR.parent / args.dataset
-    pickle_dir = _CURRENT_DIR.parent / args.dataset / "pickles"
 
     np.random.seed(args.seed)
     random.seed(args.seed)
@@ -27,28 +25,20 @@ def main(args):
     if not os.path.isdir(dataset_root):
         os.mkdir(dataset_root)
 
+    partition = {"separation": None, "data_indices": None}
+
     if args.dataset == "femnist":
-        (
-            stats,
-            args.client_num_in_total,
-            clients_4_train,
-            clients_4_test,
-        ) = process_femnist(args.split)
+        partition, stats = process_femnist(args)
     elif args.dataset == "celeba":
-        (
-            stats,
-            args.client_num_in_total,
-            clients_4_train,
-            clients_4_test,
-        ) = process_celeba(args.split)
+        partition, stats = process_celeba(args)
     elif args.dataset == "synthetic":
-        stats = generate_synthetic_data(args)
+        partition, stats = generate_synthetic_data(args)
     else:  # MEDMNIST, COVID, MNIST, CIFAR10, ...
         ori_dataset = DATASETS[args.dataset](dataset_root, args)
 
         if not args.iid:
             if args.alpha > 0:  # Dirichlet(alpha)
-                indices, stats = dirichlet(
+                partition, stats = dirichlet(
                     ori_dataset=ori_dataset,
                     num_clients=args.client_num_in_total,
                     alpha=args.alpha,
@@ -56,13 +46,13 @@ def main(args):
                 )
             elif args.classes != 0:  # randomly assign classes
                 args.classes = max(1, min(args.classes, len(ori_dataset.classes)))
-                indices, stats = randomly_assign_classes(
+                partition, stats = randomly_assign_classes(
                     ori_dataset=ori_dataset,
                     num_clients=args.client_num_in_total,
                     num_classes=args.classes,
                 )
             elif args.shards > 0:  # allocate shards
-                indices, stats = allocate_shards(
+                partition, stats = allocate_shards(
                     ori_dataset=ori_dataset,
                     num_clients=args.client_num_in_total,
                     num_shards=args.shards,
@@ -73,44 +63,43 @@ def main(args):
                 )
 
         else:  # iid partition
-            indices, stats = iid_partition(
+            partition, stats = iid_partition(
                 ori_dataset=ori_dataset, num_clients=args.client_num_in_total
             )
 
-    if args.split == "user":
-        if args.dataset not in ["femnist", "celeba"]:
+    if partition["separation"] is None:
+        if args.split == "user":
             train_clients_num = int(args.client_num_in_total * args.fraction)
             clients_4_train = list(range(train_clients_num))
             clients_4_test = list(range(train_clients_num, args.client_num_in_total))
-        with open(_CURRENT_DIR.parent / args.dataset / "separation.pkl", "wb") as f:
-            pickle.dump(
-                {
-                    "train": clients_4_train,
-                    "test": clients_4_test,
-                    "total": args.client_num_in_total,
-                },
-                f,
-            )
-    else:
-        client_id_indices = list(range(args.client_num_in_total))
-        with open(_CURRENT_DIR.parent / args.dataset / "separation.json", "w") as f:
-            json.dump({"id": client_id_indices, "total": args.client_num_in_total}, f)
+        else:
+            clients_4_train = list(range(args.client_num_in_total))
+            clients_4_test = list(range(args.client_num_in_total))
 
-    if args.dataset not in ["femnist", "celeba", "synthetic"]:
-        partition = {}
-        for client_id, idx in enumerate(indices):
+        partition["separation"] = {
+            "train": clients_4_train,
+            "test": clients_4_test,
+            "total": args.client_num_in_total,
+        }
+
+    if args.dataset not in ["femnist", "celeba"]:
+        for client_id, idx in enumerate(partition["data_indices"]):
             if args.split == "sample":
                 num_train_samples = int(len(idx) * args.fraction)
                 np.random.shuffle(idx)
                 idx_train, idx_test = idx[:num_train_samples], idx[num_train_samples:]
-                partition[client_id] = {"train": idx_train, "test": idx_test}
+                partition["data_indices"][client_id] = {
+                    "train": idx_train,
+                    "test": idx_test,
+                }
             else:
                 if client_id in clients_4_train:
-                    partition[client_id] = {"train": idx, "test": []}
+                    partition["data_indices"][client_id] = {"train": idx, "test": []}
                 else:
-                    partition[client_id] = {"train": [], "test": idx}
-        with open(_CURRENT_DIR.parent / args.dataset / "partition.pkl", "wb") as f:
-            pickle.dump(partition, f)
+                    partition["data_indices"][client_id] = {"train": [], "test": idx}
+
+    with open(_CURRENT_DIR.parent / args.dataset / "partition.pkl", "wb") as f:
+        pickle.dump(partition, f)
 
     with open(_CURRENT_DIR.parent / args.dataset / "all_stats.json", "w") as f:
         json.dump(stats, f)

@@ -9,11 +9,12 @@ from torch.utils.data import Dataset
 def iid_partition(
     ori_dataset: Dataset, num_clients: int
 ) -> Tuple[List[List[int]], Dict]:
+    partition = {"separation": None, "data_indices": None}
     stats = {}
+    data_indices = [[] for _ in range(num_clients)]
     targets_numpy = np.array(ori_dataset.targets, dtype=np.int64)
     idx = list(range(len(targets_numpy)))
     random.shuffle(idx)
-    data_indices = [[] for _ in range(num_clients)]
     size = int(len(idx) / num_clients)
 
     for i in range(num_clients):
@@ -27,4 +28,7 @@ def iid_partition(
         "std": num_samples.mean(),
         "stddev": num_samples.std(),
     }
-    return data_indices, stats
+
+    partition["data_indices"] = data_indices
+
+    return partition, stats

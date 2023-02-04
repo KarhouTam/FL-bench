@@ -2,10 +2,8 @@ import json
 import os
 from argparse import Namespace
 from collections import Counter
-import pickle
 from typing import Dict
 
-import torch
 import numpy as np
 from path import Path
 from PIL import Image
@@ -43,12 +41,12 @@ def prune_args(args: Namespace) -> Dict:
             args_dict["classes_per_client"] = args.classes
         # allocate shards
         elif args.shards > 0:
-            args_dict["num_shards_per_client"] = args.shards
+            args_dict["shards_per_client"] = args.shards
 
     return args_dict
 
 
-def process_femnist(split):
+def process_femnist(args):
     train_dir = _DATA_ROOT / "femnist" / "data" / "train"
     test_dir = _DATA_ROOT / "femnist" / "data" / "test"
     stats = {}
@@ -56,9 +54,11 @@ def process_femnist(split):
     data_cnt = 0
     all_data = []
     all_targets = []
-    data_indices = {}
+    partition = {"separation": None, "data_indices": {}}
+    clients_4_train, clients_4_test = None, None
+
     # load data of train clients
-    if split == "sample":
+    if args.split == "sample":
         train_filename_list = sorted(os.listdir(train_dir))
         test_filename_list = sorted(os.listdir(test_dir))
         for train_js_file, test_js_file in zip(train_filename_list, test_filename_list):
@@ -77,7 +77,7 @@ def process_femnist(split):
                 targets = train_targets + test_targets
                 all_data.append(np.array(data))
                 all_targets.append(np.array(targets))
-                data_indices[client_cnt] = {
+                partition["data_indices"][client_cnt] = {
                     "train": list(range(data_cnt, data_cnt + len(train_data))),
                     "test": list(
                         range(data_cnt + len(train_data), data_cnt + len(data))
@@ -111,7 +111,7 @@ def process_femnist(split):
 
                 all_data.append(np.array(data))
                 all_targets.append(np.array(targets))
-                data_indices[client_cnt] = {
+                partition["data_indices"][client_cnt] = {
                     "train": list(range(data_cnt, data_cnt + len(data))),
                     "test": [],
                 }
@@ -141,7 +141,7 @@ def process_femnist(split):
                 targets = json_data["user_data"][writer]["y"]
                 all_data.append(np.array(data))
                 all_targets.append(np.array(targets))
-                data_indices[client_cnt] = {
+                partition["data_indices"][client_cnt] = {
                     "train": [],
                     "test": list(range(data_cnt, data_cnt + len(data))),
                 }
@@ -163,13 +163,18 @@ def process_femnist(split):
 
     np.save(_DATA_ROOT / "femnist" / "data", np.concatenate(all_data))
     np.save(_DATA_ROOT / "femnist" / "targets", np.concatenate(all_targets))
-    with open(_DATA_ROOT / "femnist" / "partition.pkl", "wb") as f:
-        pickle.dump(data_indices, f)
 
-    return stats, client_cnt, clients_4_train, clients_4_test
+    args.client_num_in_total = client_cnt
+    partition["separation"] = {
+        "train": clients_4_train,
+        "test": clients_4_test,
+        "total": client_cnt,
+    }
+
+    return partition, stats
 
 
-def process_celeba(split):
+def process_celeba(args):
     train_dir = _DATA_ROOT / "celeba" / "data" / "train"
     test_dir = _DATA_ROOT / "celeba" / "data" / "test"
     raw_data_dir = _DATA_ROOT / "celeba" / "data" / "raw" / "img_align_celeba"
@@ -184,11 +189,11 @@ def process_celeba(split):
     data_cnt = 0
     all_data = []
     all_targets = []
-    data_indices = {}
+    partition = {"separation": None, "data_indices": {}}
     client_cnt = 0
     clients_4_test, clients_4_train = None, None
 
-    if split == "sample":
+    if args.split == "sample":
         for client_cnt, ori_id in enumerate(train["users"]):
             stats[client_cnt] = {"x": None, "y": None}
             train_data = np.stack(
@@ -218,7 +223,7 @@ def process_celeba(split):
                 all_targets = targets
             else:
                 all_targets = np.concatenate([all_targets, targets])
-            data_indices[client_cnt] = {
+            partition["data_indices"][client_cnt] = {
                 "train": list(range(data_cnt, data_cnt + len(train_data))),
                 "test": list(range(data_cnt + len(train_data), data_cnt + len(data))),
             }
@@ -259,7 +264,7 @@ def process_celeba(split):
                 all_targets = targets
             else:
                 all_targets = np.concatenate([all_targets, targets])
-            data_indices[client_cnt] = {
+            partition["data_indices"][client_cnt] = {
                 "train": list(range(data_cnt, data_cnt + len(data))),
                 "test": [],
             }
@@ -299,7 +304,7 @@ def process_celeba(split):
                 all_targets = targets
             else:
                 all_targets = np.concatenate([all_targets, targets])
-            data_indices[client_cnt] = {
+            partition["data_indices"][client_cnt] = {
                 "train": [],
                 "test": list(range(data_cnt, data_cnt + len(data))),
             }
@@ -321,10 +326,15 @@ def process_celeba(split):
 
     np.save(_DATA_ROOT / "celeba" / "data", all_data)
     np.save(_DATA_ROOT / "celeba" / "targets", all_targets)
-    with open(_DATA_ROOT / "celeba" / "partition.pkl", "wb") as f:
-        pickle.dump(data_indices, f)
 
-    return stats, client_cnt, clients_4_train, clients_4_test
+    args.client_num_in_total = client_cnt
+    partition["separation"] = {
+        "train": clients_4_train,
+        "test": clients_4_test,
+        "total": client_cnt,
+    }
+
+    return partition, stats
 
 
 def generate_synthetic_data(args):
@@ -366,7 +376,8 @@ def generate_synthetic_data(args):
     all_data = []
     all_targets = []
     data_cnt = 0
-    data_indices = {}
+    partition = {"separation": None, "data_indices": None}
+    data_indices = [[] for _ in range(args.client_num_in_total)]
     stats = {}
     if args.split == "user":
         stats["train"] = {}
@@ -392,40 +403,27 @@ def generate_synthetic_data(args):
         all_data.append(data)
         all_targets.append(targets)
 
+        data_indices[client_id] = list(range(data_cnt, data_cnt + len(data)))
+
+        data_cnt += len(data)
+
         if args.split == "sample":
-            num_train_samples = int(len(data) * args.fraction)
-            data_indices[client_id] = {
-                "train": list(range(data_cnt, data_cnt + num_train_samples)),
-                "test": list(range(data_cnt + num_train_samples, data_cnt + len(data))),
-            }
             stats[client_id] = {}
             stats[client_id]["x"] = samples_per_user[client_id]
             stats[client_id]["y"] = Counter(targets.tolist())
 
         else:
             if client_id < int(args.client_num_in_total * args.fraction):
-                data_indices[client_id] = {
-                    "train": list(range(data_cnt, len(data))),
-                    "test": [],
-                }
                 stats["train"][client_id] = {}
                 stats["train"][client_id]["x"] = samples_per_user[client_id]
                 stats["train"][client_id]["y"] = Counter(targets.tolist())
             else:
-                data_indices[client_id] = {
-                    "train": [],
-                    "test": list(range(data_cnt, data_cnt + len(data))),
-                }
                 stats["test"][client_id] = {}
                 stats["test"][client_id]["x"] = samples_per_user[client_id]
                 stats["test"][client_id]["y"] = Counter(targets.tolist())
 
-        data_cnt += len(data)
-
     np.save(_DATA_ROOT / "synthetic" / "data", np.concatenate(all_data))
     np.save(_DATA_ROOT / "synthetic" / "targets", np.concatenate(all_targets))
-    with open(_DATA_ROOT / "synthetic" / "partition.pkl", "wb") as f:
-        pickle.dump(data_indices, f)
 
     num_samples = np.array(list(map(lambda stat_i: stat_i["x"], stats.values())))
     stats["sample per client"] = {
@@ -433,4 +431,6 @@ def generate_synthetic_data(args):
         "stddev": num_samples.std(),
     }
 
-    return stats
+    partition["data_indices"] = data_indices
+
+    return partition, stats
