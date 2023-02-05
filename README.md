@@ -2,7 +2,7 @@
 
 ## Method
 
-### Regular FL mMethods
+### Regular FL Methods
 
 - ***FedAvg*** -- [Communication-Efficient Learning of Deep Networks from Decentralized Data (AISTATS 2017)](https://arxiv.org/abs/1602.05629)
 
