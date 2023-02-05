@@ -271,3 +271,9 @@ def get_apfl_argparser() -> ArgumentParser:
     parser.add_argument("--alpha", type=float, default=0.5)
     parser.add_argument("--adaptive_alpha", type=int, default=1)
     return parser
+
+
+def get_lgfedavg_argparser() -> ArgumentParser:
+    parser = get_fedavg_argparser()
+    parser.add_argument("--num_global_layers", type=int, default=1)
+    return parser
