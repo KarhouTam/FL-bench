@@ -1,8 +1,8 @@
 # Federated Learning Benchmark
 
-## Methods
+## Method
 
-### Regular FL methods
+### Regular FL mMethods
 
 - ***FedAvg*** -- [Communication-Efficient Learning of Deep Networks from Decentralized Data (AISTATS 2017)](https://arxiv.org/abs/1602.05629)
 
@@ -18,7 +18,7 @@
 - ***FedLC*** -- [Federated Learning with Label Distribution Skew via Logits Calibration (ICML 2022)](http://arxiv.org/abs/2209.00189)
   
 
-### Personalized FL methods
+### Personalized FL Methods
 
 - ***Local*** -- Local training only (without communication).
 
@@ -64,7 +64,7 @@ cd src/server
 python ${algo}.py
 ```
 
-About methods of generating federated dastaset, go check `data/utils/README.md` for full details.
+About methods of generating federated dastaset, go check [`data/utils/README.md`](https://github.com/KarhouTam/FL-bench/tree/master/data/utils#readme) for full details.
 
 
 ### Monitor
@@ -77,7 +77,7 @@ About methods of generating federated dastaset, go check `data/utils/README.md` 
 🤗 This benchmark only support algorithms to solve image classification problem for now.
 
 
-Regular image datasets
+Regular Image Datasets
 
 - *MNIST* (1 x 28 x 28, 10 classes)
 
@@ -97,7 +97,7 @@ Regular image datasets
 
 - *Tiny-Imagenet-200* (3 x 64 x 64, 200 classes)
 
-Medical image datasets
+Medical Image Datasets
 
 - [*COVID-19*](https://www.researchgate.net/publication/344295900_Curated_Dataset_for_COVID-19_Posterior-Anterior_Chest_Radiography_Images_X-Rays) (3 x 244 x 224, 4 classes)
 

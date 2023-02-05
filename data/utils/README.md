@@ -13,7 +13,7 @@ This benchmark also integrates the [*LEAF*](https://github.com/TalwalkarLab/leaf
 
 👉 Go check `data/utils/run.py` for more details of arguments.
 
-## Download datasets
+## Download Datasets
 
 Most datasets this benchmark supported are integrated in `torchvision.datasets`. So there is no extra operations need to do for downloading.
 
@@ -41,7 +41,7 @@ You can set `--iid 1` to split the dataset in IID. If `--iid` value is non-zero,
 
 ## Acknowledgement
 
-`data/femnist`, `data/celeba`, `data/leaf_utils` are copied from the [*LEAF*](https://github.com/TalwalkarLab/leaf) with subtle modification for suitable to this benchmark. Go check `data/femnist/README.md` and `data/celeba/README.md` for more details.
+`data/femnist`, `data/celeba`, `data/leaf_utils` are copied from [*LEAF*](https://github.com/TalwalkarLab/leaf) with subtle modification for suitable to this benchmark. Go check [`data/femnist/README.md`](https://github.com/KarhouTam/FL-bench/tree/master/data/femnist#readme) and [`data/celeba/README.md`](https://github.com/KarhouTam/FL-bench/tree/master/data/celeba#readme) for the full details of partition.
 
-About *Tiny-Imagenet-200*, because the data in the test set are unlabeled, so the test set is not used.
+About *Tiny-Imagenet-200*, because the data in the test set are unlabeled, so the test set is not used and the val set is considered as the test set in FL.
 
