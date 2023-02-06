@@ -277,3 +277,12 @@ def get_lgfedavg_argparser() -> ArgumentParser:
     parser = get_fedavg_argparser()
     parser.add_argument("--num_global_layers", type=int, default=1)
     return parser
+
+
+def get_knnper_argparser() -> ArgumentParser:
+    parser = get_fedavg_argparser()
+    parser.add_argument("--capacity", type=int, default=500)
+    parser.add_argument("--weight", type=float, default=0.5)
+    parser.add_argument("--scale", type=float, default=1)
+    parser.add_argument("--k", type=int, default=5)
+    return parser

@@ -48,6 +48,8 @@
 
 - ***FedAP*** -- [Personalized Federated Learning with Adaptive Batchnorm for Healthcare (IEEE Transactions on Big Data 2022)](https://arxiv.org/abs/2112.00734)
 
+- ***kNN-Per*** -- [Personalized Federated Learning through Local Memorization (ICML 2022)](http://arxiv.org/abs/2111.09360)
+
 
 More reproductions/features would come soon or later (depends on my mood 🤣).
 
