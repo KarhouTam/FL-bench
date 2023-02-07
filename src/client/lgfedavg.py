@@ -15,9 +15,7 @@ class LG_FedAvgClient(FedAvgClient):
             or isinstance(module, BatchNorm2d)
             or isinstance(module, Linear)
         ]
-        personal_layers = trainable_layers[
-            : len(trainable_layers) - self.args.num_global_layers
-        ]
+        personal_layers = trainable_layers[self.args.num_global_layers :]
 
         for module_name, module in personal_layers:
             for param_name, _ in module.named_parameters():
