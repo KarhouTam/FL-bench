@@ -36,6 +36,8 @@
 
 - ***pFedMe*** -- [Personalized Federated Learning with Moreau Envelopes (NIPS 2020)](http://arxiv.org/abs/2006.08848)
 
+- ***Ditto*** -- [Ditto: Fair and Robust Federated Learning Through Personalization (ICML 2021)](http://arxiv.org/abs/2012.04221)
+
 - ***pFedHN*** -- [Personalized Federated Learning using Hypernetworks (ICML 2021)](http://arxiv.org/abs/2103.04628)
   
 - ***pFedLA*** -- [Layer-Wised Model Aggregation for Personalized Federated Learning (CVPR 2022)](https://openaccess.thecvf.com/content/CVPR2022/html/Ma_Layer-Wised_Model_Aggregation_for_Personalized_Federated_Learning_CVPR_2022_paper.html)
