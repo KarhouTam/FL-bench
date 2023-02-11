@@ -29,30 +29,23 @@ class APFLClient(FedAvgClient):
             return deepcopy(target.state_dict())
 
         self.local_params_dict: Dict[int, OrderedDict[str, torch.Tensor]] = {
-            cid: re_init(self.model) for cid in range(client_num)
+            # cid: re_init(self.model) for cid in range(client_num)
+            cid: deepcopy(self.model.state_dict())
+            for cid in range(client_num)
         }
 
-        self.local_opt_state_dict = {}
-        self.local_optimizer = deepcopy(self.optimizer)
-        self.local_optimizer.param_groups[0]["params"] = trainable_params(
-            self.local_model
+        self.optimizer.add_param_group(
+            {"params": trainable_params(self.local_model), "lr": self.local_lr}
         )
 
     def set_parameters(self, new_parameters: OrderedDict[str, torch.nn.Parameter]):
         super().set_parameters(new_parameters)
         self.local_model.load_state_dict(self.local_params_dict[self.client_id])
-        if self.client_id in self.local_opt_state_dict.keys():
-            self.local_optimizer.load_state_dict(
-                self.local_opt_state_dict[self.client_id]
-            )
         self.alpha = self.alpha_list[self.client_id]
 
     def save_state(self):
         super().save_state()
         self.local_params_dict[self.client_id] = deepcopy(self.local_model.state_dict())
-        self.local_opt_state_dict[self.client_id] = deepcopy(
-            self.local_optimizer.state_dict()
-        )
         self.alpha_list[self.client_id] = self.alpha.clone()
 
     def _train(self):
@@ -73,9 +66,8 @@ class APFLClient(FedAvgClient):
                 logit_p = self.alpha * logit_l + (1 - self.alpha) * logit_g
                 loss = self.criterion(logit_p, y)
                 self.optimizer.zero_grad()
-                self.local_optimizer.zero_grad()
                 loss.backward()
-                self.local_optimizer.step()
+                self.optimizer.step()
 
                 if self.args.adaptive_alpha and i == 0:
                     self.update_alpha()
