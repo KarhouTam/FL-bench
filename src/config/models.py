@@ -1,14 +1,89 @@
 from collections import OrderedDict
-from typing import Dict, OrderedDict, Type
+from copy import deepcopy
+from typing import Dict, List, OrderedDict, Type
 
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
 import torchvision.models as models
 
+
+class DecoupledModel(nn.Module):
+    def __init__(self):
+        super(DecoupledModel, self).__init__()
+        self.need_all_features_flag = False
+        self.all_features = []
+        self.base: nn.Module = None
+        self.classifier: nn.Module = None
+        self.dropout: List[nn.Module] = []
+
+    def need_all_features(self):
+        self.need_all_features_flag = True
+        target_modules = [
+            module
+            for module in self.base.modules()
+            if isinstance(module, nn.Conv2d) or isinstance(module, nn.Linear)
+        ]
+
+        def get_feature_hook_fn(model, input, output):
+            self.all_features.append(output)
+
+        for module in target_modules:
+            module.register_forward_hook(get_feature_hook_fn)
+
+    def check_avaliability(self):
+        if self.base is None or self.classifier is None:
+            raise RuntimeError(
+                "You need to re-write the base and classifier in your custom model class."
+            )
+        self.dropout = [
+            module
+            for module in list(self.base.modules()) + list(self.classifier.modules())
+            if isinstance(module, nn.Dropout)
+        ]
+
+    def forward(self, x):
+        out = self.classifier(F.relu(self.base(x)))
+        if self.need_all_features_flag:
+            self.all_features = []
+        return out
+
+    def get_final_features(self, x, detach=True):
+        if len(self.dropout) > 0:
+            for dropout in self.dropout:
+                dropout.eval()
+
+        func = (lambda x: x.clone().detach()) if detach else (lambda x: x)
+        out = self.base(x)
+
+        if len(self.dropout) > 0:
+            for dropout in self.dropout:
+                dropout.train()
+
+        return func(out)
+
+    def get_all_features(self, x, detach=True):
+        feature_list = None
+        if self.need_all_features_flag:
+            if len(self.dropout) > 0:
+                for dropout in self.dropout:
+                    dropout.eval()
+
+            func = (lambda x: x.clone().detach()) if detach else (lambda x: x)
+            _ = self.base(x)
+            feature_list = [func(feature) for feature in self.all_features]
+            self.all_features = []
+
+            if len(self.dropout) > 0:
+                for dropout in self.dropout:
+                    dropout.train()
+
+        return feature_list
+
+
 # CNN used in FedAvg
-class FedAvgCNN(nn.Module):
-    def __init__(self, dataset: str, need_all_features=False):
+class FedAvgCNN(DecoupledModel):
+    def __init__(self, dataset: str):
         super(FedAvgCNN, self).__init__()
         config = {
             "mnist": (1, 1024, 10),
@@ -39,45 +114,10 @@ class FedAvgCNN(nn.Module):
             )
         )
         self.classifier = nn.Linear(512, config[dataset][2])
-        self.all_features = []
-        self.need_all_features_flag = False
-
-    def need_all_features(self):
-        self.need_all_features_flag = True
-        target_modules = [
-            module
-            for module in self.base.modules()
-            if isinstance(module, nn.Conv2d) or isinstance(module, nn.Linear)
-        ]
-
-        def get_feature_hook_fn(model, input, output):
-            self.all_features.append(output)
-
-        for module in target_modules:
-            module.register_forward_hook(get_feature_hook_fn)
-
-    def forward(self, x):
-        out = self.classifier(F.relu(self.base(x)))
-        if self.need_all_features_flag:
-            self.all_features = []
-        return out
-
-    def get_final_features(self, x, detach=True):
-        func = (lambda x: x.clone().detach()) if detach else lambda x: x
-        out = self.base(x)
-        return func(out)
-
-    def get_all_features(self, x, detach=True):
-        if self.need_all_features_flag:
-            func = (lambda x: x.clone().detach()) if detach else (lambda x: x)
-            _ = self.base(x)
-            feature_list = [func(feature) for feature in self.all_features]
-            self.all_features = []
-            return feature_list
 
 
-class LeNet5(nn.Module):
-    def __init__(self, dataset: str, need_all_features=False) -> None:
+class LeNet5(DecoupledModel):
+    def __init__(self, dataset: str) -> None:
         super(LeNet5, self).__init__()
         config = {
             "mnist": (1, 256, 10),
@@ -113,45 +153,10 @@ class LeNet5(nn.Module):
         )
 
         self.classifier = nn.Linear(84, config[dataset][2])
-        self.all_features = []
-        self.need_all_features_flag = False
-
-    def need_all_features(self):
-        self.need_all_features_flag = True
-        target_modules = [
-            module
-            for module in self.base.modules()
-            if isinstance(module, nn.Conv2d) or isinstance(module, nn.Linear)
-        ]
-
-        def get_feature_hook_fn(model, input, output):
-            self.all_features.append(output)
-
-        for module in target_modules:
-            module.register_forward_hook(get_feature_hook_fn)
-
-    def forward(self, x):
-        out = self.classifier(F.relu(self.base(x)))
-        if self.need_all_features_flag:
-            self.all_features = []
-        return out
-
-    def get_final_features(self, x, detach=True):
-        func = (lambda x: x.clone().detach()) if detach else (lambda x: x)
-        out = self.base(x)
-        return func(out)
-
-    def get_all_features(self, x, detach=True):
-        if self.need_all_features_flag:
-            func = (lambda x: x.clone().detach()) if detach else (lambda x: x)
-            _ = self.base(x)
-            feature_list = [func(feature) for feature in self.all_features]
-            self.all_features = []
-            return feature_list
 
 
 class TwoNN(nn.Module):
-    def __init__(self, dataset, need_all_features=False):
+    def __init__(self, dataset):
         super(TwoNN, self).__init__()
         config = {
             "mnist": (784, 10),
@@ -191,8 +196,8 @@ class TwoNN(nn.Module):
         raise RuntimeError("2NN has 0 Conv layer, so is disable to get all features.")
 
 
-class MobileNetV2(nn.Module):
-    def __init__(self, dataset, need_all_features=False):
+class MobileNetV2(DecoupledModel):
+    def __init__(self, dataset):
         super(MobileNetV2, self).__init__()
         config = {
             "mnist": 10,
@@ -220,52 +225,6 @@ class MobileNetV2(nn.Module):
         )
 
         self.base.classifier[1] = nn.Identity()
-
-        self.dropouts = [
-            module for module in self.base.modules() if isinstance(module, nn.Dropout)
-        ]
-
-        self.all_features = []
-        self.need_all_features_flag = False
-
-    def need_all_features(self):
-        self.need_all_features_flag = True
-        target_modules = [
-            module
-            for module in self.base.features.modules()
-            if isinstance(module, nn.Conv2d)
-        ]
-
-        def get_feature_hook_fn(model, input, output):
-            self.all_features.append(output)
-
-        for module in target_modules:
-            module.register_forward_hook(get_feature_hook_fn)
-
-    def forward(self, x):
-        out = self.classifier(F.relu(self.base(x)))
-        if self.need_all_features_flag:
-            self.all_features = []
-        return out
-
-    def get_final_features(self, x, detach=True):
-        for dropout in self.dropouts:
-            dropout.eval()
-
-        func = (lambda x: x.clone().detach()) if detach else (lambda x: x)
-        out = self.base(x)
-
-        for dropout in self.dropouts:
-            dropout.train()
-        return func(out)
-
-    def get_all_features(self, x, detach=True):
-        if self.need_all_features_flag:
-            func = (lambda x: x.clone().detach()) if detach else (lambda x: x)
-            _ = self.base(x)
-            feature_list = [func(feature) for feature in self.all_features]
-            self.all_features = []
-            return feature_list
 
 
 MODEL_DICT: Dict[str, Type[nn.Module]] = {

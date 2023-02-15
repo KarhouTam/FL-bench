@@ -61,6 +61,7 @@ class FedAvgServer:
             "cuda" if self.args.server_cuda and torch.cuda.is_available() else "cpu"
         )
         self.model = MODEL_DICT[self.args.model](self.args.dataset).to(self.device)
+        self.model.check_avaliability()
         self.trainable_params_name, init_trainable_params = trainable_params(
             self.model, requires_name=True
         )
