@@ -111,6 +111,10 @@ Medical Image Datasets
 
 Some reproductions in this benchmark are referred to <https://github.com/TsingZ0/PFL-Non-IID>, which is a great FL benchmark.  👍
 
+Due to my poor coding ability, this benchmark probably has some latent bugs. If you find it, please let me know, which matters to me and I will fix it ASAP. 👀
+
+If this benchmark is helpful to your research, it's my pleasure. 😏
+
 
 
 
