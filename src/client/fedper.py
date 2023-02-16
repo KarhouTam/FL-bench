@@ -22,6 +22,9 @@ class FedPerClient(FedAvgClient):
             # fine-tune the classifier only
             for _ in range(self.args.finetune_epoch):
                 for x, y in self.trainloader:
+                    if len(x) <= 1:
+                        continue
+
                     x, y = x.to(self.device), y.to(self.device)
                     logit = self.model(x)
                     loss = self.criterion(logit, y)

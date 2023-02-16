@@ -174,13 +174,15 @@ class FedAvgClient:
             for x, y in self.trainloader:
                 # when the current batch size is 1, the batchNorm2d modules in the model would raise error.
                 # So the latent size 1 data batches are discarded.
-                if len(x) > 1:
-                    x, y = x.to(self.device), y.to(self.device)
-                    logit = self.model(x)
-                    loss = self.criterion(logit, y)
-                    self.optimizer.zero_grad()
-                    loss.backward()
-                    self.optimizer.step()
+                if len(x) <= 1:
+                    continue
+
+                x, y = x.to(self.device), y.to(self.device)
+                logit = self.model(x)
+                loss = self.criterion(logit, y)
+                self.optimizer.zero_grad()
+                loss.backward()
+                self.optimizer.step()
 
     @torch.no_grad()
     def evaluate(self) -> Tuple[float, float, int]:
@@ -219,10 +221,12 @@ class FedAvgClient:
     def finetune(self):
         for _ in range(self.args.finetune_epoch):
             for x, y in self.trainloader:
-                if len(x) > 1:
-                    x, y = x.to(self.device), y.to(self.device)
-                    logit = self.model(x)
-                    loss = self.criterion(logit, y)
-                    self.optimizer.zero_grad()
-                    loss.backward()
-                    self.optimizer.step()
+                if len(x) <= 1:
+                    continue
+
+                x, y = x.to(self.device), y.to(self.device)
+                logit = self.model(x)
+                loss = self.criterion(logit, y)
+                self.optimizer.zero_grad()
+                loss.backward()
+                self.optimizer.step()

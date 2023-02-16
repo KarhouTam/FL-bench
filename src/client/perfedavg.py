@@ -96,6 +96,9 @@ class PerFedAvgClient(FedAvgClient):
     def get_data_batch(self):
         try:
             x, y = next(self.iter_trainloader)
+            # neglect the size 1 data batches
+            if len(x) <= 1:
+                x, y = next(self.iter_trainloader)
         except StopIteration:
             self.iter_trainloader = iter(self.trainloader)
             x, y = next(self.iter_trainloader)

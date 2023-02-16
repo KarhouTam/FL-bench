@@ -20,6 +20,9 @@ class FedRepClient(FedPerClient):
         self.model.train()
         for E in range(self.local_epoch + self.args.train_body_epoch):
             for x, y in self.trainloader:
+                if len(x) <= 1:
+                    continue
+
                 x, y = x.to(self.device), y.to(self.device)
                 logit = self.model(x)
                 loss = self.criterion(logit, y)
@@ -43,6 +46,9 @@ class FedRepClient(FedPerClient):
             # fine-tune the full model
             for E in range(self.args.finetune_epoch + self.args.train_body_epoch):
                 for x, y in self.trainloader:
+                    if len(x) <= 1:
+                        continue
+
                     x, y = x.to(self.device), y.to(self.device)
                     logit = self.model(x)
                     loss = self.criterion(logit, y)
@@ -62,6 +68,9 @@ class FedRepClient(FedPerClient):
             # fine-tune the classifier only
             for _ in range(self.args.finetune_epoch):
                 for x, y in self.trainloader:
+                    if len(x) <= 1:
+                        continue
+
                     x, y = x.to(self.device), y.to(self.device)
                     logit = self.model(x)
                     loss = self.criterion(logit, y)

@@ -70,6 +70,9 @@ class SCAFFOLDClient(FedAvgClient):
         self.iter_trainloader = iter(self.trainloader)
         for _ in range(self.args.local_epoch):
             for x, y in self.trainloader:
+                if len(x) <= 1:
+                    continue
+
                 x, y = x.to(self.device), y.to(self.device)
                 logits = self.model(x)
                 loss = self.criterion(logits, y)
