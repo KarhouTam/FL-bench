@@ -47,6 +47,9 @@ class pFedMeClient(FedAvgClient):
         for _ in range(self.args.local_epoch):
             # x, y = self.get_data_batch()
             for x, y in self.trainloader:
+                if len(x) <= 1:
+                    continue
+
                 x, y = x.to(self.device), y.to(self.device)
                 for _ in range(self.args.k):
                     logit = self.model(x)

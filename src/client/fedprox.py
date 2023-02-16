@@ -18,6 +18,9 @@ class FedProxClient(FedAvgClient):
         global_params = [p.clone().detach() for p in trainable_params(self.model)]
         for _ in range(self.local_epoch):
             for x, y in self.trainloader:
+                if len(x) <= 1:
+                    continue
+
                 x, y = x.to(self.device), y.to(self.device)
                 logit = self.model(x)
                 loss = self.criterion(logit, y)

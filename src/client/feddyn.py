@@ -33,18 +33,20 @@ class FedDynClient(FedAvgClient):
         self.model.train()
         for _ in range(self.local_epoch):
             for x, y in self.trainloader:
-                if len(x) > 1:
-                    x, y = x.to(self.device), y.to(self.device)
-                    logit = self.model(x)
-                    loss = self.criterion(logit, y)
-                    self.vectorized_curr_params = self.vectorize(self.model)
-                    loss -= -torch.dot(self.nabla, self.vectorized_global_params)
-                    loss += (self.args.alpha / 2) * torch.norm(
-                        self.vectorized_curr_params - self.vectorized_global_params
-                    )
-                    self.optimizer.zero_grad()
-                    loss.backward()
-                    self.optimizer.step()
+                if len(x) <= 1:
+                    continue
+
+                x, y = x.to(self.device), y.to(self.device)
+                logit = self.model(x)
+                loss = self.criterion(logit, y)
+                self.vectorized_curr_params = self.vectorize(self.model)
+                loss -= -torch.dot(self.nabla, self.vectorized_global_params)
+                loss += (self.args.alpha / 2) * torch.norm(
+                    self.vectorized_curr_params - self.vectorized_global_params
+                )
+                self.optimizer.zero_grad()
+                loss.backward()
+                self.optimizer.step()
 
     def vectorize(self, src):
         return torch.cat([param.flatten() for param in trainable_params(src)]).to(

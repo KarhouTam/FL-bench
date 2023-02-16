@@ -53,8 +53,10 @@ class APFLClient(FedAvgClient):
         self.local_model.train()
         for i in range(self.local_epoch):
             for x, y in self.trainloader:
-                x, y = x.to(self.device), y.to(self.device)
+                if len(x) <= 1:
+                    continue
 
+                x, y = x.to(self.device), y.to(self.device)
                 logit_g = self.model(x)
                 loss = self.criterion(logit_g, y)
                 self.optimizer.zero_grad()

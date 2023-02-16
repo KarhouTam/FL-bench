@@ -31,6 +31,9 @@ class MOONClient(FedAvgClient):
         self.model.train()
         for _ in range(self.local_epoch):
             for x, y in self.trainloader:
+                if len(x) <= 1:
+                    continue
+
                 x, y = x.to(self.device), y.to(self.device)
                 z_curr = self.model.get_final_features(x, detach=False)
                 z_global = self.global_model.get_final_features(x, detach=True)
