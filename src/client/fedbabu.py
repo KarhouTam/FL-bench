@@ -5,7 +5,7 @@ class FedBabuClient(FedAvgClient):
     def __init__(self, model, args, logger):
         super().__init__(model, args, logger)
 
-    def _train(self):
+    def fit(self):
         self.model.train()
         for _ in range(self.local_epoch):
             for x, y in self.trainloader:

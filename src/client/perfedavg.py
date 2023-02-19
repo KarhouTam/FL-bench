@@ -29,7 +29,7 @@ class PerFedAvgClient(FedAvgClient):
         verbose=False,
     ):
         delta, _, stats = super().train(
-            client_id, new_parameters, return_diff, evaluate, verbose
+            client_id, new_parameters, return_diff=return_diff, verbose=verbose
         )
         # Per-FedAvg's model aggregation doesn't need weight.
         return delta, 1.0, stats
@@ -38,7 +38,7 @@ class PerFedAvgClient(FedAvgClient):
         super().load_dataset()
         self.iter_trainloader = iter(self.trainloader)
 
-    def _train(self):
+    def fit(self):
         self.model.train()
         for _ in range(self.args.local_epoch):
             for _ in range(len(self.trainloader) // (2 + (self.args.version == "hf"))):

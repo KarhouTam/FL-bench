@@ -55,7 +55,6 @@ class pFedLAServer(FedAvgServer):
                 delta, _, self.clients_metrics[client_id][E] = self.trainer.train(
                     client_id=client_id,
                     new_parameters=client_local_params,
-                    evaluate=self.args.eval,
                     verbose=((E + 1) % self.args.verbose_gap) == 0,
                 )
 

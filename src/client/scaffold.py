@@ -18,7 +18,6 @@ class SCAFFOLDClient(FedAvgClient):
         client_id: int,
         new_parameters: OrderedDict[str, torch.Tensor],
         c_global,
-        evaluate=True,
         verbose=False,
     ):
         self.client_id = client_id
@@ -30,7 +29,7 @@ class SCAFFOLDClient(FedAvgClient):
             self.c_diff = []
             for c_l, c_g in zip(self.c_local[self.client_id], c_global):
                 self.c_diff.append(-c_l + c_g)
-        stats = self.log_while_training(evaluate, verbose)
+        stats = self.train_and_log(verbose=verbose)
 
         # update local control variate
         with torch.no_grad():
@@ -65,7 +64,7 @@ class SCAFFOLDClient(FedAvgClient):
 
         return y_delta, c_delta, stats
 
-    def _train(self):
+    def fit(self):
         self.model.train()
         self.iter_trainloader = iter(self.trainloader)
         for _ in range(self.args.local_epoch):

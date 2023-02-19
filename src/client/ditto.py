@@ -29,7 +29,7 @@ class DittoClient(FedAvgClient):
             self.pers_model.state_dict()
         )
 
-    def _train(self):
+    def fit(self):
         self.model.train()
         for _ in range(self.local_epoch):
             for x, y in self.trainloader:

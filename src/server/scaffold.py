@@ -45,7 +45,6 @@ class SCAFFOLDServer(FedAvgServer):
                     client_id=client_id,
                     new_parameters=client_local_params,
                     c_global=self.c_global,
-                    evaluate=self.args.eval,
                     verbose=((E + 1) % self.args.verbose_gap) == 0,
                 )
 

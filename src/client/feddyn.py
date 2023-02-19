@@ -18,18 +18,19 @@ class FedDynClient(FedAvgClient):
         self,
         client_id: int,
         new_parameters: OrderedDict[str, torch.nn.Parameter],
-        evaluate=False,
         verbose=False,
     ):
         self.vectorized_global_params = self.vectorize(new_parameters).detach().clone()
-        res = super().train(client_id, new_parameters, False, evaluate, verbose)
+        res = super().train(
+            client_id, new_parameters, return_diff=False, verbose=verbose
+        )
         with torch.no_grad():
             self.nabla = self.nabla - self.args.alpha * (
                 self.vectorized_curr_params - self.vectorized_global_params
             )
         return res
 
-    def _train(self):
+    def fit(self):
         self.model.train()
         for _ in range(self.local_epoch):
             for x, y in self.trainloader:

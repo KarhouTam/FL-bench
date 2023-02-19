@@ -5,18 +5,14 @@ class FedRepClient(FedPerClient):
     def __init__(self, model, args, logger):
         super().__init__(model, args, logger)
 
-    def train(self, client_id, new_parameters, evaluate=False, verbose=False):
+    def train(self, client_id, new_parameters, verbose=False):
         delta, _, stats = super().train(
-            client_id,
-            new_parameters,
-            return_diff=True,
-            evaluate=evaluate,
-            verbose=verbose,
+            client_id, new_parameters, return_diff=True, verbose=verbose
         )
         # FedRep's model aggregation doesn't use weight
         return delta, 1.0, stats
 
-    def _train(self):
+    def fit(self):
         self.model.train()
         for E in range(self.local_epoch + self.args.train_body_epoch):
             for x, y in self.trainloader:
@@ -41,6 +37,7 @@ class FedRepClient(FedPerClient):
                 self.optimizer.step()
 
     def finetune(self):
+        self.model.train()
         full_model = True
         if full_model:
             # fine-tune the full model

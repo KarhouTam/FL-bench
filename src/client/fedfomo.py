@@ -23,13 +23,12 @@ class FedFomoClient(FedAvgClient):
         self,
         client_id: int,
         received_params: Dict[int, List[torch.Tensor]],
-        evaluate=True,
         verbose=False,
     ):
         self.client_id = client_id
         self.load_dataset()
         self.set_parameters(received_params)
-        stats = self.log_while_training(evaluate, verbose)
+        stats = self.train_and_log(verbose=verbose)
         return (
             deepcopy(trainable_params(self.model)),
             deepcopy(self.weight_vector),

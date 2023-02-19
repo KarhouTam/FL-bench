@@ -1,3 +1,4 @@
+import sys
 import pickle
 from argparse import Namespace
 from collections import OrderedDict
@@ -13,7 +14,6 @@ from torchvision.transforms import Compose, Normalize
 
 _CURRENT_DIR = Path(__file__).parent.abspath()
 _PROJECT_DIR = _CURRENT_DIR.parent.parent.abspath()
-import sys
 
 sys.path.append(_PROJECT_DIR)
 sys.path.append(_PROJECT_DIR / "src")
@@ -90,17 +90,16 @@ class FedAvgClient:
         self.trainloader = DataLoader(self.trainset, self.args.batch_size)
         self.testloader = DataLoader(self.testset, self.args.batch_size)
 
-    def log_while_training(self, evaluate=True, verbose=False, save_state=True):
+    def train_and_log(self, verbose=False):
         loss_before, loss_after = 0, 0
         correct_before, correct_after = 0, 0
         num_samples = 1
-        if evaluate:
+        if self.args.eval:
             loss_before, correct_before, num_samples = self.evaluate()
         if self.local_epoch > 0:
-            self._train()
-            if save_state:
-                self.save_state()
-            if evaluate:
+            self.fit()
+            self.save_state()
+            if self.args.eval:
                 loss_after, correct_after, _ = self.evaluate()
         if verbose:
             self.logger.log(
@@ -145,13 +144,12 @@ class FedAvgClient:
         client_id: int,
         new_parameters: OrderedDict[str, torch.nn.Parameter],
         return_diff=True,
-        evaluate=False,
         verbose=False,
     ):
         self.client_id = client_id
         self.load_dataset()
         self.set_parameters(new_parameters)
-        stats = self.log_while_training(evaluate=evaluate, verbose=verbose)
+        stats = self.train_and_log(verbose=verbose)
 
         if return_diff:
             delta = OrderedDict()
@@ -168,7 +166,7 @@ class FedAvgClient:
                 stats,
             )
 
-    def _train(self):
+    def fit(self):
         self.model.train()
         for _ in range(self.local_epoch):
             for x, y in self.trainloader:
@@ -206,7 +204,6 @@ class FedAvgClient:
         correct_before, correct_after = 0, 0
         loss_before, correct_before, num_samples = self.evaluate()
         if self.args.finetune_epoch > 0:
-            self.model.train()
             self.finetune()
             loss_after, correct_after, _ = self.evaluate()
         eval_stats = {
@@ -219,6 +216,7 @@ class FedAvgClient:
         return eval_stats
 
     def finetune(self):
+        self.model.train()
         for _ in range(self.args.finetune_epoch):
             for x, y in self.trainloader:
                 if len(x) <= 1:

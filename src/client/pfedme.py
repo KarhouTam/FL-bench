@@ -25,7 +25,6 @@ class pFedMeClient(FedAvgClient):
         self,
         client_id: int,
         new_parameters: OrderedDict[str, torch.Tensor],
-        evaluate=True,
         verbose=False,
     ):
         self.client_id = client_id
@@ -33,7 +32,7 @@ class pFedMeClient(FedAvgClient):
         self.set_parameters(new_parameters)
         self.local_parameters = deepcopy(trainable_params(new_parameters))
         # self.iter_trainloader = iter(self.trainloader)
-        stats = self.log_while_training(evaluate, verbose)
+        stats = self.train_and_log(verbose=verbose)
         return (deepcopy(self.local_parameters), 1.0, stats)
 
     def save_state(self):
@@ -42,7 +41,7 @@ class pFedMeClient(FedAvgClient):
             self.model.state_dict()
         )
 
-    def _train(self):
+    def fit(self):
         self.model.train()
         for _ in range(self.args.local_epoch):
             # x, y = self.get_data_batch()

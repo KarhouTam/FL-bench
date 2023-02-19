@@ -48,7 +48,7 @@ class APFLClient(FedAvgClient):
         self.local_params_dict[self.client_id] = deepcopy(self.local_model.state_dict())
         self.alpha_list[self.client_id] = self.alpha.clone()
 
-    def _train(self):
+    def fit(self):
         self.model.train()
         self.local_model.train()
         for i in range(self.local_epoch):

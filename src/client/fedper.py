@@ -14,6 +14,7 @@ class FedPerClient(FedAvgClient):
         }
 
     def finetune(self):
+        self.model.train()
         full_model = True
         if full_model:
             # fine-tune the full model

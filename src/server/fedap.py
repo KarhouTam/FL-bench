@@ -33,16 +33,14 @@ class FedAPServer(FedAvgServer):
 
     def train(self):
         # Pre-training phase
-        if self.args.version != "f":
+        if self.args.version in ["original", "d"]:
             if 0 < self.args.pretrain_ratio < 1:
                 self.trainer.pretrain = True
             else:
                 raise RuntimeError(
                     "FedAP or d-FedAP need `pretrain_ratio` in the range of [0, 1]."
                 )
-        pretrain_params = OrderedDict(
-            zip(self.trainable_params_name, trainable_params(self.model))
-        )
+
         warmup_progress_bar = (
             track(
                 range(self.warmup_round),
@@ -54,51 +52,40 @@ class FedAPServer(FedAvgServer):
         )
         for E in warmup_progress_bar:
             self.current_epoch = E
+
             if self.args.version == "f":
                 self.selected_clients = self.client_sample_stream[E]
             else:
                 self.selected_clients = list(range(self.client_num_in_total))
 
-            client_params_cache = []
+            delta_cache = []
             weight_cache = []
             for client_id in self.selected_clients:
                 (
-                    new_params,
+                    delta,
                     weight,
                     self.clients_metrics[client_id][E],
                 ) = self.trainer.train(
                     client_id,
-                    pretrain_params,
-                    return_diff=False,
-                    evaluate=self.args.eval,
+                    self.global_params_dict,
                     verbose=((E + 1) % self.args.verbose_gap) == 0,
                 )
                 if self.args.version == "f":
-                    client_params_cache.append(new_params)
+                    delta_cache.append(delta)
                     weight_cache.append(weight)
                 else:
-                    for old_param, new_param in zip(
-                        pretrain_params.values(), new_params
-                    ):
-                        old_param.data = new_param.data
+                    for old_param, diff in zip(self.global_params_dict.values(), delta):
+                        old_param.data -= diff.data.to(self.device)
 
             if self.args.version == "f":
-                w = torch.tensor(weight_cache, device=self.device) / sum(weight_cache)
-                for old_param, new_param in zip(
-                    pretrain_params.values(), zip(*client_params_cache)
-                ):
-                    old_param.data = (
-                        (torch.stack(new_param, dim=-1).to(self.device) * w)
-                        .sum(dim=-1)
-                        .data
-                    )
+                self.aggregate(delta_cache, weight_cache)
 
             self.log_info()
 
         # update clients params to pretrain params
-        self.model.load_state_dict(pretrain_params, strict=False)
         self.client_trainable_params = [
-            deepcopy(trainable_params(self.model)) for _ in self.train_clients
+            deepcopy(trainable_params(self.global_params_dict))
+            for _ in self.train_clients
         ]
 
         # generate weight matrix
@@ -152,20 +139,19 @@ class FedAPServer(FedAvgServer):
 
             self.selected_clients = self.client_sample_stream[E]
 
-            client_params_cache = []
+            delta_cache = []
             for client_id in self.selected_clients:
                 client_local_params = self.generate_client_params(client_id)
-                new_params, _, self.clients_metrics[client_id][E] = self.trainer.train(
+                delta, _, self.clients_metrics[client_id][E] = self.trainer.train(
                     client_id=client_id,
                     new_parameters=client_local_params,
                     return_diff=False,
-                    evaluate=self.args.eval,
                     verbose=((E + 1) % self.args.verbose_gap) == 0,
                 )
 
-                client_params_cache.append(new_params)
+                delta_cache.append(delta)
 
-            self.update_client_params(client_params_cache)
+            self.update_client_params(delta_cache)
             self.log_info()
 
     def get_form(self):
@@ -173,11 +159,9 @@ class FedAPServer(FedAvgServer):
         tmp_var = []
         for name in self.model.state_dict().keys():
             if "running_mean" in name:
-                tmp_mean.append(
-                    self.model.state_dict()[name].detach().to("cpu").numpy()
-                )
+                tmp_mean.append(self.model.state_dict()[name].cpu().numpy())
             if "running_var" in name:
-                tmp_var.append(self.model.state_dict()[name].detach().to("cpu").numpy())
+                tmp_var.append(self.model.state_dict()[name].cpu().numpy())
 
         if self.args.version == "d":
             tmp_mean = [tmp_mean[-1]]

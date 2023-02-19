@@ -44,7 +44,6 @@ class FedFOMOServer(FedAvgServer):
                 ) = self.trainer.train(
                     client_id=client_id,
                     received_params=selected_params,
-                    evaluate=self.args.eval,
                     verbose=((E + 1) % self.args.verbose_gap) == 0,
                 )
 
