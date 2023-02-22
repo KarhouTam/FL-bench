@@ -68,7 +68,7 @@ cd src/server
 python ${algo}.py
 ```
 
-About methods of generating federated dastaset, go check [`data/utils/README.md`](https://github.com/KarhouTam/FL-bench/tree/master/data/utils#readme) for full details.
+About methods of generating federated dastaset, go check [`data/README.md`](https://github.com/KarhouTam/FL-bench/tree/master/data/#readme) for full details.
 
 
 ### Monitor
