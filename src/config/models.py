@@ -155,7 +155,7 @@ class LeNet5(DecoupledModel):
         self.classifier = nn.Linear(84, config[dataset][2])
 
 
-class TwoNN(nn.Module):
+class TwoNN(DecoupledModel):
     def __init__(self, dataset):
         super(TwoNN, self).__init__()
         config = {
@@ -173,7 +173,7 @@ class TwoNN(nn.Module):
             "synthetic": (60, 10),  # default dimension and classes
         }
 
-        self.fc1 = nn.Linear(config[dataset][0], 200)
+        self.base = nn.Linear(config[dataset][0], 200)
         self.classifier = nn.Linear(200, config[dataset][1])
         self.activation = nn.ReLU()
 
@@ -182,14 +182,14 @@ class TwoNN(nn.Module):
 
     def forward(self, x):
         x = torch.flatten(x, start_dim=1)
-        x = self.activation(self.fc1(x))
+        x = self.activation(self.base(x))
         x = self.classifier(x)
         return x
 
     def get_final_features(self, x, detach=True):
         func = (lambda x: x.clone().detach()) if detach else (lambda x: x)
         x = torch.flatten(x, start_dim=1)
-        x = self.fc1(x)
+        x = self.base(x)
         return func(x)
 
     def get_all_features(self, x, detach=True):

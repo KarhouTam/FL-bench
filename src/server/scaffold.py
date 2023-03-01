@@ -24,7 +24,7 @@ class SCAFFOLDServer(FedAvgServer):
             self.current_epoch = E
 
             if (E + 1) % self.args.verbose_gap == 0:
-                self.logger.log(" " * 30, f"TRAININg EPOCH: {E + 1}", " " * 30)
+                self.logger.log(" " * 30, f"TRAINING EPOCH: {E + 1}", " " * 30)
 
             if (E + 1) % self.args.test_gap == 0:
                 self.test()
@@ -58,22 +58,19 @@ class SCAFFOLDServer(FedAvgServer):
     @torch.no_grad()
     def aggregate(
         self,
-        y_delta_cache: List[OrderedDict[str, torch.Tensor]],
+        y_delta_cache: List[List[torch.Tensor]],
         c_delta_cache: List[List[torch.Tensor]],
     ):
-        y_delta_list = [list(delta.values()) for delta in y_delta_cache]
         for param, y_delta in zip(
-            trainable_params(self.global_params_dict), zip(*y_delta_list)
+            trainable_params(self.global_params_dict), zip(*y_delta_cache)
         ):
-            x_delta = torch.stack(y_delta).mean(dim=0).to(self.device)
-            param.data += self.args.global_lr * x_delta
+            x_delta = torch.stack(y_delta, dim=-1).mean(dim=-1).to(self.device)
+            param.data += self.args.global_lr * x_delta.to(self.device)
 
         # update global control
         for c_global, c_delta in zip(self.c_global, zip(*c_delta_cache)):
-            c_delta = torch.stack(c_delta).mean(dim=0)
-            c_global.data += (
-                len(self.selected_clients) / self.client_num_in_total
-            ) * c_delta
+            c_delta = torch.stack(c_delta, dim=-1).sum(dim=-1).to(self.device)
+            c_global.data += (1 / self.client_num_in_total) * c_delta.data
 
 
 if __name__ == "__main__":
