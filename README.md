@@ -91,15 +91,17 @@ Regular Image Datasets
 
 - *FashionMNIST* (1 x 28 x 28, 10 classes)
 
-- *FEMNIST* (1 x 28 x 28, 62 classes)
+- [*FEMNIST*](https://leaf.cmu.edu/) (1 x 28 x 28, 62 classes)
 
-- *CelebA* (3 x 218 x 178, 2 classes)
+- [*CelebA*](https://leaf.cmu.edu/) (3 x 218 x 178, 2 classes)
 
-- *SVHN* (3 x 32 x 32, 10 classes)
+- [*SVHN*](http://ufldl.stanford.edu/housenumbers/) (3 x 32 x 32, 10 classes)
 
-- *USPS* (1 x 16 x 16, 10 classes)
+- [*USPS*](https://ieeexplore.ieee.org/document/291440) (1 x 16 x 16, 10 classes)
 
-- *Tiny-Imagenet-200* (3 x 64 x 64, 200 classes)
+- [*Tiny-Imagenet-200*](https://arxiv.org/pdf/1707.08819.pdf) (3 x 64 x 64, 200 classes)
+
+- [*CINIC-10*](https://datashare.ed.ac.uk/handle/10283/3192) (3 x 32 x 32, 10 classes)
 
 Medical Image Datasets
 

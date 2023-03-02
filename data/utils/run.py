@@ -130,6 +130,7 @@ if __name__ == "__main__":
             "svhn",
             "usps",
             "tiny_imagenet",
+            "cinic10",
         ],
         default="cifar10",
     )
