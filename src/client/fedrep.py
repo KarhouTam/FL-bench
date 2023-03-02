@@ -1,4 +1,4 @@
-from .fedper import FedPerClient
+from fedper import FedPerClient
 
 
 class FedRepClient(FedPerClient):

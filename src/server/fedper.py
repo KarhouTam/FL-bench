@@ -1,8 +1,8 @@
 from copy import deepcopy
 
 from fedavg import FedAvgServer
-from client.fedper import FedPerClient
-from config.args import get_fedavg_argparser
+from src.client.fedper import FedPerClient
+from src.config.args import get_fedavg_argparser
 
 
 class FedPerServer(FedAvgServer):

@@ -5,7 +5,7 @@ from typing import Dict, OrderedDict
 import torch
 from torch.nn.functional import cosine_similarity, relu
 
-from .fedavg import FedAvgClient
+from fedavg import FedAvgClient
 
 
 class MOONClient(FedAvgClient):

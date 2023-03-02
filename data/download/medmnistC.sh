@@ -12,5 +12,5 @@ tar -xzvf medmnistC.tar.gz;
 
 mv medmnistC/* ./;
 
-rm -rf medmnistC medmnistC.tar.gz
+rm -rf medmnistC
 

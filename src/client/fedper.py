@@ -1,4 +1,4 @@
-from .fedavg import FedAvgClient
+from fedavg import FedAvgClient
 
 
 class FedPerClient(FedAvgClient):

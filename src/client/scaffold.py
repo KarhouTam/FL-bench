@@ -3,8 +3,8 @@ from typing import Dict, Iterator, List, OrderedDict
 
 import torch
 
-from .fedavg import FedAvgClient
-from config.utils import trainable_params
+from fedavg import FedAvgClient
+from src.config.utils import trainable_params
 
 
 class SCAFFOLDClient(FedAvgClient):

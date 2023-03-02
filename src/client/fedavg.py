@@ -1,4 +1,3 @@
-import sys
 import pickle
 from argparse import Namespace
 from collections import OrderedDict
@@ -12,14 +11,9 @@ from torch.optim import SGD
 from torch.utils.data import DataLoader, Subset
 from torchvision.transforms import Compose, Normalize
 
-_CURRENT_DIR = Path(__file__).parent.abspath()
-_PROJECT_DIR = _CURRENT_DIR.parent.parent.abspath()
+_PROJECT_DIR = Path(__file__).parent.parent.parent.abspath()
 
-sys.path.append(_PROJECT_DIR)
-sys.path.append(_PROJECT_DIR / "src")
-sys.path.append(_PROJECT_DIR / "data" / "utils")
-
-from config.utils import trainable_params
+from src.config.utils import trainable_params
 from data.utils.constants import MEAN, STD
 from data.utils.datasets import DATASETS
 

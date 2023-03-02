@@ -15,16 +15,14 @@ from rich.console import Console
 from rich.progress import track
 from tqdm import tqdm
 
-_CURRENT_DIR = Path(__file__).parent.abspath()
-_PROJECT_DIR = _CURRENT_DIR.parent.parent.abspath()
+_PROJECT_DIR = Path(__file__).parent.parent.parent.abspath()
 
 sys.path.append(_PROJECT_DIR)
-sys.path.append(_PROJECT_DIR / "src")
 
-from config.utils import LOG_DIR, fix_random_seed, trainable_params
-from config.models import MODEL_DICT
-from config.args import get_fedavg_argparser
-from client.fedavg import FedAvgClient
+from src.config.utils import LOG_DIR, fix_random_seed, trainable_params
+from src.config.models import MODEL_DICT
+from src.config.args import get_fedavg_argparser
+from src.client.fedavg import FedAvgClient
 
 
 class FedAvgServer:

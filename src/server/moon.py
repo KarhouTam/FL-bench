@@ -1,7 +1,8 @@
 from copy import deepcopy
+
 from fedavg import FedAvgServer
-from config.args import get_moon_argparser
-from client.moon import MOONClient
+from src.config.args import get_moon_argparser
+from src.client.moon import MOONClient
 
 
 class MOONServer(FedAvgServer):

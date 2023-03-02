@@ -1,8 +1,8 @@
 from copy import deepcopy
 
 from fedavg import FedAvgServer
-from config.args import get_lgfedavg_argparser
-from client.lgfedavg import LG_FedAvgClient
+from src.config.args import get_lgfedavg_argparser
+from src.client.lgfedavg import LG_FedAvgClient
 
 
 class LG_FedAvgServer(FedAvgServer):

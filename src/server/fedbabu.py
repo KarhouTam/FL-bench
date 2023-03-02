@@ -1,8 +1,8 @@
 from copy import deepcopy
 
 from fedavg import FedAvgServer
-from config.args import get_fedavg_argparser
-from client.fedbabu import FedBabuClient
+from src.config.args import get_fedavg_argparser
+from src.client.fedbabu import FedBabuClient
 
 
 class FedBABUServer(FedAvgServer):

@@ -2,7 +2,7 @@ from collections import Counter
 
 import torch
 
-from .fedavg import FedAvgClient
+from fedavg import FedAvgClient
 
 
 class FedLCClient(FedAvgClient):

@@ -4,8 +4,8 @@ from typing import List
 import torch
 
 from fedavg import FedAvgServer
-from client.pfedme import pFedMeClient
-from config.args import get_pfedme_argparser
+from src.client.pfedme import pFedMeClient
+from src.config.args import get_pfedme_argparser
 
 
 class pFedMeServer(FedAvgServer):

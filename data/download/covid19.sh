@@ -1,7 +1,7 @@
 #!/bin/bash
 
 if [ ! -d "../covid19/raw" ]; then 
-mkdir ../covid19/raw;
+mkdir -p ../covid19/raw;
 fi
 
 cd ../covid19/raw;

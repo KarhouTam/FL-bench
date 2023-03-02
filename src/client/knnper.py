@@ -11,7 +11,7 @@ except:
         "Install faiss according to https://github.com/facebookresearch/faiss#installing first."
     )
 
-from .fedavg import FedAvgClient
+from fedavg import FedAvgClient
 
 
 class kNNPerClient(FedAvgClient):

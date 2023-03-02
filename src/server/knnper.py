@@ -1,8 +1,8 @@
 from copy import deepcopy
 
 from fedavg import FedAvgServer
-from config.args import get_knnper_argparser
-from client.knnper import kNNPerClient
+from src.config.args import get_knnper_argparser
+from src.client.knnper import kNNPerClient
 
 
 class kNNPerServer(FedAvgServer):

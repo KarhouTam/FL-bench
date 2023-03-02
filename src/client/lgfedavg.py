@@ -1,7 +1,6 @@
-import torch
 from torch.nn import BatchNorm2d, Conv2d, Linear
 
-from .fedavg import FedAvgClient
+from fedavg import FedAvgClient
 
 
 class LG_FedAvgClient(FedAvgClient):

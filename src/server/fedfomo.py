@@ -3,8 +3,8 @@ from copy import deepcopy
 import torch
 
 from fedavg import FedAvgServer
-from config.args import get_fedfomo_argparser
-from client.fedfomo import FedFomoClient
+from src.config.args import get_fedfomo_argparser
+from src.client.fedfomo import FedFomoClient
 
 
 class FedFOMOServer(FedAvgServer):

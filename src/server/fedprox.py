@@ -1,7 +1,8 @@
 from copy import deepcopy
+
 from fedavg import FedAvgServer
-from config.args import get_fedprox_argparser
-from client.fedprox import FedProxClient
+from src.config.args import get_fedprox_argparser
+from src.client.fedprox import FedProxClient
 
 
 class FedProxServer(FedAvgServer):

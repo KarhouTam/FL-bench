@@ -3,7 +3,7 @@ from typing import OrderedDict
 
 import torch
 
-from .fedbn import FedBNClient
+from fedbn import FedBNClient
 
 
 class FedAPClient(FedBNClient):

@@ -12,6 +12,6 @@ unzip tiny-imagenet-200.zip;
 
 mv tiny-imagenet-200/* ./;
 
-rm -rf tiny-imagenet-200 tiny-imagenet-200.zip;
+rm -rf tiny-imagenet-200;
 
 cd ../../

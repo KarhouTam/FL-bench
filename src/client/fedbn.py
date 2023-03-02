@@ -1,6 +1,6 @@
 from torch.nn import BatchNorm2d
 
-from .fedavg import FedAvgClient
+from fedavg import FedAvgClient
 
 
 class FedBNClient(FedAvgClient):

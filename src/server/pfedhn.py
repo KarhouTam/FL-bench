@@ -5,9 +5,9 @@ from copy import deepcopy
 import torch
 import torch.nn as nn
 from fedavg import FedAvgServer
-from client.fedper import FedPerClient
-from config.args import get_pfedhn_argparser
-from config.utils import trainable_params
+from src.client.fedper import FedPerClient
+from src.config.args import get_pfedhn_argparser
+from src.config.utils import trainable_params
 
 
 class pFedHNServer(FedAvgServer):

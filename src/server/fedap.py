@@ -9,9 +9,9 @@ from rich.progress import track
 from tqdm import tqdm
 
 from fedavg import FedAvgServer
-from config.args import get_fedap_argparser
-from config.utils import trainable_params
-from client.fedap import FedAPClient
+from src.config.args import get_fedap_argparser
+from src.config.utils import trainable_params
+from src.client.fedap import FedAPClient
 
 # Codes below are modified from FedAP's official repo: https://github.com/microsoft/PersonalizedFL
 class FedAPServer(FedAvgServer):

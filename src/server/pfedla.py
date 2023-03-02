@@ -1,5 +1,5 @@
-from copy import deepcopy
 import os
+from copy import deepcopy
 from collections import OrderedDict
 from typing import OrderedDict
 
@@ -8,9 +8,8 @@ import torch.nn as nn
 import torch.nn.functional as F
 
 from fedavg import FedAvgServer
-from config.args import get_pfedla_argparser
-from config.utils import TEMP_DIR, trainable_params
-from config.models import *
+from src.config.args import get_pfedla_argparser
+from src.config.utils import TEMP_DIR, trainable_params
 
 
 class pFedLAServer(FedAvgServer):

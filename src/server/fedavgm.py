@@ -1,6 +1,7 @@
 import torch
+
 from fedavg import FedAvgServer
-from config.args import get_fedavgm_argparser
+from src.config.args import get_fedavgm_argparser
 
 
 class FedAvgMServer(FedAvgServer):

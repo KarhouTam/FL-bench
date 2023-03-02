@@ -1,8 +1,8 @@
 from copy import deepcopy
 
 from fedavg import FedAvgServer
-from config.args import get_ditto_argparser
-from client.ditto import DittoClient
+from src.config.args import get_ditto_argparser
+from src.client.ditto import DittoClient
 
 
 class DittoServer(FedAvgServer):

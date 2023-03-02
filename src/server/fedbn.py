@@ -1,7 +1,7 @@
 from copy import deepcopy
 
 from fedavg import FedAvgServer
-from client.fedbn import FedBNClient
+from src.client.fedbn import FedBNClient
 
 
 class FedBNServer(FedAvgServer):

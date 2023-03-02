@@ -1,8 +1,8 @@
 from copy import deepcopy
 
 from fedavg import FedAvgServer
-from config.args import get_apfl_argparser
-from client.apfl import APFLClient
+from src.config.args import get_apfl_argparser
+from src.client.apfl import APFLClient
 
 
 class APFLServer(FedAvgServer):

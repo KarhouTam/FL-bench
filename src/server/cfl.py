@@ -5,7 +5,7 @@ import numpy as np
 from sklearn.cluster import AgglomerativeClustering
 
 from fedavg import FedAvgServer
-from config.args import get_cfl_argparser
+from src.config.args import get_cfl_argparser
 
 
 class ClusteredFL(FedAvgServer):

@@ -1,7 +1,8 @@
 from copy import deepcopy
+
 from fedavg import FedAvgServer
-from config.args import get_perfedavg_argparser
-from client.perfedavg import PerFedAvgClient
+from src.config.args import get_perfedavg_argparser
+from src.client.perfedavg import PerFedAvgClient
 
 
 class PerFedAvgServer(FedAvgServer):

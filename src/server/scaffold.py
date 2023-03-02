@@ -1,12 +1,12 @@
 from copy import deepcopy
-from typing import List, OrderedDict
+from typing import List
 
 import torch
 
 from fedavg import FedAvgServer
-from client.scaffold import SCAFFOLDClient
-from config.args import get_scaffold_argparser
-from config.utils import trainable_params
+from src.client.scaffold import SCAFFOLDClient
+from src.config.args import get_scaffold_argparser
+from src.config.utils import trainable_params
 
 
 class SCAFFOLDServer(FedAvgServer):

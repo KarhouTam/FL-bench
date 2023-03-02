@@ -5,8 +5,8 @@ from typing import Iterator, OrderedDict
 import torch
 from torch.utils.data import DataLoader
 
-from .fedavg import FedAvgClient
-from config.utils import clone_params, trainable_params
+from fedavg import FedAvgClient
+from src.config.utils import clone_params, trainable_params
 
 
 class PerFedAvgClient(FedAvgClient):

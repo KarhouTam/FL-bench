@@ -3,9 +3,9 @@ from copy import deepcopy
 import torch
 
 from fedavg import FedAvgServer
-from client.feddyn import FedDynClient
-from config.args import get_feddyn_argparser
-from config.utils import trainable_params
+from src.client.feddyn import FedDynClient
+from src.config.args import get_feddyn_argparser
+from src.config.utils import trainable_params
 
 
 class FedDynServer(FedAvgServer):
