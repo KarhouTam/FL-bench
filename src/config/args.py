@@ -77,7 +77,7 @@ def get_fedavg_argparser() -> ArgumentParser:
         "--eval",
         type=int,
         default=1,
-        help="Non-zero value for performing evaluation on joined clients' testset before and after their local training.",
+        help="Non-zero value for performing evaluation on joined clients' testset before and after local training.",
     )
     parser.add_argument(
         "-lr",
@@ -293,4 +293,13 @@ def get_ditto_argparser() -> ArgumentParser:
     parser = get_fedavg_argparser()
     parser.add_argument("--pers_epoch", type=int, default=1)
     parser.add_argument("--lamda", type=float, default=1)
+    return parser
+
+
+def get_fedmd_argparser() -> ArgumentParser:
+    parser = get_fedavg_argparser()
+    parser.add_argument("--digest_epoch", type=int, default=1)
+    parser.add_argument("--public_dataset", type=str, default="mnist")
+    parser.add_argument("--public_batch_size", type=int, default=32)
+    parser.add_argument("--public_batch_num", type=int, default=5)
     return parser

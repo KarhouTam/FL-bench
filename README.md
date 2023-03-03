@@ -22,6 +22,8 @@
 
 - ***Local*** -- Local training only (without communication).
 
+- ***FedMD*** -- [FedMD: Heterogenous Federated Learning via Model Distillation (NIPS 2019)](http://arxiv.org/abs/1910.03581)
+
 - ***APFL*** -- [Adaptive Personalized Federated Learning (ArXiv)](http://arxiv.org/abs/2003.13461)
 
 - ***LG-FedAvg*** -- [Think Locally, Act Globally: Federated Learning with Local and Global Representations (ArXiv)](https://arxiv.org/abs/2001.01523)
