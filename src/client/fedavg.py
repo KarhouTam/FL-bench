@@ -2,7 +2,7 @@ import pickle
 from argparse import Namespace
 from collections import OrderedDict
 from copy import deepcopy
-from typing import Dict, List, OrderedDict, Tuple
+from typing import Dict, List, Tuple
 
 import torch
 from path import Path
@@ -14,12 +14,13 @@ from torchvision.transforms import Compose, Normalize
 _PROJECT_DIR = Path(__file__).parent.parent.parent.abspath()
 
 from src.config.utils import trainable_params
+from src.config.models import DecoupledModel
 from data.utils.constants import MEAN, STD
 from data.utils.datasets import DATASETS
 
 
 class FedAvgClient:
-    def __init__(self, model: torch.nn.Module, args: Namespace, logger: Console):
+    def __init__(self, model: DecoupledModel, args: Namespace, logger: Console):
         self.args = args
         self.device = torch.device(
             "cuda" if self.args.client_cuda and torch.cuda.is_available() else "cpu"
@@ -34,7 +35,7 @@ class FedAvgClient:
         except:
             raise FileNotFoundError(f"Please partition {args.dataset} first.")
 
-        self.data_indices = partition["data_indices"]
+        self.data_indices: List[List[int]] = partition["data_indices"]
 
         transform = Compose(
             [Normalize(MEAN[self.args.dataset], STD[self.args.dataset])]
@@ -59,9 +60,9 @@ class FedAvgClient:
         self.local_lr = self.args.local_lr
         self.criterion = torch.nn.CrossEntropyLoss().to(self.device)
         self.logger = logger
-        self.personal_params_dict: Dict[str, Dict[str, torch.Tensor]] = {}
+        self.personal_params_dict: Dict[int, Dict[str, torch.Tensor]] = {}
         self.personal_params_name: List[str] = []
-        self.init_personal_params_dict = {
+        self.init_personal_params_dict: Dict[str, torch.Tensor] = {
             key: param.clone().detach()
             for key, param in self.model.state_dict(keep_vars=True).items()
             if not param.requires_grad
@@ -139,7 +140,7 @@ class FedAvgClient:
         new_parameters: OrderedDict[str, torch.nn.Parameter],
         return_diff=True,
         verbose=False,
-    ):
+    ) -> Tuple[List[torch.nn.Parameter], int, Dict]:
         self.client_id = client_id
         self.load_dataset()
         self.set_parameters(new_parameters)
@@ -187,10 +188,12 @@ class FedAvgClient:
             logits = self.model(x)
             loss += criterion(logits, y)
             pred = torch.argmax(logits, -1)
-            correct += (pred == y).int().sum()
+            correct += (pred == y).sum()
         return loss.item(), correct.item(), len(self.testset)
 
-    def test(self, client_id, new_parameters):
+    def test(
+        self, client_id: int, new_parameters: OrderedDict[str, torch.nn.Parameter]
+    ):
         self.client_id = client_id
         self.load_dataset()
         self.set_parameters(new_parameters)

@@ -1,5 +1,5 @@
 from collections import OrderedDict
-from typing import Dict, Iterator, List, OrderedDict
+from typing import Dict, Iterator, List
 
 import torch
 
@@ -18,7 +18,7 @@ class SCAFFOLDClient(FedAvgClient):
         self,
         client_id: int,
         new_parameters: OrderedDict[str, torch.Tensor],
-        c_global,
+        c_global: List[torch.Tensor],
         verbose=False,
     ):
         self.client_id = client_id

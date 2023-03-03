@@ -277,7 +277,7 @@ class FedAvgServer:
                 ] = "acc: {:.2f}% -> {:.2f}%".format(acc_before, acc_after)
 
     @torch.no_grad()
-    def update_client_params(self, client_params_cache):
+    def update_client_params(self, client_params_cache: List[List[torch.nn.Parameter]]):
         if self.unique_model:
             for i, client_id in enumerate(self.selected_clients):
                 self.client_trainable_params[client_id] = [
@@ -288,7 +288,7 @@ class FedAvgServer:
                 "FL system don't preserve params for each client (unique_model = False)."
             )
 
-    def generate_client_params(self, client_id) -> OrderedDict[str, torch.Tensor]:
+    def generate_client_params(self, client_id: int) -> OrderedDict[str, torch.Tensor]:
         if self.unique_model:
             return OrderedDict(
                 zip(self.trainable_params_name, self.client_trainable_params[client_id])
@@ -297,7 +297,7 @@ class FedAvgServer:
             return self.global_params_dict
 
     @torch.no_grad()
-    def aggregate(self, delta_cache, weight_cache):
+    def aggregate(self, delta_cache: List[List[torch.Tensor]], weight_cache: List[int]):
         weights = torch.tensor(weight_cache, device=self.device) / sum(weight_cache)
         delta_list = [list(delta.values()) for delta in delta_cache]
         aggregated_delta = [

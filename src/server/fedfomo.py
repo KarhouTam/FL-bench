@@ -14,7 +14,7 @@ class FedFOMOServer(FedAvgServer):
             "FedFomo", parser.parse_args(), unique_model=True, default_trainer=False
         )
         self.trainer = FedFomoClient(
-            deepcopy(self.model), self.args, self.client_num_in_total, self.logger
+            deepcopy(self.model), self.args, self.logger, self.client_num_in_total
         )
         self.P = torch.eye(self.client_num_in_total, device=self.device)
         self.test_flag = False

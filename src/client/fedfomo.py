@@ -10,7 +10,7 @@ from src.config.utils import trainable_params
 
 
 class FedFomoClient(FedAvgClient):
-    def __init__(self, model, args, client_num_in_total, logger):
+    def __init__(self, model, args, logger, client_num_in_total):
         super().__init__(model, args, logger)
         self.received_params = {}
         self.eval_model = deepcopy(self.model)

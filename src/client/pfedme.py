@@ -1,6 +1,6 @@
 from collections import OrderedDict
 from copy import deepcopy
-from typing import Dict, OrderedDict, Tuple
+from typing import Dict, Tuple, List
 
 import torch
 from torch.optim import Optimizer
@@ -89,7 +89,7 @@ class pFedMeOptimizer(Optimizer):
         super(pFedMeOptimizer, self).__init__(params, defaults)
 
     @torch.no_grad()
-    def step(self, local_parameters):
+    def step(self, local_parameters: List[torch.nn.Parameter]):
         group = None
         for group in self.param_groups:
             for param_p, param_l in zip(group["params"], local_parameters):

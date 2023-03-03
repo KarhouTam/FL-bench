@@ -231,7 +231,7 @@ class MobileNetV2(DecoupledModel):
         self.base.classifier[1] = nn.Identity()
 
 
-MODEL_DICT: Dict[str, Type[nn.Module]] = {
+MODEL_DICT: Dict[str, Type[DecoupledModel]] = {
     "lenet5": LeNet5,
     "avgcnn": FedAvgCNN,
     "2nn": TwoNN,

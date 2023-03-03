@@ -25,7 +25,6 @@ class PerFedAvgClient(FedAvgClient):
         client_id: int,
         new_parameters: OrderedDict[str, torch.nn.Parameter],
         return_diff=True,
-        evaluate=True,
         verbose=False,
     ):
         delta, _, stats = super().train(
