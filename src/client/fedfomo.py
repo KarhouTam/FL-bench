@@ -58,8 +58,8 @@ class FedFomoClient(FedAvgClient):
         )
         self.eval_model.load_state_dict(local_params_dict, strict=False)
         self.eval_model.load_state_dict(personal_params_dict, strict=False)
-        LOSS, _, num_val_samples = self.evaluate(self.eval_model, self.valloader)
-        LOSS /= num_val_samples
+        LOSS = self.evaluate_on_valset(self.eval_model)[0]
+        LOSS /= len(self.valset)
         W = []
         self.weight_vector.zero_()
         with torch.no_grad():
@@ -67,8 +67,8 @@ class FedFomoClient(FedAvgClient):
                 self.eval_model.load_state_dict(
                     OrderedDict(zip(self.trainable_params_name, params_i)), strict=False
                 )
-                loss = self.evaluate(self.eval_model, self.valloader)[0]
-                loss /= num_val_samples
+                loss = self.evaluate_on_valset(self.eval_model)[0]
+                loss /= len(self.valset)
                 params_diff = []
                 for p_new, p_old in zip(params_i, received_params[self.client_id]):
                     params_diff.append((p_new - p_old).flatten())
@@ -91,19 +91,15 @@ class FedFomoClient(FedAvgClient):
         super().set_parameters(local_params_dict)
 
     @torch.no_grad()
-    def evaluate(self, specified_model=None, specified_datalaoder=None):
-        model = self.model if specified_model is None else specified_model
-        dataloader = (
-            self.testloader if specified_datalaoder is None else specified_datalaoder
-        )
+    def evaluate_on_valset(self):
+        self.eval_model.eval()
         criterion = torch.nn.CrossEntropyLoss(reduction="sum")
-        model.eval()
         loss = 0
         correct = 0
-        for x, y in dataloader:
+        for x, y in self.valloader:
             x, y = x.to(self.device), y.to(self.device)
-            logits = self.model(x)
-            loss += criterion(logits, y)
+            logits = self.eval_model(x)
+            loss += criterion(logits, y).item()
             pred = torch.argmax(logits, -1)
-            correct += (pred == y).int().sum()
-        return (loss.item(), correct.item(), len(dataloader.dataset))
+            correct += (pred == y).sum().item()
+        return loss, correct, len(self.valset)

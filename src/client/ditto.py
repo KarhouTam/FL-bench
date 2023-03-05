@@ -1,5 +1,5 @@
 from copy import deepcopy
-from typing import OrderedDict, Tuple
+from typing import Dict, OrderedDict
 
 import torch
 
@@ -59,7 +59,7 @@ class DittoClient(FedAvgClient):
                     )
                 self.optimizer.step()
 
-    def evaluate(self) -> Tuple[float, float, int]:
+    def evaluate(self) -> Dict[str, Dict[str, float]]:
         global_params = deepcopy(self.model.state_dict())
         self.model.load_state_dict(self.pers_model.state_dict())
         res = super().evaluate()

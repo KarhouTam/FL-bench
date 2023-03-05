@@ -73,11 +73,18 @@ def get_fedavg_argparser() -> ArgumentParser:
         help="Server performing test on all training clients(on their testset) after each `test_gap` global epoch.",
     )
     parser.add_argument(
-        "-e",
-        "--eval",
+        "-ee",
+        "--eval_test",
         type=int,
         default=1,
         help="Non-zero value for performing evaluation on joined clients' testset before and after local training.",
+    )
+    parser.add_argument(
+        "-er",
+        "--eval_train",
+        type=int,
+        default=0,
+        help="Non-zero value for performing evaluation on joined clients' trainset before and after local training.",
     )
     parser.add_argument(
         "-lr",

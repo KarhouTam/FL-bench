@@ -86,34 +86,36 @@ class FedAvgClient:
         self.testloader = DataLoader(self.testset, self.args.batch_size)
 
     def train_and_log(self, verbose=False):
-        loss_before, loss_after = 0, 0
-        correct_before, correct_after = 0, 0
-        num_samples = 1
-        if self.args.eval:
-            loss_before, correct_before, num_samples = self.evaluate()
+        before = {"loss": 0, "correct": 0, "size": 1.0}
+        after = {"loss": 0, "correct": 0, "size": 1.0}
+        before = self.evaluate()
         if self.local_epoch > 0:
             self.fit()
             self.save_state()
-            if self.args.eval:
-                loss_after, correct_after, _ = self.evaluate()
+            after = self.evaluate()
         if verbose:
-            self.logger.log(
-                "client [{}]  [bold red]loss: {:.4f} -> {:.4f}   [bold blue]acc: {:.2f}% -> {:.2f}%".format(
-                    self.client_id,
-                    loss_before / num_samples,
-                    loss_after / num_samples,
-                    correct_before / num_samples * 100.0,
-                    correct_after / num_samples * 100.0,
+            if len(self.trainset) > 0 and self.args.eval_train:
+                self.logger.log(
+                    "client [{}] (train)  [bold red]loss: {:.4f} -> {:.4f}   [bold blue]acc: {:.2f}% -> {:.2f}%".format(
+                        self.client_id,
+                        before["train"]["loss"] / before["train"]["size"],
+                        after["train"]["loss"] / after["train"]["size"],
+                        before["train"]["correct"] / before["train"]["size"] * 100.0,
+                        after["train"]["correct"] / after["train"]["size"] * 100.0,
+                    )
                 )
-            )
+            if len(self.testset) > 0 and self.args.eval_test:
+                self.logger.log(
+                    "client [{}] (test)  [bold red]loss: {:.4f} -> {:.4f}   [bold blue]acc: {:.2f}% -> {:.2f}%".format(
+                        self.client_id,
+                        before["test"]["loss"] / before["test"]["size"],
+                        after["test"]["loss"] / after["test"]["size"],
+                        before["test"]["correct"] / before["test"]["size"] * 100.0,
+                        after["test"]["correct"] / after["test"]["size"] * 100.0,
+                    )
+                )
 
-        eval_stats = {
-            "loss_before": loss_before,
-            "loss_after": loss_after,
-            "correct_before": correct_before,
-            "correct_after": correct_after,
-            "num_samples": num_samples,
-        }
+        eval_stats = {"before": before, "after": after}
         return eval_stats
 
     def set_parameters(self, new_parameters: OrderedDict[str, torch.nn.Parameter]):
@@ -144,7 +146,7 @@ class FedAvgClient:
         self.client_id = client_id
         self.load_dataset()
         self.set_parameters(new_parameters)
-        stats = self.train_and_log(verbose=verbose)
+        eval_stats = self.train_and_log(verbose=verbose)
 
         if return_diff:
             delta = OrderedDict()
@@ -153,12 +155,12 @@ class FedAvgClient:
             ):
                 delta[name] = p0.to(self.device) - p1
 
-            return delta, len(self.trainloader.dataset), stats
+            return delta, len(self.trainset), eval_stats
         else:
             return (
                 deepcopy(trainable_params(self.model)),
-                len(self.trainloader.dataset),
-                stats,
+                len(self.trainset),
+                eval_stats,
             )
 
     def fit(self):
@@ -178,18 +180,40 @@ class FedAvgClient:
                 self.optimizer.step()
 
     @torch.no_grad()
-    def evaluate(self) -> Tuple[float, float, int]:
+    def evaluate(self) -> Dict[str, Dict[str, float]]:
         self.model.eval()
-        loss = 0
-        correct = 0
+        train_loss, test_loss = 0, 0
+        train_correct, test_correct = 0, 0
         criterion = torch.nn.CrossEntropyLoss(reduction="sum")
-        for x, y in self.testloader:
-            x, y = x.to(self.device), y.to(self.device)
-            logits = self.model(x)
-            loss += criterion(logits, y)
-            pred = torch.argmax(logits, -1)
-            correct += (pred == y).sum()
-        return loss.item(), correct.item(), len(self.testset)
+
+        if len(self.testset) > 0 and self.args.eval_test:
+            for x, y in self.testloader:
+                x, y = x.to(self.device), y.to(self.device)
+                logits = self.model(x)
+                test_loss += criterion(logits, y).item()
+                pred = torch.argmax(logits, -1)
+                test_correct += (pred == y).sum().item()
+
+        if len(self.trainset) > 0 and self.args.eval_train:
+            for x, y in self.trainloader:
+                x, y = x.to(self.device), y.to(self.device)
+                logits = self.model(x)
+                train_loss += criterion(logits, y).item()
+                pred = torch.argmax(logits, -1)
+                train_correct += (pred == y).sum().item()
+
+        return {
+            "train": {
+                "loss": train_loss,
+                "correct": train_correct,
+                "size": float(max(len(self.trainset), 1)),
+            },
+            "test": {
+                "loss": test_loss,
+                "correct": test_correct,
+                "size": float(max(len(self.testset), 1)),
+            },
+        }
 
     def test(
         self, client_id: int, new_parameters: OrderedDict[str, torch.nn.Parameter]
@@ -197,20 +221,18 @@ class FedAvgClient:
         self.client_id = client_id
         self.load_dataset()
         self.set_parameters(new_parameters)
-        loss_before, loss_after = 0, 0
-        correct_before, correct_after = 0, 0
-        loss_before, correct_before, num_samples = self.evaluate()
+
+        before = {
+            "train": {"loss": 0, "correct": 0, "size": 1.0},
+            "test": {"loss": 0, "correct": 0, "size": 1.0},
+        }
+        after = deepcopy(before)
+
+        before = self.evaluate()
         if self.args.finetune_epoch > 0:
             self.finetune()
-            loss_after, correct_after, _ = self.evaluate()
-        eval_stats = {
-            "loss_before": loss_before,
-            "loss_after": loss_after,
-            "correct_before": correct_before,
-            "correct_after": correct_after,
-            "num_samples": num_samples,
-        }
-        return eval_stats
+            after = self.evaluate()
+        return {"before": before, "after": after}
 
     def finetune(self):
         self.model.train()

@@ -1,5 +1,5 @@
 import random
-from typing import List
+from typing import Dict, List
 
 import torch
 import numpy as np
@@ -27,7 +27,7 @@ class kNNPerClient(FedAvgClient):
         return res
 
     @torch.no_grad()
-    def evaluate(self):
+    def evaluate(self) -> Dict[str, Dict[str, float]]:
         if self.test_flag:
             self.model.eval()
             criterion = torch.nn.CrossEntropyLoss(reduction="sum")
@@ -64,10 +64,18 @@ class kNNPerClient(FedAvgClient):
                 self.args.weight * knn_logits + (1 - self.args.weight) * model_logits
             )
             pred = torch.argmax(logits, dim=-1)
-            loss = criterion(logits, test_targets)
-            correct = (pred == test_targets).int().sum()
+            loss = criterion(logits, test_targets).item()
+            correct = (pred == test_targets).sum().item()
 
-            return loss.item(), correct.item(), len(test_targets)
+            # kNN-Per only do kNN trick in the test phase. So stats about evaluation on train data are not offered.
+            return {
+                "train": {"loss": 0, "correct": 0, "size": 1.0},
+                "test": {
+                    "loss": loss,
+                    "correct": correct,
+                    "size": float(max(1, len(test_targets))),
+                },
+            }
         else:
             return super().evaluate()
 

@@ -65,22 +65,13 @@ class pFedMeClient(FedAvgClient):
                     )
 
     @torch.no_grad()
-    def evaluate(self) -> Tuple[float, float, int]:
+    def evaluate(self) -> Dict[str, Dict[str, float]]:
         frz_model_params = deepcopy(self.model.state_dict())
         if self.client_id in self.personalized_params_dict.keys():
             self.model.load_state_dict(self.personalized_params_dict[self.client_id])
-        self.model.eval()
-        loss = 0
-        correct = 0
-        criterion = torch.nn.CrossEntropyLoss(reduction="sum")
-        for x, y in self.testloader:
-            x, y = x.to(self.device), y.to(self.device)
-            logits = self.model(x)
-            loss += criterion(logits, y)
-            pred = torch.argmax(logits, dim=-1)
-            correct += (pred == y).int().sum()
+        res = super().evaluate()
         self.model.load_state_dict(frz_model_params)
-        return loss.item(), correct.item(), len(self.testset)
+        return res
 
 
 class pFedMeOptimizer(Optimizer):

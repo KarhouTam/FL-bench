@@ -94,6 +94,7 @@ class FedAvgServer:
                 + f"_{self.args.local_epoch}"
             )
         self.clients_metrics = {i: {} for i in self.train_clients}
+        self.clients_acc_stats = {i: {} for i in self.train_clients}
         self.logger = Console(record=self.args.log, log_path=False, log_time=False)
         self.test_results: Dict[int, Dict[str, str]] = {}
         self.train_progress_bar = (
@@ -119,7 +120,7 @@ class FedAvgServer:
             self.current_epoch = E
 
             if (E + 1) % self.args.verbose_gap == 0:
-                self.logger.log(" " * 30, f"TRAINING EPOCH: {E + 1}", " " * 30)
+                self.logger.log("-" * 26, f"TRAINING EPOCH: {E + 1}", "-" * 26)
 
             if (E + 1) % self.args.test_gap == 0:
                 self.test()
@@ -151,17 +152,19 @@ class FedAvgServer:
         for client_id in self.test_clients:
             client_local_params = self.generate_client_params(client_id)
             stats = self.trainer.test(client_id, client_local_params)
-            loss_before.append(stats["loss_before"])
-            loss_after.append(stats["loss_after"])
-            correct_before.append(stats["correct_before"])
-            correct_after.append(stats["correct_after"])
-            num_samples.append(stats["num_samples"])
+
+            correct_before.append(stats["before"]["test"]["correct"])
+            correct_after.append(stats["after"]["test"]["correct"])
+            loss_before.append(stats["before"]["test"]["loss"])
+            loss_after.append(stats["after"]["test"]["loss"])
+            num_samples.append(stats["before"]["test"]["size"])
 
         loss_before = torch.tensor(loss_before)
         loss_after = torch.tensor(loss_after)
         correct_before = torch.tensor(correct_before)
         correct_after = torch.tensor(correct_after)
         num_samples = torch.tensor(num_samples)
+
         self.test_results[self.current_epoch + 1] = {
             "loss": "{:.4f} -> {:.4f}".format(
                 loss_before.sum() / num_samples.sum(),
@@ -172,109 +175,6 @@ class FedAvgServer:
                 correct_after.sum() / num_samples.sum() * 100,
             ),
         }
-
-    def check_convergence(self):
-        correct_before = [
-            [self.clients_metrics[cid][epoch]["correct_before"] for cid in clients]
-            for (epoch, clients) in enumerate(self.client_sample_stream)
-        ]
-        correct_after = [
-            [self.clients_metrics[cid][epoch]["correct_after"] for cid in clients]
-            for (epoch, clients) in enumerate(self.client_sample_stream)
-        ]
-        num_samples = [
-            [self.clients_metrics[cid][epoch]["num_samples"] for cid in clients]
-            for (epoch, clients) in enumerate(self.client_sample_stream)
-        ]
-
-        self.logger.log("Accuracy(before):")
-        acc_range = [90.0, 80.0, 70.0, 60.0, 50.0, 40.0, 30.0, 20.0, 10.0]
-        min_acc_idx = 10
-        max_acc = 0
-        for E, (corr, n) in enumerate(zip(correct_before, num_samples)):
-            acc_before = sum(corr) / sum(n) * 100.0
-            for i, acc in enumerate(acc_range):
-                if acc_before >= acc and acc_before > max_acc:
-                    self.logger.log(
-                        "{} achieved {}%({:.2f}%) at epoch: {}".format(
-                            self.algo, acc, acc_before, E
-                        )
-                    )
-                    max_acc = acc_before
-                    min_acc_idx = i
-                    break
-            acc_range = acc_range[:min_acc_idx]
-
-        self.logger.log("\nAccuracy(after):")
-        acc_range = [90.0, 80.0, 70.0, 60.0, 50.0, 40.0, 30.0, 20.0, 10.0]
-        min_acc_idx = 10
-        max_acc = 0
-        for E, (corr, n) in enumerate(zip(correct_after, num_samples)):
-            acc_after = sum(corr) / sum(n) * 100.0
-            for i, acc in enumerate(acc_range):
-                if acc_after >= acc and acc_after > max_acc:
-                    self.logger.log(
-                        "{} achieved {}%({:.2f}%) at epoch: {}".format(
-                            self.algo, acc, acc_after, E
-                        )
-                    )
-                    max_acc = acc_after
-                    min_acc_idx = i
-                    break
-            acc_range = acc_range[:min_acc_idx]
-
-    def log_info(self):
-        if self.args.visible:
-            correct_before = torch.tensor(
-                [
-                    self.clients_metrics[cid][self.current_epoch]["correct_before"]
-                    for cid in self.selected_clients
-                ]
-            )
-            correct_after = torch.tensor(
-                [
-                    self.clients_metrics[cid][self.current_epoch]["correct_after"]
-                    for cid in self.selected_clients
-                ]
-            )
-            num_samples = torch.tensor(
-                [
-                    self.clients_metrics[cid][self.current_epoch]["num_samples"]
-                    for cid in self.selected_clients
-                ]
-            )
-
-            acc_before = (
-                correct_before.sum(dim=-1, keepdim=True) / num_samples.sum() * 100.0
-            )
-            acc_after = (
-                correct_after.sum(dim=-1, keepdim=True) / num_samples.sum() * 100.0
-            )
-
-            self.viz.line(
-                acc_before,
-                [self.current_epoch],
-                win=self.viz_win_name,
-                update="append",
-                name="acc(before)",
-                opts=dict(
-                    title=self.viz_win_name,
-                    xlabel="Global Epoch",
-                    ylabel="Training Accuracy",
-                ),
-            )
-            self.viz.line(
-                acc_after,
-                [self.current_epoch],
-                win=self.viz_win_name,
-                update="append",
-                name="acc(after)",
-            )
-        if self.args.save_allstats:
-            for client_id in self.selected_clients:
-                self.clients_metrics[client_id][
-                    self.current_epoch
-                ] = "acc: {:.2f}% -> {:.2f}%".format(acc_before, acc_after)
 
     @torch.no_grad()
     def update_client_params(self, client_params_cache: List[List[torch.nn.Parameter]]):
@@ -308,6 +208,254 @@ class FedAvgServer:
         for param, diff in zip(self.global_params_dict.values(), aggregated_delta):
             param.data -= diff.to(self.device)
 
+    def check_convergence(self):
+        train_correct_before = [
+            [
+                self.clients_metrics[cid][epoch]["before"]["train"]["correct"]
+                for cid in clients
+            ]
+            for (epoch, clients) in enumerate(self.client_sample_stream)
+        ]
+        train_correct_after = [
+            [
+                self.clients_metrics[cid][epoch]["after"]["train"]["correct"]
+                for cid in clients
+            ]
+            for (epoch, clients) in enumerate(self.client_sample_stream)
+        ]
+        train_num_samples = [
+            [
+                self.clients_metrics[cid][epoch]["before"]["train"]["size"]
+                for cid in clients
+            ]
+            for (epoch, clients) in enumerate(self.client_sample_stream)
+        ]
+        test_correct_before = [
+            [
+                self.clients_metrics[cid][epoch]["before"]["test"]["correct"]
+                for cid in clients
+            ]
+            for (epoch, clients) in enumerate(self.client_sample_stream)
+        ]
+        test_correct_after = [
+            [
+                self.clients_metrics[cid][epoch]["after"]["test"]["correct"]
+                for cid in clients
+            ]
+            for (epoch, clients) in enumerate(self.client_sample_stream)
+        ]
+        test_num_samples = [
+            [
+                self.clients_metrics[cid][epoch]["before"]["test"]["size"]
+                for cid in clients
+            ]
+            for (epoch, clients) in enumerate(self.client_sample_stream)
+        ]
+
+        self.logger.log("Convergence on train data:")
+        self.logger.log("Accuracy (before):")
+        acc_range = [90.0, 80.0, 70.0, 60.0, 50.0, 40.0, 30.0, 20.0, 10.0]
+        min_acc_idx = 10
+        max_acc = 0
+        for E, (corr, n) in enumerate(zip(train_correct_before, train_num_samples)):
+            acc_before = sum(corr) / sum(n) * 100.0
+            for i, acc in enumerate(acc_range):
+                if acc_before >= acc and acc_before > max_acc:
+                    self.logger.log(
+                        "{} achieved {}%({:.2f}%) at epoch: {}".format(
+                            self.algo, acc, acc_before, E
+                        )
+                    )
+                    max_acc = acc_before
+                    min_acc_idx = i
+                    break
+            acc_range = acc_range[:min_acc_idx]
+
+        self.logger.log("\nAccuracy (after):")
+        acc_range = [90.0, 80.0, 70.0, 60.0, 50.0, 40.0, 30.0, 20.0, 10.0]
+        min_acc_idx = 10
+        max_acc = 0
+        for E, (corr, n) in enumerate(zip(train_correct_after, train_num_samples)):
+            acc_after = sum(corr) / sum(n) * 100.0
+            for i, acc in enumerate(acc_range):
+                if acc_after >= acc and acc_after > max_acc:
+                    self.logger.log(
+                        "{} achieved {}%({:.2f}%) at epoch: {}".format(
+                            self.algo, acc, acc_after, E
+                        )
+                    )
+                    max_acc = acc_after
+                    min_acc_idx = i
+                    break
+            acc_range = acc_range[:min_acc_idx]
+
+        self.logger.log("\nConvergence on test data:")
+        self.logger.log("Accuracy (before):")
+        acc_range = [90.0, 80.0, 70.0, 60.0, 50.0, 40.0, 30.0, 20.0, 10.0]
+        min_acc_idx = 10
+        max_acc = 0
+        for E, (corr, n) in enumerate(zip(test_correct_before, test_num_samples)):
+            acc_before = sum(corr) / sum(n) * 100.0
+            for i, acc in enumerate(acc_range):
+                if acc_before >= acc and acc_before > max_acc:
+                    self.logger.log(
+                        "{} achieved {}%({:.2f}%) at epoch: {}".format(
+                            self.algo, acc, acc_before, E
+                        )
+                    )
+                    max_acc = acc_before
+                    min_acc_idx = i
+                    break
+            acc_range = acc_range[:min_acc_idx]
+
+        self.logger.log("\nAccuracy (after):")
+        acc_range = [90.0, 80.0, 70.0, 60.0, 50.0, 40.0, 30.0, 20.0, 10.0]
+        min_acc_idx = 10
+        max_acc = 0
+        for E, (corr, n) in enumerate(zip(test_correct_after, test_num_samples)):
+            acc_after = sum(corr) / sum(n) * 100.0
+            for i, acc in enumerate(acc_range):
+                if acc_after >= acc and acc_after > max_acc:
+                    self.logger.log(
+                        "{} achieved {}%({:.2f}%) at epoch: {}".format(
+                            self.algo, acc, acc_after, E
+                        )
+                    )
+                    max_acc = acc_after
+                    min_acc_idx = i
+                    break
+            acc_range = acc_range[:min_acc_idx]
+
+    def log_info(self):
+        train_correct_before, train_correct_after = 0, 0
+        test_correct_before, test_correct_after = 0, 0
+        train_acc_before, train_acc_after = 0, 0
+        test_acc_before, test_acc_after = 0, 0
+        train_num_samples, test_num_samples = 0, 0
+
+        # In the `user` split, there is no test data held by train clients, so plotting is unnecessary.
+        if self.args.eval_test and self.args.dataset_args["split"] != "user":
+            test_correct_before = torch.tensor(
+                [
+                    self.clients_metrics[cid][self.current_epoch]["before"]["test"][
+                        "correct"
+                    ]
+                    for cid in self.selected_clients
+                ]
+            )
+            test_correct_after = torch.tensor(
+                [
+                    self.clients_metrics[cid][self.current_epoch]["after"]["test"][
+                        "correct"
+                    ]
+                    for cid in self.selected_clients
+                ]
+            )
+            test_num_samples = torch.tensor(
+                [
+                    self.clients_metrics[cid][self.current_epoch]["before"]["test"][
+                        "size"
+                    ]
+                    for cid in self.selected_clients
+                ]
+            )
+
+            test_acc_before = (
+                test_correct_before.sum(dim=-1, keepdim=True)
+                / test_num_samples.sum()
+                * 100.0
+            ).item()
+            test_acc_after = (
+                test_correct_after.sum(dim=-1, keepdim=True)
+                / test_num_samples.sum()
+                * 100.0
+            ).item()
+            if self.args.visible:
+                self.viz.line(
+                    [test_acc_before],
+                    [self.current_epoch],
+                    win=self.viz_win_name,
+                    update="append",
+                    name="test_acc(before)",
+                    opts=dict(
+                        title=self.viz_win_name,
+                        xlabel="Communication Rounds",
+                        ylabel="Accuracy",
+                    ),
+                )
+                self.viz.line(
+                    [test_acc_after],
+                    [self.current_epoch],
+                    win=self.viz_win_name,
+                    update="append",
+                    name="test_acc(after)",
+                )
+
+        if self.args.eval_train:
+            train_correct_before = torch.tensor(
+                [
+                    self.clients_metrics[cid][self.current_epoch]["before"]["train"][
+                        "correct"
+                    ]
+                    for cid in self.selected_clients
+                ]
+            )
+            train_correct_after = torch.tensor(
+                [
+                    self.clients_metrics[cid][self.current_epoch]["after"]["train"][
+                        "correct"
+                    ]
+                    for cid in self.selected_clients
+                ]
+            )
+            train_num_samples = torch.tensor(
+                [
+                    self.clients_metrics[cid][self.current_epoch]["before"]["train"][
+                        "size"
+                    ]
+                    for cid in self.selected_clients
+                ]
+            )
+
+            train_acc_before = (
+                train_correct_before.sum(dim=-1, keepdim=True)
+                / train_num_samples.sum()
+                * 100.0
+            ).item()
+            train_acc_after = (
+                train_correct_after.sum(dim=-1, keepdim=True)
+                / train_num_samples.sum()
+                * 100.0
+            ).item()
+            if self.args.visible:
+                self.viz.line(
+                    [train_acc_before],
+                    [self.current_epoch],
+                    win=self.viz_win_name,
+                    update="append",
+                    name="train_acc(before)",
+                    opts=dict(
+                        title=self.viz_win_name,
+                        xlabel="Communication Rounds",
+                        ylabel="Accuracy",
+                    ),
+                )
+                self.viz.line(
+                    [train_acc_after],
+                    [self.current_epoch],
+                    win=self.viz_win_name,
+                    update="append",
+                    name="train_acc(after)",
+                )
+
+        if self.args.save_allstats:
+            for client_id in self.selected_clients:
+                self.clients_acc_stats[client_id][
+                    self.current_epoch
+                ] = "acc (train): {:.2f}% -> {:.2f}%, acc (test): {:.2f}% -> {:.2f}%".format(
+                    train_acc_before, train_acc_after, test_acc_before, test_acc_after
+                )
+
     def run(self):
         if self.trainer is None:
             raise RuntimeError(
@@ -334,8 +482,10 @@ class FedAvgServer:
                 self.logger.save_text(LOG_DIR / self.args.dataset / f"{self.algo}.html")
 
             if self.args.save_allstats:
-                with open(LOG_DIR / self.args.dataset / f"{self.algo}.json", "w") as f:
-                    json.dump(self.clients_metrics, f)
+                with open(
+                    LOG_DIR / self.args.dataset / f"{self.algo}_allstats.json", "w"
+                ) as f:
+                    json.dump(self.clients_acc_stats, f)
 
         # save trained model(s)
         if self.args.save_model:
