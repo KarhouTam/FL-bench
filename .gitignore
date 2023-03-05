@@ -24,6 +24,7 @@ data/cinic10
 
 # generated files
 logs
+models
 *.json
 *.pt
 *.npy
