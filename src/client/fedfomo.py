@@ -58,7 +58,7 @@ class FedFomoClient(FedAvgClient):
         )
         self.eval_model.load_state_dict(local_params_dict, strict=False)
         self.eval_model.load_state_dict(personal_params_dict, strict=False)
-        LOSS = self.evaluate_on_valset(self.eval_model)[0]
+        LOSS = self.evaluate_on_valset()[0]
         LOSS /= len(self.valset)
         W = []
         self.weight_vector.zero_()
@@ -67,7 +67,7 @@ class FedFomoClient(FedAvgClient):
                 self.eval_model.load_state_dict(
                     OrderedDict(zip(self.trainable_params_name, params_i)), strict=False
                 )
-                loss = self.evaluate_on_valset(self.eval_model)[0]
+                loss = self.evaluate_on_valset()[0]
                 loss /= len(self.valset)
                 params_diff = []
                 for p_new, p_old in zip(params_i, received_params[self.client_id]):
