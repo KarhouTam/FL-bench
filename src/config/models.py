@@ -1,5 +1,4 @@
 from collections import OrderedDict
-from copy import deepcopy
 from typing import Dict, List, OrderedDict, Type
 
 import torch
@@ -42,13 +41,13 @@ class DecoupledModel(nn.Module):
             if isinstance(module, nn.Dropout)
         ]
 
-    def forward(self, x):
+    def forward(self, x: torch.Tensor):
         out = self.classifier(F.relu(self.base(x)))
         if self.need_all_features_flag:
             self.all_features = []
         return out
 
-    def get_final_features(self, x, detach=True):
+    def get_final_features(self, x: torch.Tensor, detach=True):
         if len(self.dropout) > 0:
             for dropout in self.dropout:
                 dropout.eval()
@@ -62,7 +61,7 @@ class DecoupledModel(nn.Module):
 
         return func(out)
 
-    def get_all_features(self, x, detach=True):
+    def get_all_features(self, x: torch.Tensor, detach=True):
         feature_list = None
         if self.need_all_features_flag:
             if len(self.dropout) > 0:
@@ -196,7 +195,7 @@ class TwoNN(DecoupledModel):
         return func(x)
 
     def get_all_features(self, x, detach=True):
-        raise RuntimeError("2NN has 0 Conv layer, so is disable to get all features.")
+        raise RuntimeError("2NN has 0 Conv layer, so is unable to get all features.")
 
 
 class MobileNetV2(DecoupledModel):
@@ -216,13 +215,13 @@ class MobileNetV2(DecoupledModel):
             "cifar100": 100,
             "covid19": 4,
             "usps": 10,
+            "celeba": 2,
             "tiny_imagenet": 200,
         }
-        # NOTE: If you don't want parameters pretrained, uncomment the lines below
-        # self.base = models.MobileNetV2(config[dataset])
-        # self.classifier = deepcopy(self.base.classifier[1])
+        # NOTE: If you don't want parameters pretrained, set `pretrained` as False
+        pretrained = True
         self.base = models.mobilenet_v2(
-            weights=models.MobileNet_V2_Weights.IMAGENET1K_V2
+            weights=models.MobileNet_V2_Weights.IMAGENET1K_V2 if pretrained else None
         )
         self.classifier = nn.Linear(
             self.base.classifier[1].in_features, config[dataset]
@@ -231,9 +230,72 @@ class MobileNetV2(DecoupledModel):
         self.base.classifier[1] = nn.Identity()
 
 
+class ResNet18(DecoupledModel):
+    def __init__(self, dataset):
+        super(ResNet18, self).__init__()
+        config = {
+            "mnist": 10,
+            "medmnistS": 11,
+            "medmnistC": 11,
+            "medmnistA": 11,
+            "fmnist": 10,
+            "svhn": 10,
+            "emnist": 62,
+            "femnist": 62,
+            "cifar10": 10,
+            "cinic10": 10,
+            "cifar100": 100,
+            "covid19": 4,
+            "usps": 10,
+            "celeba": 2,
+            "tiny_imagenet": 200,
+        }
+        # NOTE: If you don't want parameters pretrained, set `pretrained` as False
+        pretrained = True
+        self.base = models.resnet18(
+            weights=models.ResNet18_Weights.DEFAULT if pretrained else None
+        )
+        self.classifier = nn.Linear(self.base.fc.in_features, config[dataset])
+        self.base.fc = nn.Identity()
+
+    def forward(self, x):
+        if x.shape[1] == 1:
+            x = torch.expand_copy(x, (x.shape[0], 3, *x.shape[2:]))
+        return super().forward(x)
+
+    def get_all_features(self, x, detach=True):
+        if x.shape[1] == 1:
+            x = torch.expand_copy(x, (x.shape[0], 3, *x.shape[2:]))
+        return super().get_all_features(x, detach)
+
+    def get_final_features(self, x, detach=True):
+        if x.shape[1] == 1:
+            x = torch.expand_copy(x, (x.shape[0], 3, *x.shape[2:]))
+        return super().get_final_features(x, detach)
+
+
+class AlexNet(DecoupledModel):
+    def __init__(self, dataset):
+        super().__init__()
+        # NOTE: AlexNet does not support datasets with data size smaller than (64 x 64)
+        config = {"covid19": 4, "celeba": 2, "tiny_imagenet": 200}
+
+        # NOTE: If you don't want parameters pretrained, set `pretrained` as False
+        pretrained = True
+        self.base = models.alexnet(
+            weights=models.AlexNet_Weights.DEFAULT if pretrained else None
+        )
+        self.classifier = nn.Linear(
+            self.base.classifier[-1].in_features, config[dataset]
+        )
+        self.base.classifier[-1] = nn.Identity()
+
+
 MODEL_DICT: Dict[str, Type[DecoupledModel]] = {
     "lenet5": LeNet5,
     "avgcnn": FedAvgCNN,
     "2nn": TwoNN,
     "mobile": MobileNetV2,
+    "res18": ResNet18,
+    "alex": AlexNet,
 }
