@@ -1,3 +1,4 @@
+from argparse import Namespace
 from copy import deepcopy
 
 import torch
@@ -9,10 +10,16 @@ from src.config.utils import trainable_params
 
 
 class FedDynServer(FedAvgServer):
-    def __init__(self):
-        super().__init__(
-            "FedDyn", get_feddyn_argparser().parse_args(), default_trainer=False
-        )
+    def __init__(
+        self,
+        algo: str = "FedDyn",
+        args: Namespace = None,
+        unique_model=False,
+        default_trainer=False,
+    ):
+        if args is None:
+            args = get_feddyn_argparser().parse_args()
+        super().__init__(algo, args, unique_model, default_trainer)
         self.trainer = FedDynClient(deepcopy(self.model), self.args, self.logger)
         self.h = [
             torch.zeros_like(param, device=self.device)

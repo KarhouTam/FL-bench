@@ -10,15 +10,22 @@ from src.config.args import get_pfedhn_argparser
 from src.config.utils import trainable_params
 
 
+args = get_pfedhn_argparser().parse_args()
+
+
 class pFedHNServer(FedAvgServer):
-    def __init__(self):
-        args = get_pfedhn_argparser().parse_args()
-        super().__init__(
-            "pFedHN" if args.version == "pfedhn" else "pFedHN-PC",
-            args,
-            unique_model=False,
-            default_trainer=True if args.version == "pfedhn" else False,
-        )
+    def __init__(
+        self,
+        algo: str = None,
+        args: Namespace = None,
+        unique_model=False,
+        default_trainer=True,
+    ):
+        if args is None:
+            args = get_pfedhn_argparser().parse_args()
+        algo = "pFedHN" if args.version == "pfedhn" else "pFedHN-PC"
+        default_trainer = True if args.version == "pfedhn" else False
+        super().__init__(algo, args, unique_model, default_trainer)
         if args.version == "pfedhn_pc":
             self.trainer = FedPerClient(deepcopy(self.model), self.args, self.logger)
 

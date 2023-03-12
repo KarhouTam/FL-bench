@@ -1,3 +1,4 @@
+from argparse import Namespace
 from copy import deepcopy
 
 from fedavg import FedAvgServer
@@ -6,10 +7,16 @@ from src.client.fedrep import FedRepClient
 
 
 class FedRepServer(FedAvgServer):
-    def __init__(self):
-        args = get_fedrep_argparser().parse_args()
-        args.finetune_epoch = max(1, args.finetune_epoch)
-        super().__init__("FedRep", args, default_trainer=False)
+    def __init__(
+        self,
+        algo: str = "FedRep",
+        args: Namespace = None,
+        unique_model=False,
+        default_trainer=False,
+    ):
+        if args is None:
+            args = get_fedrep_argparser().parse_args()
+        super().__init__(algo, args, unique_model, default_trainer)
         self.trainer = FedRepClient(deepcopy(self.model), self.args, self.logger)
 
 

@@ -1,3 +1,4 @@
+from argparse import Namespace
 import torch
 
 from fedavg import FedAvgServer
@@ -5,8 +6,16 @@ from src.config.args import get_fedavgm_argparser
 
 
 class FedAvgMServer(FedAvgServer):
-    def __init__(self):
-        super().__init__("FedAvgM", get_fedavgm_argparser().parse_args())
+    def __init__(
+        self,
+        algo: str = "FedAvgM",
+        args: Namespace = None,
+        unique_model=False,
+        default_trainer=True,
+    ):
+        if args is None:
+            args = get_fedavgm_argparser().parse_args()
+        super().__init__(algo, args, unique_model, default_trainer)
         self.global_optimizer = torch.optim.SGD(
             list(self.global_params_dict.values()),
             lr=1.0,

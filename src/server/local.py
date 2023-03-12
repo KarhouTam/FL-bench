@@ -1,9 +1,16 @@
+from argparse import Namespace
 from fedavg import FedAvgServer
 
 
 class LocalServer(FedAvgServer):
-    def __init__(self):
-        super().__init__("Local-only", unique_model=True)
+    def __init__(
+        self,
+        algo: str = "Local-only",
+        args: Namespace = None,
+        unique_model=True,
+        default_trainer=True,
+    ):
+        super().__init__(algo, args, unique_model, default_trainer)
 
     def train(self):
         for E in self.train_progress_bar:

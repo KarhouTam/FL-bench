@@ -1,3 +1,4 @@
+from argparse import Namespace
 from copy import deepcopy
 
 import torch
@@ -8,11 +9,16 @@ from src.client.fedfomo import FedFomoClient
 
 
 class FedFOMOServer(FedAvgServer):
-    def __init__(self):
-        parser = get_fedfomo_argparser()
-        super().__init__(
-            "FedFomo", parser.parse_args(), unique_model=True, default_trainer=False
-        )
+    def __init__(
+        self,
+        algo: str = "FedFomo",
+        args: Namespace = None,
+        unique_model=False,
+        default_trainer=False,
+    ):
+        if args is None:
+            args = get_fedfomo_argparser().parse_args()
+        super().__init__(algo, args, unique_model, default_trainer)
         self.trainer = FedFomoClient(
             deepcopy(self.model), self.args, self.logger, self.client_num_in_total
         )

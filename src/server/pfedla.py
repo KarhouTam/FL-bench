@@ -1,3 +1,4 @@
+from argparse import Namespace
 import os
 from copy import deepcopy
 from collections import OrderedDict
@@ -13,10 +14,17 @@ from src.config.utils import TEMP_DIR, trainable_params
 
 
 class pFedLAServer(FedAvgServer):
-    def __init__(self):
-        super(pFedLAServer, self).__init__(
-            "pFedLA", get_pfedla_argparser().parse_args(), unique_model=True
-        )
+    def __init__(
+        self,
+        algo: str = None,
+        args: Namespace = None,
+        unique_model=True,
+        default_trainer=True,
+    ):
+        if args is None:
+            args = get_pfedla_argparser().parse_args()
+        algo = "pFedLA" if args.k == 0 else "HeurpFedLA"
+        super().__init__(algo, args, unique_model, default_trainer)
         self.hypernet = HyperNetwork(
             embedding_dim=self.args.embedding_dim,
             client_num=self.client_num_in_total,

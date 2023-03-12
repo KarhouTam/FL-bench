@@ -1,5 +1,6 @@
 from copy import deepcopy
 from typing import List
+from argparse import Namespace
 
 import torch
 
@@ -10,10 +11,16 @@ from src.config.utils import trainable_params
 
 
 class SCAFFOLDServer(FedAvgServer):
-    def __init__(self):
-        super().__init__(
-            "SCAFFOLD", get_scaffold_argparser().parse_args(), default_trainer=False
-        )
+    def __init__(
+        self,
+        algo: str = "SCAFFOLD",
+        args: Namespace = None,
+        unique_model=False,
+        default_trainer=False,
+    ):
+        if args is None:
+            args = get_scaffold_argparser().parse_args()
+        super().__init__(algo, args, unique_model, default_trainer)
         self.trainer = SCAFFOLDClient(deepcopy(self.model), self.args, self.logger)
         self.c_global = [
             torch.zeros_like(param) for param in trainable_params(self.model)

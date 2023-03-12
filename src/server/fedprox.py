@@ -1,3 +1,4 @@
+from argparse import Namespace
 from copy import deepcopy
 
 from fedavg import FedAvgServer
@@ -6,10 +7,16 @@ from src.client.fedprox import FedProxClient
 
 
 class FedProxServer(FedAvgServer):
-    def __init__(self):
-        super().__init__(
-            "FedProx", args=get_fedprox_argparser().parse_args(), default_trainer=False
-        )
+    def __init__(
+        self,
+        algo: str = "FedProx",
+        args: Namespace = None,
+        unique_model=False,
+        default_trainer=False,
+    ):
+        if args is None:
+            args = get_fedprox_argparser().parse_args()
+        super().__init__(algo, args, unique_model, default_trainer)
         self.trainer = FedProxClient(deepcopy(self.model), self.args, self.logger)
 
 

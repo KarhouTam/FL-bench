@@ -1,3 +1,4 @@
+from argparse import Namespace
 from copy import deepcopy
 
 from fedavg import FedAvgServer
@@ -6,10 +7,17 @@ from src.client.fedbabu import FedBabuClient
 
 
 class FedBABUServer(FedAvgServer):
-    def __init__(self):
-        args = get_fedavg_argparser().parse_args()
+    def __init__(
+        self,
+        algo: str = "FedBabu",
+        args: Namespace = None,
+        unique_model=False,
+        default_trainer=False,
+    ):
+        if args is None:
+            args = get_fedavg_argparser().parse_args()
         args.finetune_epoch = max(1, args.finetune_epoch)
-        super().__init__("FedBABU", args=args, default_trainer=False)
+        super().__init__(algo, args, unique_model, default_trainer)
         self.trainer = FedBabuClient(deepcopy(self.model), self.args, self.logger)
 
 

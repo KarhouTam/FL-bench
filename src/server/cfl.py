@@ -1,3 +1,4 @@
+from argparse import Namespace
 from typing import List
 
 import torch
@@ -9,9 +10,16 @@ from src.config.args import get_cfl_argparser
 
 
 class ClusteredFL(FedAvgServer):
-    def __init__(self):
-        args = get_cfl_argparser().parse_args()
-        super().__init__("CFL", args, unique_model=True)
+    def __init__(
+        self,
+        algo: str = "CFL",
+        args: Namespace = None,
+        unique_model=True,
+        default_trainer=True,
+    ):
+        if args is None:
+            args = get_cfl_argparser().parse_args()
+        super().__init__(algo, args, unique_model, default_trainer)
         assert (
             len(self.train_clients) == self.client_num_in_total
         ), "CFL doesn't support `User` type split."

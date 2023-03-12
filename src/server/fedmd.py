@@ -1,3 +1,4 @@
+from argparse import Namespace
 from copy import deepcopy
 from typing import List
 
@@ -17,13 +18,16 @@ class FedMDServer(FedAvgServer):
     2. (public: CIFAR10, private: CIFAR100 but under 20 superclasses)
     """
 
-    def __init__(self):
-        super().__init__(
-            "FedMD",
-            get_fedmd_argparser().parse_args(),
-            unique_model=True,
-            default_trainer=False,
-        )
+    def __init__(
+        self,
+        algo: str = "FedMD",
+        args: Namespace = None,
+        unique_model=False,
+        default_trainer=False,
+    ):
+        if args is None:
+            args = (get_fedmd_argparser().parse_args(),)
+        super().__init__(algo, args, unique_model, default_trainer)
         self.trainer = FedMDClient(
             model=deepcopy(self.model), args=self.args, logger=self.logger
         )

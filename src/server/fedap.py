@@ -1,3 +1,4 @@
+from argparse import Namespace
 import math
 from collections import OrderedDict
 from copy import deepcopy
@@ -15,12 +16,19 @@ from src.client.fedap import FedAPClient
 
 # Codes below are modified from FedAP's official repo: https://github.com/microsoft/PersonalizedFL
 class FedAPServer(FedAvgServer):
-    def __init__(self):
-        args = get_fedap_argparser().parse_args()
+    def __init__(
+        self,
+        algo: str = None,
+        args: Namespace = None,
+        unique_model=True,
+        default_trainer=False,
+    ):
+        if args is None:
+            args = get_fedap_argparser().parse_args()
         algo_name = {"original": "FedAP", "f": "f-FedAP", "d": "d-FedAP"}
-        super().__init__(
-            algo_name[args.version], args, unique_model=True, default_trainer=False
-        )
+        algo = algo_name[args.version]
+        super().__init__(algo, args, unique_model, default_trainer)
+
         self.trainer = FedAPClient(deepcopy(self.model), self.args, self.logger)
         self.weight_matrix = torch.zeros(
             (self.client_num_in_total, self.client_num_in_total), device=self.device

@@ -1,3 +1,4 @@
+from argparse import Namespace
 from copy import deepcopy
 from typing import List
 
@@ -9,13 +10,16 @@ from src.config.args import get_pfedme_argparser
 
 
 class pFedMeServer(FedAvgServer):
-    def __init__(self):
-        super().__init__(
-            "pFedMe",
-            args=get_pfedme_argparser().parse_args(),
-            unique_model=False,
-            default_trainer=False,
-        )
+    def __init__(
+        self,
+        algo: str = "pFedMe",
+        args: Namespace = None,
+        unique_model=False,
+        default_trainer=False,
+    ):
+        if args is None:
+            args = get_pfedme_argparser().parse_args()
+        super().__init__(algo, args, unique_model, default_trainer)
         self.trainer = pFedMeClient(deepcopy(self.model), self.args, self.logger)
 
     @torch.no_grad()
