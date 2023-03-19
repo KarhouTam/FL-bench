@@ -140,33 +140,13 @@ if __name__ == "__main__":
     parser.add_argument(
         "--split", type=str, choices=["sample", "user"], default="sample"
     )
-    parser.add_argument(
-        "--fraction", type=float, default=0.5, help="Propotion of train data/clients"
-    )
+    parser.add_argument("--fraction", type=float, default=0.5)
     # For random assigning classes only
-    parser.add_argument(
-        "-c",
-        "--classes",
-        type=int,
-        default=0,
-        help="Num of classes that one client's data belong to.",
-    )
+    parser.add_argument("-c", "--classes", type=int, default=0)
     # For allocate shards only
-    parser.add_argument(
-        "-s",
-        "--shards",
-        type=int,
-        default=0,
-        help="Num of classes that one client's data belong to.",
-    )
+    parser.add_argument("-s", "--shards", type=int, default=0)
     # For dirichlet distribution only
-    parser.add_argument(
-        "-a",
-        "--alpha",
-        type=float,
-        default=0,
-        help="Only for controling data hetero degree while performing Dirichlet partition.",
-    )
+    parser.add_argument("-a", "--alpha", type=float, default=0)
     parser.add_argument("-ls", "--least_samples", type=int, default=40)
 
     # For synthetic data only

@@ -10,7 +10,6 @@ def get_fedavg_argparser() -> ArgumentParser:
         type=str,
         default="lenet5",
         choices=["lenet5", "2nn", "avgcnn", "mobile", "res18", "alex"],
-        help="Model backbone FL used.",
     )
     parser.add_argument(
         "-d",
@@ -37,126 +36,24 @@ def get_fedavg_argparser() -> ArgumentParser:
         default="cifar10",
     )
     parser.add_argument("--seed", type=int, default=42)
-    parser.add_argument(
-        "-jr",
-        "--join_ratio",
-        type=float,
-        default=0.1,
-        help="Ratio for (client each round) / (client num in total)",
-    )
-    parser.add_argument(
-        "-ge",
-        "--global_epoch",
-        type=int,
-        default=100,
-        help="Global epoch, also called communication round.",
-    )
-    parser.add_argument(
-        "-le",
-        "--local_epoch",
-        type=int,
-        default=5,
-        help="Local epoch for client local training.",
-    )
-    parser.add_argument(
-        "-fe",
-        "--finetune_epoch",
-        type=int,
-        default=0,
-        help="Clients would fine-tune their model before test.",
-    )
-    parser.add_argument(
-        "-tg",
-        "--test_gap",
-        type=int,
-        default=100,
-        help="Server performing test on all training clients(on their testset) after each `test_gap` global epoch.",
-    )
-    parser.add_argument(
-        "-ee",
-        "--eval_test",
-        type=int,
-        default=1,
-        help="Non-zero value for performing evaluation on joined clients' testset before and after local training.",
-    )
-    parser.add_argument(
-        "-er",
-        "--eval_train",
-        type=int,
-        default=0,
-        help="Non-zero value for performing evaluation on joined clients' trainset before and after local training.",
-    )
-    parser.add_argument(
-        "-lr",
-        "--local_lr",
-        type=float,
-        default=1e-2,
-        help="Learning rate for client local training.",
-    )
-    parser.add_argument(
-        "-mom",
-        "--momentum",
-        type=float,
-        default=0.0,
-        help="Momentum for client local opitimizer.",
-    )
-    parser.add_argument(
-        "-wd",
-        "--weight_decay",
-        type=float,
-        default=0.0,
-        help="Weight decay for client local optimizer.",
-    )
-    parser.add_argument(
-        "-vg",
-        "--verbose_gap",
-        type=int,
-        default=100000,
-        help="Joined clients performance would be shown after each verbose_gap global epoch.",
-    )
-    parser.add_argument(
-        "-bs",
-        "--batch_size",
-        type=int,
-        default=32,
-        help="Batch size for client local training.",
-    )
-    parser.add_argument(
-        "--server_cuda",
-        type=int,
-        default=1,
-        help="Non-zero value indicates that tensors in server side are in gpu.",
-    )
-    parser.add_argument(
-        "--client_cuda",
-        type=int,
-        default=1,
-        help="Non-zero value indicates that tensors in client side are in gpu.",
-    )
-    parser.add_argument(
-        "--visible",
-        type=int,
-        default=1,
-        help="Non-zero value for using Visdom to monitor algorithm performance on localhost:8097.",
-    )
-    parser.add_argument(
-        "--log",
-        type=int,
-        default=0,
-        help="Non-zero value for saving algorithm running log in FL-bench/logs",
-    )
-    parser.add_argument(
-        "--save_allstats",
-        type=int,
-        default=0,
-        help="Non-zero value for saving all clients performance in every global epoch they joined.",
-    )
-    parser.add_argument(
-        "--save_model",
-        type=int,
-        default=0,
-        help="Non-zero value for saving trained model(s) after the whole FL procedure.",
-    )
+    parser.add_argument("-jr", "--join_ratio", type=float, default=0.1)
+    parser.add_argument("-ge", "--global_epoch", type=int, default=100)
+    parser.add_argument("-le", "--local_epoch", type=int, default=5)
+    parser.add_argument("-fe", "--finetune_epoch", type=int, default=0)
+    parser.add_argument("-tg", "--test_gap", type=int, default=100)
+    parser.add_argument("-ee", "--eval_test", type=int, default=1)
+    parser.add_argument("-er", "--eval_train", type=int, default=0)
+    parser.add_argument("-lr", "--local_lr", type=float, default=1e-2)
+    parser.add_argument("-mom", "--momentum", type=float, default=0.0)
+    parser.add_argument("-wd", "--weight_decay", type=float, default=0.0)
+    parser.add_argument("-vg", "--verbose_gap", type=int, default=100000)
+    parser.add_argument("-bs", "--batch_size", type=int, default=32)
+    parser.add_argument("--server_cuda", type=int, default=1)
+    parser.add_argument("--client_cuda", type=int, default=1)
+    parser.add_argument("--visible", type=int, default=1)
+    parser.add_argument("--log", type=int, default=0)
+    parser.add_argument("--save_allstats", type=int, default=0)
+    parser.add_argument("--save_model", type=int, default=0)
     return parser
 
 
