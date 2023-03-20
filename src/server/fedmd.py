@@ -22,11 +22,11 @@ class FedMDServer(FedAvgServer):
         self,
         algo: str = "FedMD",
         args: Namespace = None,
-        unique_model=False,
+        unique_model=True,
         default_trainer=False,
     ):
         if args is None:
-            args = (get_fedmd_argparser().parse_args(),)
+            args = get_fedmd_argparser().parse_args()
         super().__init__(algo, args, unique_model, default_trainer)
         self.trainer = FedMDClient(
             model=deepcopy(self.model), args=self.args, logger=self.logger

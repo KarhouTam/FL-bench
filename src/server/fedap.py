@@ -80,7 +80,9 @@ class FedAPServer(FedAvgServer):
                     delta_cache.append(delta)
                     weight_cache.append(weight)
                 else:
-                    for old_param, diff in zip(self.global_params_dict.values(), delta):
+                    for old_param, diff in zip(
+                        self.global_params_dict.values(), delta.values()
+                    ):
                         old_param.data -= diff.data.to(self.device)
 
             if self.args.version == "f":

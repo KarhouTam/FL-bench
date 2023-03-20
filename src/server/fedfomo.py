@@ -13,7 +13,7 @@ class FedFOMOServer(FedAvgServer):
         self,
         algo: str = "FedFomo",
         args: Namespace = None,
-        unique_model=False,
+        unique_model=True,
         default_trainer=False,
     ):
         if args is None:
