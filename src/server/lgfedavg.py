@@ -3,10 +3,10 @@ from copy import deepcopy
 
 from fedavg import FedAvgServer
 from src.config.args import get_lgfedavg_argparser
-from src.client.lgfedavg import LG_FedAvgClient
+from src.client.lgfedavg import LGFedAvgClient
 
 
-class LG_FedAvgServer(FedAvgServer):
+class LGFedAvgServer(FedAvgServer):
     def __init__(
         self,
         algo: str = "LG-FedAvg",
@@ -17,9 +17,9 @@ class LG_FedAvgServer(FedAvgServer):
         if args is None:
             args = get_lgfedavg_argparser().parse_args()
         super().__init__(algo, args, unique_model, default_trainer)
-        self.trainer = LG_FedAvgClient(deepcopy(self.model), self.args, self.logger)
+        self.trainer = LGFedAvgClient(deepcopy(self.model), self.args, self.logger)
 
 
 if __name__ == "__main__":
-    server = LG_FedAvgServer()
+    server = LGFedAvgServer()
     server.run()

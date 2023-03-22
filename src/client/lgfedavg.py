@@ -3,7 +3,7 @@ from torch.nn import BatchNorm2d, Conv2d, Linear
 from fedavg import FedAvgClient
 
 
-class LG_FedAvgClient(FedAvgClient):
+class LGFedAvgClient(FedAvgClient):
     def __init__(self, model, args, logger):
         super().__init__(model, args, logger)
         self.personal_params_name = []

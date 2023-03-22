@@ -8,7 +8,7 @@ from src.config.args import get_fedfomo_argparser
 from src.client.fedfomo import FedFomoClient
 
 
-class FedFOMOServer(FedAvgServer):
+class FedFomoServer(FedAvgServer):
     def __init__(
         self,
         algo: str = "FedFomo",
@@ -77,5 +77,5 @@ class FedFOMOServer(FedAvgServer):
 
 
 if __name__ == "__main__":
-    server = FedFOMOServer()
+    server = FedFomoServer()
     server.run()

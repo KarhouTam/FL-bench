@@ -16,7 +16,7 @@ class FedFomoClient(FedAvgClient):
         self.eval_model = deepcopy(self.model)
         self.weight_vector = torch.zeros(client_num_in_total, device=self.device)
         self.trainable_params_name = trainable_params(self.model, requires_name=True)[0]
-        self.valset: Subset = None
+        self.valset = Subset(self.dataset, indices=[])
         self.valloader: DataLoader = None
 
     def train(
@@ -37,7 +37,6 @@ class FedFomoClient(FedAvgClient):
 
     def load_dataset(self):
         super().load_dataset()
-        self.valset = deepcopy(self.trainset)
         num_val_samples = int(len(self.trainset) * self.args.valset_ratio)
         self.valset.indices = self.trainset.indices[:num_val_samples]
         self.trainset.indices = self.trainset.indices[num_val_samples:]

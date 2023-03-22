@@ -52,8 +52,8 @@ class FedAvgClient:
 
         self.trainloader: DataLoader = None
         self.testloader: DataLoader = None
-        self.trainset: Subset = None
-        self.testset: Subset = None
+        self.trainset: Subset = Subset(self.dataset, indices=[])
+        self.testset: Subset = Subset(self.dataset, indices=[])
 
         self.model = model.to(self.device)
         self.local_epoch = self.args.local_epoch
@@ -76,12 +76,8 @@ class FedAvgClient:
         )
 
     def load_dataset(self):
-        idx_train, idx_test = (
-            self.data_indices[self.client_id]["train"],
-            self.data_indices[self.client_id]["test"],
-        )
-        self.trainset = Subset(self.dataset, indices=idx_train)
-        self.testset = Subset(self.dataset, indices=idx_test)
+        self.trainset.indices = self.data_indices[self.client_id]["train"]
+        self.testset.indices = self.data_indices[self.client_id]["test"]
         self.trainloader = DataLoader(self.trainset, self.args.batch_size)
         self.testloader = DataLoader(self.testset, self.args.batch_size)
 

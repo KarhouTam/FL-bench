@@ -6,7 +6,7 @@ from src.config.args import get_fedavg_argparser
 from src.client.fedbabu import FedBabuClient
 
 
-class FedBABUServer(FedAvgServer):
+class FedBabuServer(FedAvgServer):
     def __init__(
         self,
         algo: str = "FedBabu",
@@ -22,5 +22,5 @@ class FedBABUServer(FedAvgServer):
 
 
 if __name__ == "__main__":
-    server = FedBABUServer()
+    server = FedBabuServer()
     server.run()
