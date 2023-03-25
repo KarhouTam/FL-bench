@@ -15,10 +15,15 @@ def randomly_assign_classes(
     targets_numpy = np.array(ori_dataset.targets, dtype=np.int32)
     classes_label = list(range(len(ori_dataset.classes)))
     idx = [np.where(targets_numpy == i)[0].tolist() for i in classes_label]
-    assigned_classes = [
-        random.sample(classes_label, num_classes) for _ in range(num_clients)
-    ]
-    selected_times_count = Counter(np.concatenate(assigned_classes, dtype=np.int32))
+    assigned_classes = [[] for _ in classes_label]
+    selected_times_count = {cls: 0 for cls in classes_label}
+    while 0 in selected_times_count.values() or len(selected_times_count) < len(
+        ori_dataset.classes
+    ):
+        assigned_classes = [
+            random.sample(classes_label, num_classes) for _ in range(num_clients)
+        ]
+        selected_times_count = Counter(np.concatenate(assigned_classes, dtype=np.int32))
     labels_count = Counter(targets_numpy)
     batch_size = np.zeros_like(classes_label)
 
