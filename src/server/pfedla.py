@@ -59,7 +59,7 @@ class pFedLAServer(FedAvgServer):
             self.selected_clients = self.client_sample_stream[E]
             for client_id in self.selected_clients:
                 client_local_params = self.generate_client_params(client_id)
-                delta, _, self.clients_metrics[client_id][E] = self.trainer.train(
+                delta, _, self.client_stats[client_id][E] = self.trainer.train(
                     client_id=client_id,
                     new_parameters=client_local_params,
                     verbose=((E + 1) % self.args.verbose_gap) == 0,

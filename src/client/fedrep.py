@@ -5,9 +5,9 @@ class FedRepClient(FedPerClient):
     def __init__(self, model, args, logger):
         super().__init__(model, args, logger)
 
-    def train(self, client_id, new_parameters, verbose=False):
+    def train(self, client_id, new_parameters, return_diff=True, verbose=False):
         delta, _, stats = super().train(
-            client_id, new_parameters, return_diff=True, verbose=verbose
+            client_id, new_parameters, return_diff=return_diff, verbose=verbose
         )
         # FedRep's model aggregation doesn't use weight
         return delta, 1.0, stats

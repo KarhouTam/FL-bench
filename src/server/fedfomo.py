@@ -46,7 +46,7 @@ class FedFomoServer(FedAvgServer):
                 (
                     client_params,
                     weight_vector,
-                    self.clients_metrics[client_id][E],
+                    self.client_stats[client_id][E],
                 ) = self.trainer.train(
                     client_id=client_id,
                     received_params=selected_params,

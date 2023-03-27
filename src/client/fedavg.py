@@ -13,7 +13,7 @@ from torchvision.transforms import Compose, Normalize
 
 _PROJECT_DIR = Path(__file__).parent.parent.parent.abspath()
 
-from src.config.utils import trainable_params
+from src.config.utils import trainable_params, evaluate
 from src.config.models import DecoupledModel
 from data.utils.constants import MEAN, STD
 from data.utils.datasets import DATASETS
@@ -81,9 +81,16 @@ class FedAvgClient:
         self.trainloader = DataLoader(self.trainset, self.args.batch_size)
         self.testloader = DataLoader(self.testset, self.args.batch_size)
 
-    def train_and_log(self, verbose=False):
-        before = {"loss": 0, "correct": 0, "size": 1.0}
-        after = {"loss": 0, "correct": 0, "size": 1.0}
+    def train_and_log(self, verbose=False) -> Dict[str, Dict[str, float]]:
+        before = {
+            "train_loss": 0,
+            "test_loss": 0,
+            "train_correct": 0,
+            "test_correct": 0,
+            "train_size": 1,
+            "test_size": 1,
+        }
+        after = deepcopy(before)
         before = self.evaluate()
         if self.local_epoch > 0:
             self.fit()
@@ -94,20 +101,20 @@ class FedAvgClient:
                 self.logger.log(
                     "client [{}] (train)  [bold red]loss: {:.4f} -> {:.4f}   [bold blue]acc: {:.2f}% -> {:.2f}%".format(
                         self.client_id,
-                        before["train"]["loss"] / before["train"]["size"],
-                        after["train"]["loss"] / after["train"]["size"],
-                        before["train"]["correct"] / before["train"]["size"] * 100.0,
-                        after["train"]["correct"] / after["train"]["size"] * 100.0,
+                        before["train_loss"] / before["train_size"],
+                        after["train_loss"] / after["train_size"],
+                        before["train_correct"] / before["train_size"] * 100.0,
+                        after["train_correct"] / after["train_size"] * 100.0,
                     )
                 )
             if len(self.testset) > 0 and self.args.eval_test:
                 self.logger.log(
                     "client [{}] (test)  [bold red]loss: {:.4f} -> {:.4f}   [bold blue]acc: {:.2f}% -> {:.2f}%".format(
                         self.client_id,
-                        before["test"]["loss"] / before["test"]["size"],
-                        after["test"]["loss"] / after["test"]["size"],
-                        before["test"]["correct"] / before["test"]["size"] * 100.0,
-                        after["test"]["correct"] / after["test"]["size"] * 100.0,
+                        before["test_loss"] / before["test_size"],
+                        after["test_loss"] / after["test_size"],
+                        before["test_correct"] / before["test_size"] * 100.0,
+                        after["test_correct"] / after["test_size"] * 100.0,
                     )
                 )
 
@@ -163,7 +170,7 @@ class FedAvgClient:
         self.model.train()
         for _ in range(self.local_epoch):
             for x, y in self.trainloader:
-                # when the current batch size is 1, the batchNorm2d modules in the model would raise error.
+                # When the current batch size is 1, the batchNorm2d modules in the model would raise error.
                 # So the latent size 1 data batches are discarded.
                 if len(x) <= 1:
                     continue
@@ -176,39 +183,37 @@ class FedAvgClient:
                 self.optimizer.step()
 
     @torch.no_grad()
-    def evaluate(self) -> Dict[str, Dict[str, float]]:
-        self.model.eval()
+    def evaluate(self, model: torch.nn.Module = None) -> Dict[str, Dict[str, float]]:
+        eval_model = self.model if model is None else model
+        eval_model.eval()
         train_loss, test_loss = 0, 0
         train_correct, test_correct = 0, 0
+        train_sample_num, test_sample_num = 0, 0
         criterion = torch.nn.CrossEntropyLoss(reduction="sum")
 
         if len(self.testset) > 0 and self.args.eval_test:
-            for x, y in self.testloader:
-                x, y = x.to(self.device), y.to(self.device)
-                logits = self.model(x)
-                test_loss += criterion(logits, y).item()
-                pred = torch.argmax(logits, -1)
-                test_correct += (pred == y).sum().item()
+            test_loss, test_correct, test_sample_num = evaluate(
+                model=eval_model,
+                dataloader=self.testloader,
+                criterion=criterion,
+                device=self.device,
+            )
 
         if len(self.trainset) > 0 and self.args.eval_train:
-            for x, y in self.trainloader:
-                x, y = x.to(self.device), y.to(self.device)
-                logits = self.model(x)
-                train_loss += criterion(logits, y).item()
-                pred = torch.argmax(logits, -1)
-                train_correct += (pred == y).sum().item()
+            train_loss, train_correct, train_sample_num = evaluate(
+                model=eval_model,
+                dataloader=self.trainloader,
+                criterion=criterion,
+                device=self.device,
+            )
 
         return {
-            "train": {
-                "loss": train_loss,
-                "correct": train_correct,
-                "size": float(max(len(self.trainset), 1)),
-            },
-            "test": {
-                "loss": test_loss,
-                "correct": test_correct,
-                "size": float(max(len(self.testset), 1)),
-            },
+            "train_loss": train_loss,
+            "test_loss": test_loss,
+            "train_correct": train_correct,
+            "test_correct": test_correct,
+            "train_size": float(max(1, train_sample_num)),
+            "test_size": float(max(1, test_sample_num)),
         }
 
     def test(
@@ -219,8 +224,12 @@ class FedAvgClient:
         self.set_parameters(new_parameters)
 
         before = {
-            "train": {"loss": 0, "correct": 0, "size": 1.0},
-            "test": {"loss": 0, "correct": 0, "size": 1.0},
+            "train_loss": 0,
+            "train_correct": 0,
+            "train_size": 1.0,
+            "test_loss": 0,
+            "test_correct": 0,
+            "test_size": 1.0,
         }
         after = deepcopy(before)
 

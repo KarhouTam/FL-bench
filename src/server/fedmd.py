@@ -58,7 +58,7 @@ class FedMDServer(FedAvgServer):
             client_params_cache = []
             for client_id in self.selected_clients:
                 client_params = self.generate_client_params(client_id)
-                client_params, self.clients_metrics[client_id][E] = self.trainer.train(
+                client_params, self.client_stats[client_id][E] = self.trainer.train(
                     client_id=client_id,
                     new_parameters=client_params,
                     verbose=((E + 1) % self.args.verbose_gap) == 0,

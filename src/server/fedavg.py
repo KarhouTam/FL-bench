@@ -9,7 +9,6 @@ from copy import deepcopy
 from typing import Dict, List
 
 import torch
-from visdom import Visdom
 from path import Path
 from rich.console import Console
 from rich.progress import track
@@ -19,7 +18,7 @@ _PROJECT_DIR = Path(__file__).parent.parent.parent.abspath()
 
 sys.path.append(_PROJECT_DIR)
 
-from src.config.utils import LOG_DIR, fix_random_seed, trainable_params
+from src.config.utils import OUT_DIR, fix_random_seed, trainable_params
 from src.config.models import MODEL_DICT
 from src.config.args import get_fedavg_argparser
 from src.client.fedavg import FedAvgClient
@@ -86,6 +85,8 @@ class FedAvgServer:
 
         # variables for logging
         if self.args.visible:
+            from visdom import Visdom
+
             self.viz = Visdom()
             self.viz_win_name = (
                 f"{self.algo}"
@@ -93,9 +94,14 @@ class FedAvgServer:
                 + f"_{self.args.global_epoch}"
                 + f"_{self.args.local_epoch}"
             )
-        self.clients_metrics = {i: {} for i in self.train_clients}
-        self.clients_acc_stats = {i: {} for i in self.train_clients}
-        self.logger = Console(record=self.args.log, log_path=False, log_time=False)
+        self.client_stats = {i: {} for i in self.train_clients}
+        self.metrics = {
+            "train_before": [],
+            "train_after": [],
+            "test_before": [],
+            "test_after": [],
+        }
+        self.logger = Console(record=self.args.save_log, log_path=False, log_time=False)
         self.test_results: Dict[int, Dict[str, str]] = {}
         self.train_progress_bar = (
             track(
@@ -103,7 +109,7 @@ class FedAvgServer:
                 "[bold green]Training...",
                 console=self.logger,
             )
-            if not self.args.log
+            if not self.args.save_log
             else tqdm(range(self.args.global_epoch), "Training...")
         )
 
@@ -133,7 +139,7 @@ class FedAvgServer:
 
                 client_local_params = self.generate_client_params(client_id)
 
-                delta, weight, self.clients_metrics[client_id][E] = self.trainer.train(
+                delta, weight, self.client_stats[client_id][E] = self.trainer.train(
                     client_id=client_id,
                     new_parameters=client_local_params,
                     verbose=((E + 1) % self.args.verbose_gap) == 0,
@@ -209,252 +215,87 @@ class FedAvgServer:
             param.data -= diff.to(self.device)
 
     def check_convergence(self):
-        train_correct_before = [
-            [
-                self.clients_metrics[cid][epoch]["before"]["train"]["correct"]
-                for cid in clients
-            ]
-            for (epoch, clients) in enumerate(self.client_sample_stream)
-        ]
-        train_correct_after = [
-            [
-                self.clients_metrics[cid][epoch]["after"]["train"]["correct"]
-                for cid in clients
-            ]
-            for (epoch, clients) in enumerate(self.client_sample_stream)
-        ]
-        train_num_samples = [
-            [
-                self.clients_metrics[cid][epoch]["before"]["train"]["size"]
-                for cid in clients
-            ]
-            for (epoch, clients) in enumerate(self.client_sample_stream)
-        ]
-        test_correct_before = [
-            [
-                self.clients_metrics[cid][epoch]["before"]["test"]["correct"]
-                for cid in clients
-            ]
-            for (epoch, clients) in enumerate(self.client_sample_stream)
-        ]
-        test_correct_after = [
-            [
-                self.clients_metrics[cid][epoch]["after"]["test"]["correct"]
-                for cid in clients
-            ]
-            for (epoch, clients) in enumerate(self.client_sample_stream)
-        ]
-        test_num_samples = [
-            [
-                self.clients_metrics[cid][epoch]["before"]["test"]["size"]
-                for cid in clients
-            ]
-            for (epoch, clients) in enumerate(self.client_sample_stream)
-        ]
-
-        self.logger.log("Convergence on train data:")
-        self.logger.log("Accuracy (before):")
-        acc_range = [90.0, 80.0, 70.0, 60.0, 50.0, 40.0, 30.0, 20.0, 10.0]
-        min_acc_idx = 10
-        max_acc = 0
-        for E, (corr, n) in enumerate(zip(train_correct_before, train_num_samples)):
-            acc_before = sum(corr) / sum(n) * 100.0
-            for i, acc in enumerate(acc_range):
-                if acc_before >= acc and acc_before > max_acc:
-                    self.logger.log(
-                        "{} achieved {}%({:.2f}%) at epoch: {}".format(
-                            self.algo, acc, acc_before, E
-                        )
-                    )
-                    max_acc = acc_before
-                    min_acc_idx = i
-                    break
-            acc_range = acc_range[:min_acc_idx]
-
-        self.logger.log("\nAccuracy (after):")
-        acc_range = [90.0, 80.0, 70.0, 60.0, 50.0, 40.0, 30.0, 20.0, 10.0]
-        min_acc_idx = 10
-        max_acc = 0
-        for E, (corr, n) in enumerate(zip(train_correct_after, train_num_samples)):
-            acc_after = sum(corr) / sum(n) * 100.0
-            for i, acc in enumerate(acc_range):
-                if acc_after >= acc and acc_after > max_acc:
-                    self.logger.log(
-                        "{} achieved {}%({:.2f}%) at epoch: {}".format(
-                            self.algo, acc, acc_after, E
-                        )
-                    )
-                    max_acc = acc_after
-                    min_acc_idx = i
-                    break
-            acc_range = acc_range[:min_acc_idx]
-
-        self.logger.log("\nConvergence on test data:")
-        self.logger.log("Accuracy (before):")
-        acc_range = [90.0, 80.0, 70.0, 60.0, 50.0, 40.0, 30.0, 20.0, 10.0]
-        min_acc_idx = 10
-        max_acc = 0
-        for E, (corr, n) in enumerate(zip(test_correct_before, test_num_samples)):
-            acc_before = sum(corr) / sum(n) * 100.0
-            for i, acc in enumerate(acc_range):
-                if acc_before >= acc and acc_before > max_acc:
-                    self.logger.log(
-                        "{} achieved {}%({:.2f}%) at epoch: {}".format(
-                            self.algo, acc, acc_before, E
-                        )
-                    )
-                    max_acc = acc_before
-                    min_acc_idx = i
-                    break
-            acc_range = acc_range[:min_acc_idx]
-
-        self.logger.log("\nAccuracy (after):")
-        acc_range = [90.0, 80.0, 70.0, 60.0, 50.0, 40.0, 30.0, 20.0, 10.0]
-        min_acc_idx = 10
-        max_acc = 0
-        for E, (corr, n) in enumerate(zip(test_correct_after, test_num_samples)):
-            acc_after = sum(corr) / sum(n) * 100.0
-            for i, acc in enumerate(acc_range):
-                if acc_after >= acc and acc_after > max_acc:
-                    self.logger.log(
-                        "{} achieved {}%({:.2f}%) at epoch: {}".format(
-                            self.algo, acc, acc_after, E
-                        )
-                    )
-                    max_acc = acc_after
-                    min_acc_idx = i
-                    break
-            acc_range = acc_range[:min_acc_idx]
+        for label, metric in self.metrics.items():
+            if len(metric) > 0:
+                self.logger.log(f"Convergence ({label}):")
+                acc_range = [90.0, 80.0, 70.0, 60.0, 50.0, 40.0, 30.0, 20.0, 10.0]
+                min_acc_idx = 10
+                max_acc = 0
+                for E, acc in enumerate(metric):
+                    for i, target in enumerate(acc_range):
+                        if acc >= target and acc > max_acc:
+                            self.logger.log(
+                                "{} achieved {}%({:.2f}%) at epoch: {}".format(
+                                    self.algo, target, acc, E
+                                )
+                            )
+                            max_acc = acc
+                            min_acc_idx = i
+                            break
+                    acc_range = acc_range[:min_acc_idx]
 
     def log_info(self):
-        train_correct_before, train_correct_after = 0, 0
-        test_correct_before, test_correct_after = 0, 0
-        train_acc_before, train_acc_after = 0, 0
-        test_acc_before, test_acc_after = 0, 0
-        train_num_samples, test_num_samples = 0, 0
-
-        # In the `user` split, there is no test data held by train clients, so plotting is unnecessary.
-        if self.args.eval_test and self.args.dataset_args["split"] != "user":
-            test_correct_before = torch.tensor(
-                [
-                    self.clients_metrics[cid][self.current_epoch]["before"]["test"][
-                        "correct"
+        for label in ["train", "test"]:
+            # In the `user` split, there is no test data held by train clients, so plotting is unnecessary.
+            if (label == "train" and self.args.eval_train) or (
+                label == "test"
+                and self.args.eval_test
+                and self.args.dataset_args["split"] != "user"
+            ):
+                correct_before = torch.tensor(
+                    [
+                        self.client_stats[c][self.current_epoch]["before"][
+                            f"{label}_correct"
+                        ]
+                        for c in self.selected_clients
                     ]
-                    for cid in self.selected_clients
-                ]
-            )
-            test_correct_after = torch.tensor(
-                [
-                    self.clients_metrics[cid][self.current_epoch]["after"]["test"][
-                        "correct"
-                    ]
-                    for cid in self.selected_clients
-                ]
-            )
-            test_num_samples = torch.tensor(
-                [
-                    self.clients_metrics[cid][self.current_epoch]["before"]["test"][
-                        "size"
-                    ]
-                    for cid in self.selected_clients
-                ]
-            )
-
-            test_acc_before = (
-                test_correct_before.sum(dim=-1, keepdim=True)
-                / test_num_samples.sum()
-                * 100.0
-            ).item()
-            test_acc_after = (
-                test_correct_after.sum(dim=-1, keepdim=True)
-                / test_num_samples.sum()
-                * 100.0
-            ).item()
-            if self.args.visible:
-                self.viz.line(
-                    [test_acc_before],
-                    [self.current_epoch],
-                    win=self.viz_win_name,
-                    update="append",
-                    name="test_acc(before)",
-                    opts=dict(
-                        title=self.viz_win_name,
-                        xlabel="Communication Rounds",
-                        ylabel="Accuracy",
-                    ),
                 )
-                self.viz.line(
-                    [test_acc_after],
-                    [self.current_epoch],
-                    win=self.viz_win_name,
-                    update="append",
-                    name="test_acc(after)",
+                correct_after = torch.tensor(
+                    [
+                        self.client_stats[c][self.current_epoch]["after"][
+                            f"{label}_correct"
+                        ]
+                        for c in self.selected_clients
+                    ]
+                )
+                num_samples = torch.tensor(
+                    [
+                        self.client_stats[c][self.current_epoch]["before"][
+                            f"{label}_size"
+                        ]
+                        for c in self.selected_clients
+                    ]
                 )
 
-        if self.args.eval_train:
-            train_correct_before = torch.tensor(
-                [
-                    self.clients_metrics[cid][self.current_epoch]["before"]["train"][
-                        "correct"
-                    ]
-                    for cid in self.selected_clients
-                ]
-            )
-            train_correct_after = torch.tensor(
-                [
-                    self.clients_metrics[cid][self.current_epoch]["after"]["train"][
-                        "correct"
-                    ]
-                    for cid in self.selected_clients
-                ]
-            )
-            train_num_samples = torch.tensor(
-                [
-                    self.clients_metrics[cid][self.current_epoch]["before"]["train"][
-                        "size"
-                    ]
-                    for cid in self.selected_clients
-                ]
-            )
+                acc_before = (
+                    correct_before.sum(dim=-1, keepdim=True) / num_samples.sum() * 100.0
+                ).item()
+                acc_after = (
+                    correct_after.sum(dim=-1, keepdim=True) / num_samples.sum() * 100.0
+                ).item()
+                self.metrics[f"{label}_before"].append(acc_before)
+                self.metrics[f"{label}_after"].append(acc_after)
 
-            train_acc_before = (
-                train_correct_before.sum(dim=-1, keepdim=True)
-                / train_num_samples.sum()
-                * 100.0
-            ).item()
-            train_acc_after = (
-                train_correct_after.sum(dim=-1, keepdim=True)
-                / train_num_samples.sum()
-                * 100.0
-            ).item()
-            if self.args.visible:
-                self.viz.line(
-                    [train_acc_before],
-                    [self.current_epoch],
-                    win=self.viz_win_name,
-                    update="append",
-                    name="train_acc(before)",
-                    opts=dict(
-                        title=self.viz_win_name,
-                        xlabel="Communication Rounds",
-                        ylabel="Accuracy",
-                    ),
-                )
-                self.viz.line(
-                    [train_acc_after],
-                    [self.current_epoch],
-                    win=self.viz_win_name,
-                    update="append",
-                    name="train_acc(after)",
-                )
-
-        if self.args.save_allstats:
-            for client_id in self.selected_clients:
-                self.clients_acc_stats[client_id][
-                    self.current_epoch
-                ] = "acc (train): {:.2f}% -> {:.2f}%, acc (test): {:.2f}% -> {:.2f}%".format(
-                    train_acc_before, train_acc_after, test_acc_before, test_acc_after
-                )
+                if self.args.visible:
+                    self.viz.line(
+                        [acc_before],
+                        [self.current_epoch],
+                        win=self.viz_win_name,
+                        update="append",
+                        name=f"{label}_acc(before)",
+                        opts=dict(
+                            title=self.viz_win_name,
+                            xlabel="Communication Rounds",
+                            ylabel="Accuracy",
+                        ),
+                    )
+                    self.viz.line(
+                        [acc_after],
+                        [self.current_epoch],
+                        win=self.viz_win_name,
+                        update="append",
+                        name=f"{label}_acc(after)",
+                    )
 
     def run(self):
         if self.trainer is None:
@@ -474,31 +315,61 @@ class FedAvgServer:
         self.check_convergence()
 
         # save log files
-        if self.args.log or self.args.save_allstats:
-            if not os.path.isdir(LOG_DIR / self.args.dataset):
-                os.makedirs(LOG_DIR / self.args.dataset, exist_ok=True)
+        if not os.path.isdir(OUT_DIR / self.algo) and (
+            self.args.save_log or self.args.save_fig or self.args.save_metrics
+        ):
+            os.makedirs(OUT_DIR / self.algo, exist_ok=True)
 
-            if self.args.log:
-                self.logger.save_text(LOG_DIR / self.args.dataset / f"{self.algo}.html")
+        if self.args.save_log:
+            self.logger.save_text(OUT_DIR / self.algo / f"{self.args.dataset}_log.html")
 
-            if self.args.save_allstats:
-                with open(
-                    LOG_DIR / self.args.dataset / f"{self.algo}_allstats.json", "w"
-                ) as f:
-                    json.dump(self.clients_acc_stats, f)
+        if self.args.save_fig:
+            import matplotlib
+            from matplotlib import pyplot as plt
 
+            matplotlib.use("Agg")
+            linestyle = {
+                "test_before": "solid",
+                "test_after": "solid",
+                "train_before": "dotted",
+                "train_after": "dotted",
+            }
+            for label, acc in self.metrics.items():
+                if len(acc) > 0:
+                    plt.plot(acc, label=label, ls=linestyle[label])
+            plt.title(f"{self.algo}_{self.args.dataset}")
+            plt.ylim(0, 100)
+            plt.xlabel("Communication Rounds")
+            plt.ylabel("Accuracy")
+            plt.legend()
+            plt.savefig(
+                OUT_DIR / self.algo / f"{self.args.dataset}.jpeg", bbox_inches="tight"
+            )
+        if self.args.save_metrics:
+            import pandas as pd
+            import numpy as np
+
+            accuracies = []
+            labels = []
+            for label, acc in self.metrics.items():
+                if len(acc) > 0:
+                    accuracies.append(np.array(acc).T)
+                    labels.append(label)
+            pd.DataFrame(np.stack(accuracies, axis=1), columns=labels).to_csv(
+                OUT_DIR / self.algo / f"{self.args.dataset}_acc_metrics.csv",
+                index=False,
+            )
         # save trained model(s)
         if self.args.save_model:
-            os.makedirs(_PROJECT_DIR / "models", exist_ok=True)
-            model_name = f"{self.algo}_{self.args.dataset}_{self.args.global_epoch}_{self.args.model}.pt"
+            model_name = (
+                f"{self.args.dataset}_{self.args.global_epoch}_{self.args.model}.pt"
+            )
             if self.unique_model:
                 torch.save(
-                    self.client_trainable_params, _PROJECT_DIR / "models" / model_name
+                    self.client_trainable_params, OUT_DIR / self.algo / model_name
                 )
             else:
-                torch.save(
-                    self.model.state_dict(), _PROJECT_DIR / "models" / model_name
-                )
+                torch.save(self.model.state_dict(), OUT_DIR / self.algo / model_name)
 
 
 if __name__ == "__main__":

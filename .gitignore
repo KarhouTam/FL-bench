@@ -23,8 +23,7 @@ data/tiny_imagenet
 data/cinic10
 
 # generated files
-logs
-models
+out
 *.json
 *.pt
 *.npy
@@ -32,3 +31,6 @@ models
 *.zip
 *.tar.gz
 *.ipynb
+*.jpeg
+*.csv
+*.html

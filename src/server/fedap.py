@@ -53,7 +53,7 @@ class FedAPServer(FedAvgServer):
                 "[bold green]Warming-up...",
                 console=self.logger,
             )
-            if not self.args.log
+            if not self.args.save_log
             else tqdm(range(self.warmup_round), "Warming-up...")
         )
         for E in warmup_progress_bar:
@@ -67,11 +67,7 @@ class FedAPServer(FedAvgServer):
             delta_cache = []
             weight_cache = []
             for client_id in self.selected_clients:
-                (
-                    delta,
-                    weight,
-                    self.clients_metrics[client_id][E],
-                ) = self.trainer.train(
+                (delta, weight, self.client_stats[client_id][E]) = self.trainer.train(
                     client_id,
                     self.global_params_dict,
                     verbose=((E + 1) % self.args.verbose_gap) == 0,
@@ -102,7 +98,7 @@ class FedAPServer(FedAvgServer):
             self.train_clients,
             "[bold cyan]Generating weight matrix...",
             console=self.logger,
-            disable=self.args.log,
+            disable=self.args.save_log,
         ):
             avgmeta = metacount(self.get_form()[0])
             client_local_params = self.generate_client_params(client_id)
@@ -132,7 +128,7 @@ class FedAPServer(FedAvgServer):
                 "[bold green]Training...",
                 console=self.logger,
             )
-            if not self.args.log
+            if not self.args.save_log
             else tqdm(range(self.warmup_round, self.args.global_epoch), "Training...")
         )
         self.trainer.pretrain = False
@@ -150,7 +146,7 @@ class FedAPServer(FedAvgServer):
             delta_cache = []
             for client_id in self.selected_clients:
                 client_local_params = self.generate_client_params(client_id)
-                delta, _, self.clients_metrics[client_id][E] = self.trainer.train(
+                delta, _, self.client_stats[client_id][E] = self.trainer.train(
                     client_id=client_id,
                     new_parameters=client_local_params,
                     return_diff=False,

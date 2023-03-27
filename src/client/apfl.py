@@ -120,14 +120,10 @@ class APFLClient(FedAvgClient):
                 train_correct += (pred == y).sum().item()
 
         return {
-            "train": {
-                "loss": train_loss,
-                "correct": train_correct,
-                "size": float(max(len(self.trainset), 1)),
-            },
-            "test": {
-                "loss": test_loss,
-                "correct": test_correct,
-                "size": float(max(len(self.testset), 1)),
-            },
+            "train_loss": train_loss,
+            "test_loss": test_loss,
+            "train_correct": train_correct,
+            "test_correct": test_correct,
+            "train_size": float(max(len(self.trainset), 1)),
+            "test_size": float(max(len(self.testset), 1)),
         }

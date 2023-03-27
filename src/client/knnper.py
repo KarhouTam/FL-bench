@@ -69,12 +69,12 @@ class kNNPerClient(FedAvgClient):
 
             # kNN-Per only do kNN trick in the test phase. So stats about evaluation on train data are not offered.
             return {
-                "train": {"loss": 0, "correct": 0, "size": 1.0},
-                "test": {
-                    "loss": loss,
-                    "correct": correct,
-                    "size": float(max(1, len(test_targets))),
-                },
+                "train_loss": 0,
+                "test_loss": loss,
+                "train_correct": 0,
+                "test_correct": correct,
+                "train_size": 1.0,
+                "test_size": float(max(1, len(test_targets))),
             }
         else:
             return super().evaluate()

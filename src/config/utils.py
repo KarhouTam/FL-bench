@@ -1,13 +1,14 @@
 from collections import OrderedDict
-from typing import List, Optional, OrderedDict, Tuple, Union
+from typing import List, Tuple, Union
 
 import torch
 import random
 import numpy as np
 from path import Path
+from torch.utils.data import DataLoader
 
 _PROJECT_DIR = Path(__file__).parent.parent.parent.abspath()
-LOG_DIR = _PROJECT_DIR / "logs"
+OUT_DIR = _PROJECT_DIR / "out"
 TEMP_DIR = _PROJECT_DIR / "temp"
 
 
@@ -43,7 +44,7 @@ def clone_params(
 
 def trainable_params(
     src: Union[OrderedDict[str, torch.Tensor], torch.nn.Module], requires_name=False
-) -> Tuple[Optional[List[str]], List[torch.Tensor]]:
+) -> Union[List[torch.Tensor], Tuple[List[str], List[torch.Tensor]]]:
     parameters = []
     keys = []
     if isinstance(src, OrderedDict):
@@ -61,3 +62,24 @@ def trainable_params(
         return keys, parameters
     else:
         return parameters
+
+
+@torch.no_grad()
+def evaluate(
+    model: torch.nn.Module,
+    dataloader: DataLoader,
+    criterion=torch.nn.CrossEntropyLoss(reduction="sum"),
+    device=torch.device("cpu"),
+):
+    model.eval()
+    correct = 0
+    loss = 0
+    sample_num = 0
+    for x, y in dataloader:
+        x, y = x.to(device), y.to(device)
+        logits = model(x)
+        loss += criterion(logits, y).item()
+        pred = torch.argmax(logits, -1)
+        correct += (pred == y).sum().item()
+        sample_num += len(y)
+    return loss, correct, sample_num
