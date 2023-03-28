@@ -159,11 +159,11 @@ class FedAvgServer:
             client_local_params = self.generate_client_params(client_id)
             stats = self.trainer.test(client_id, client_local_params)
 
-            correct_before.append(stats["before"]["test"]["correct"])
-            correct_after.append(stats["after"]["test"]["correct"])
-            loss_before.append(stats["before"]["test"]["loss"])
-            loss_after.append(stats["after"]["test"]["loss"])
-            num_samples.append(stats["before"]["test"]["size"])
+            correct_before.append(stats["before"]["test_correct"])
+            correct_after.append(stats["after"]["test_correct"])
+            loss_before.append(stats["before"]["test_loss"])
+            loss_after.append(stats["after"]["test_loss"])
+            num_samples.append(stats["before"]["test_size"])
 
         loss_before = torch.tensor(loss_before)
         loss_after = torch.tensor(loss_after)
