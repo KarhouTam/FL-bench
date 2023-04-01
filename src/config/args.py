@@ -51,9 +51,9 @@ def get_fedavg_argparser() -> ArgumentParser:
     parser.add_argument("--server_cuda", type=int, default=1)
     parser.add_argument("--client_cuda", type=int, default=1)
     parser.add_argument("--visible", type=int, default=1)
-    parser.add_argument("--save_log", type=int, default=0)
+    parser.add_argument("--save_log", type=int, default=1)
     parser.add_argument("--save_model", type=int, default=0)
-    parser.add_argument("--save_fig", type=int, default=0)
+    parser.add_argument("--save_fig", type=int, default=1)
     parser.add_argument("--save_metrics", type=int, default=1)
     return parser
 
@@ -214,7 +214,7 @@ def get_metafed_argparser() -> ArgumentParser:
     parser = get_fedavg_argparser()
     parser.add_argument("--valset_ratio", type=float, default=0.2)
     parser.add_argument("--warmup_epoch", type=int, default=30)
-    parser.add_argument("--lamda_1", type=float, default=1.0)
+    parser.add_argument("--lamda", type=float, default=1.0)
     parser.add_argument("--threshold_1", type=float, default=0.6)
     parser.add_argument("--threshold_2", type=float, default=0.5)
     return parser

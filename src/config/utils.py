@@ -70,7 +70,7 @@ def evaluate(
     dataloader: DataLoader,
     criterion=torch.nn.CrossEntropyLoss(reduction="sum"),
     device=torch.device("cpu"),
-):
+) -> Tuple[float, float, int]:
     model.eval()
     correct = 0
     loss = 0
