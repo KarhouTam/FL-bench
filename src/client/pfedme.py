@@ -1,6 +1,6 @@
 from collections import OrderedDict
 from copy import deepcopy
-from typing import Dict, Tuple, List
+from typing import Dict, List
 
 import torch
 from torch.optim import Optimizer

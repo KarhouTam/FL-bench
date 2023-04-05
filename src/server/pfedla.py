@@ -1,5 +1,5 @@
-from argparse import Namespace
 import os
+from argparse import Namespace
 from copy import deepcopy
 from collections import OrderedDict
 from typing import OrderedDict

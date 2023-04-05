@@ -1,5 +1,5 @@
-from argparse import Namespace
 import math
+from argparse import Namespace
 from collections import OrderedDict
 from copy import deepcopy
 from typing import List
@@ -120,7 +120,6 @@ class FedAPServer(FedAvgServer):
             bn_mean_list.append(avgmeta.getmean())
             bn_var_list.append(avgmeta.getvar())
         self.generate_weight_matrix(bn_mean_list, bn_var_list)
-
         # regular training
         self.train_progress_bar = (
             track(

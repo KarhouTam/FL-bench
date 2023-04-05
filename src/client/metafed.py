@@ -1,6 +1,5 @@
 from copy import deepcopy
 
-import torch
 import torch.nn.functional as F
 from fedavg import FedAvgClient
 from torch.utils.data import Subset, DataLoader

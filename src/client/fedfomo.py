@@ -1,6 +1,6 @@
 from collections import OrderedDict
 from copy import deepcopy
-from typing import Dict, List, OrderedDict
+from typing import Dict, List
 
 import torch
 from torch.utils.data import DataLoader, Subset

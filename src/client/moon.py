@@ -1,6 +1,6 @@
 from collections import OrderedDict
 from copy import deepcopy
-from typing import Dict, OrderedDict
+from typing import Dict
 
 import torch
 from torch.nn.functional import cosine_similarity, relu

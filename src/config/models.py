@@ -1,5 +1,5 @@
 from collections import OrderedDict
-from typing import Dict, List, OrderedDict, Type
+from typing import Dict, List, Type
 
 import torch
 import torch.nn as nn

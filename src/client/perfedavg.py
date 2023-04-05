@@ -1,6 +1,6 @@
 from collections import OrderedDict
 from copy import deepcopy
-from typing import Iterator, OrderedDict
+from typing import Iterator
 
 import torch
 from torch.utils.data import DataLoader
