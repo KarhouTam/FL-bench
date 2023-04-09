@@ -11,24 +11,27 @@ def randomly_assign_classes(
 ) -> Tuple[List[List[int]], Dict[str, Dict[str, int]]]:
     partition = {"separation": None, "data_indices": None}
     data_indices = [[] for _ in range(num_clients)]
-
     targets_numpy = np.array(ori_dataset.targets, dtype=np.int32)
     classes_label = list(range(len(ori_dataset.classes)))
     idx = [np.where(targets_numpy == i)[0].tolist() for i in classes_label]
-    assigned_classes = [[] for _ in classes_label]
-    selected_times_count = {cls: 0 for cls in classes_label}
-    while 0 in selected_times_count.values() or len(selected_times_count) < len(
-        ori_dataset.classes
-    ):
-        assigned_classes = [
-            random.sample(classes_label, num_classes) for _ in range(num_clients)
-        ]
-        selected_times_count = Counter(np.concatenate(assigned_classes, dtype=np.int32))
+    assigned_classes = [[] for _ in range(num_clients)]
+    selected_classes = list(range(len(ori_dataset.classes)))
+    if num_classes * num_clients > len(selected_classes):
+        selected_classes.extend(
+            np.random.choice(
+                classes_label, num_classes * num_clients - len(selected_classes)
+            ).tolist()
+        )
+    random.shuffle(selected_classes)
+    for i, cls in enumerate(range(0, num_clients * num_classes, num_classes)):
+        assigned_classes[i] = selected_classes[cls : cls + num_classes]
+
+    selected_times = Counter(selected_classes[: num_clients * num_classes])
     labels_count = Counter(targets_numpy)
     batch_size = np.zeros_like(classes_label)
 
-    for cls in labels_count.keys():
-        batch_size[cls] = int(labels_count[cls] / selected_times_count[cls])
+    for cls in selected_times.keys():
+        batch_size[cls] = int(labels_count[cls] / selected_times[cls])
 
     for i in range(num_clients):
         for cls in assigned_classes[i]:
