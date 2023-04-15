@@ -1,3 +1,4 @@
+import os
 from collections import OrderedDict
 from typing import List, Tuple, Union
 
@@ -13,12 +14,14 @@ TEMP_DIR = _PROJECT_DIR / "temp"
 
 
 def fix_random_seed(seed: int) -> None:
-    torch.cuda.empty_cache()
-    torch.random.manual_seed(seed)
-    torch.cuda.manual_seed(seed)
-    torch.cuda.manual_seed_all(seed)
+    os.environ["PYTHONHASHSEED"] = str(seed)
     random.seed(seed)
     np.random.seed(seed)
+    torch.random.manual_seed(seed)
+    if torch.cuda.is_available():
+        torch.cuda.empty_cache()
+        torch.cuda.manual_seed(seed)
+        torch.cuda.manual_seed_all(seed)
     torch.backends.cudnn.deterministic = True
     torch.backends.cudnn.benchmark = False
 
