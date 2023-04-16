@@ -65,7 +65,7 @@ class APFLClient(FedAvgClient):
 
                 logit_l = self.local_model(x)
                 logit_g = self.model(x)
-                logit_p = self.alpha * logit_l + (1 - self.alpha) * logit_g
+                logit_p = self.alpha * logit_l + (1 - self.alpha) * logit_g.detach()
                 loss = self.criterion(logit_p, y)
                 self.optimizer.zero_grad()
                 loss.backward()
