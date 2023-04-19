@@ -7,7 +7,6 @@ from typing import List
 import torch
 import numpy as np
 from rich.progress import track
-from tqdm import tqdm
 
 from fedavg import FedAvgServer
 from src.config.args import get_fedap_argparser
@@ -47,14 +46,8 @@ class FedAPServer(FedAvgServer):
                     "FedAP or d-FedAP need `pretrain_ratio` in the range of [0, 1]."
                 )
 
-        warmup_progress_bar = (
-            track(
-                range(self.warmup_round),
-                "[bold green]Warming-up...",
-                console=self.logger,
-            )
-            if not self.args.save_log
-            else tqdm(range(self.warmup_round), "Warming-up...")
+        warmup_progress_bar = track(
+            range(self.warmup_round), "[bold green]Warming-up..."
         )
         for E in warmup_progress_bar:
             self.current_epoch = E
@@ -121,14 +114,8 @@ class FedAPServer(FedAvgServer):
             bn_var_list.append(avgmeta.getvar())
         self.generate_weight_matrix(bn_mean_list, bn_var_list)
         # regular training
-        self.train_progress_bar = (
-            track(
-                range(self.warmup_round, self.args.global_epoch),
-                "[bold green]Training...",
-                console=self.logger,
-            )
-            if not self.args.save_log
-            else tqdm(range(self.warmup_round, self.args.global_epoch), "Training...")
+        self.train_progress_bar = track(
+            range(self.warmup_round, self.args.global_epoch), "[bold green]Training..."
         )
         self.trainer.pretrain = False
         for E in self.train_progress_bar:

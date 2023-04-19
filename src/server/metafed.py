@@ -2,7 +2,6 @@ from argparse import Namespace
 from copy import deepcopy
 from fedavg import FedAvgServer
 from rich.progress import track
-from tqdm import tqdm
 from src.client.metafed import MetaFedClient
 from src.config.args import get_metafed_argparser
 
@@ -24,19 +23,9 @@ class MetaFedServer(FedAvgServer):
         self.trainer = MetaFedClient(
             deepcopy(self.model), self.args, self.logger, self.client_num_in_total
         )
-        self.warmup_progress_bar = (
-            track(self.train_clients, "[bold cyan]Warming-up...", console=self.logger)
-            if not self.args.save_log
-            else tqdm(self.train_clients, "Warming-up..")
-        )
-        self.pers_progress_bar = (
-            track(
-                self.train_clients,
-                "[bold magenta]Personalizing...",
-                console=self.logger,
-            )
-            if not self.args.save_log
-            else tqdm(self.train_clients, "Personalizing...")
+        self.warmup_progress_bar = track(self.train_clients, "[bold cyan]Warming-up...")
+        self.pers_progress_bar = track(
+            self.train_clients, "[bold magenta]Personalizing..."
         )
 
     def train(self):

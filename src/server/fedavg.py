@@ -12,7 +12,6 @@ import torch
 from path import Path
 from rich.console import Console
 from rich.progress import track
-from tqdm import tqdm
 
 _PROJECT_DIR = Path(__file__).parent.parent.parent.abspath()
 
@@ -103,14 +102,8 @@ class FedAvgServer:
         }
         self.logger = Console(record=self.args.save_log, log_path=False, log_time=False)
         self.test_results: Dict[int, Dict[str, str]] = {}
-        self.train_progress_bar = (
-            track(
-                range(self.args.global_epoch),
-                "[bold green]Training...",
-                console=self.logger,
-            )
-            if not self.args.save_log
-            else tqdm(range(self.args.global_epoch), "Training...")
+        self.train_progress_bar = track(
+            range(self.args.global_epoch), "[bold green]Training..."
         )
 
         self.logger.log("=" * 20, "ALGORITHM:", self.algo, "=" * 20)
