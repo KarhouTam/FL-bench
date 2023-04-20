@@ -1,6 +1,6 @@
 # Federated Learning Benchmark
 
-## Method
+## Method 🧬
 
 ### Regular FL Methods
 
@@ -59,8 +59,7 @@
 
 More reproductions/features would come soon or later (depends on my mood 🤣).
 
-## Easy Run
-e.g.
+## Easy Run 🏃‍♂️
 ```shell
 # partition the CIFAR-10 according to Dir(0.1) for 100 clients
 cd data/utils
@@ -75,11 +74,11 @@ python fedavg.py
 About methods of generating federated dastaset, go check [`data/README.md`](https://github.com/KarhouTam/FL-bench/tree/master/data/#readme) for full details.
 
 
-### Monitor
+### Monitor 📈 (optional and recommended 👍)
 1. Run `python -m visdom.server` on terminal.
 2. Run `src/server/${algo}.py --visible 1`
 3. Go check `localhost:8097` on your browser.
-## Arguments
+## Arguments 🔧
 
 📢 All arguments have default value.
 
@@ -109,9 +108,9 @@ About the default values and hyperparameters of advanced FL methods, go check [`
 | `--save_fig`              | Non-zero value for saving the accuracy curves showed on Visdom into a `.jpeg` file at `FL-bench/out/{$algo}`. |
 | `--save_metrics`          | Non-zero value for saving metrics stats into a `.csv` file at `FL-bench/out/{$algo}`.                         |
 
-## Supported Datasets
+## Supported Datasets 🎨
 
-🤗 This benchmark only support algorithms to solve image classification task for now.
+This benchmark only support algorithms to solve image classification task for now.
 
 
 Regular Image Datasets
@@ -144,7 +143,7 @@ Medical Image Datasets
 
 - [*Organ-S/A/CMNIST*](https://medmnist.com/) (1 x 28 x 28, 11 classes)
 
-## Acknowledgement
+## Acknowledgement 🤗
 
 Some reproductions in this benchmark are referred to <https://github.com/TsingZ0/PFL-Non-IID>, which is a great FL benchmark. 👍
 
