@@ -53,7 +53,7 @@ class ClusteredFL(FedAvgServer):
                     verbose=((E + 1) % self.args.verbose_gap) == 0,
                 )
                 self.delta_list[client_id] = [
-                    diff.detach().to(self.device) for diff in delta.values()
+                    -diff.detach().to(self.device) for diff in delta.values()
                 ]
 
             self.compute_pairwise_similarity()
@@ -121,7 +121,7 @@ class ClusteredFL(FedAvgServer):
                 for param, diff in zip(
                     self.client_trainable_params[i], aggregated_delta
                 ):
-                    param.data -= diff
+                    param.data += diff
 
 
 @torch.no_grad()
