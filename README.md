@@ -1,5 +1,7 @@
 # Federated Learning Benchmark
 
+ALL methods I reproduced are inherited from `FedAvgServer` and `FedAvgClient`. If you wanna figure out the entire workflow of federated learning and details of variables setting, go check [`./src/server/fedavg.py`](https://github.com/KarhouTam/FL-bench/blob/master/src/server/fedavg.py) and [`./src/client/fedavg.py`](https://github.com/KarhouTam/FL-bench/blob/master/src/client/fedavg.py).
+
 ## Method 🧬
 
 ### Regular FL Methods
@@ -83,30 +85,31 @@ About methods of generating federated dastaset, go check [`data/README.md`](http
 📢 All arguments have default value.
 
 About the default values and hyperparameters of advanced FL methods, go check [`src/config/args.py`](https://github.com/KarhouTam/FL-bench/tree/master/src/config/args.py) for full details.
-| General Argument          | Description                                                                                                   |
-| ------------------------- | ------------------------------------------------------------------------------------------------------------- |
-| `--dataset`, `-d`         | The name of dataset that experiment run on.                                                                   |
-| `--model`, `-m`           | The model backbone experiment used.                                                                           |
-| `--seed`                  | Random seed for running experiment.                                                                           |
-| `--join_ratio`, `-jr`     | Ratio for (client each round) / (client num in total).                                                        |
-| `--global_epoch`, `-ge`   | Global epoch, also called communication round.                                                                |
-| `--local_epoch`, `-le`    | Local epoch for client local training.                                                                        |
-| `--finetune_epoch`, `-fe` | Epoch for clients fine-tunning their models before test.                                                      |
-| `--test_gap`, `-tg`       | Interval round of performing test on clients.                                                                 |
-| `--eval_test`, `-ee`      | Non-zero value for performing evaluation on joined clients' testset before and after local training.          |
-| `--eval_train`, `-er`     | Non-zero value for performing evaluation on joined clients' trainset before and after local training.         |
-| `--local_lr`, `-lr`       | Learning rate for client local training.                                                                      |
-| `--momentum`, `-mom`      | Momentum for client local opitimizer.                                                                         |
-| `--weight_decay`, `-wd`   | Weight decay for client local optimizer.                                                                      |
-| `--verbose_gap`, `-vg`    | Interval round of displaying clients training performance on terminal.                                        |
-| `--batch_size`, `-bs`     | Data batch size for client local training.                                                                    |
-| `--server_cuda`           | Non-zero value indicates that tensors at server side are in gpu.                                              |
-| `--client_cuda`           | Non-zero value indicates that tensors at client side are in gpu.                                              |
-| `--visible`               | Non-zero value for using Visdom to monitor algorithm performance on `localhost:8097`.                         |
-| `--save_log`              | Non-zero value for saving algorithm running log in `FL-bench/out/{$algo}`.                                    |
-| `--save_model`            | Non-zero value for saving output model(s) parameters in `FL-bench/out/{$algo}`.                               |
-| `--save_fig`              | Non-zero value for saving the accuracy curves showed on Visdom into a `.jpeg` file at `FL-bench/out/{$algo}`. |
-| `--save_metrics`          | Non-zero value for saving metrics stats into a `.csv` file at `FL-bench/out/{$algo}`.                         |
+| General Argument          | Description                                                                                                                                                                                                         |
+| ------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `--dataset`, `-d`         | The name of dataset that experiment run on.                                                                                                                                                                         |
+| `--model`, `-m`           | The model backbone experiment used.                                                                                                                                                                                 |
+| `--seed`                  | Random seed for running experiment.                                                                                                                                                                                 |
+| `--join_ratio`, `-jr`     | Ratio for (client each round) / (client num in total).                                                                                                                                                              |
+| `--global_epoch`, `-ge`   | Global epoch, also called communication round.                                                                                                                                                                      |
+| `--local_epoch`, `-le`    | Local epoch for client local training.                                                                                                                                                                              |
+| `--finetune_epoch`, `-fe` | Epoch for clients fine-tunning their models before test.                                                                                                                                                            |
+| `--test_gap`, `-tg`       | Interval round of performing test on clients.                                                                                                                                                                       |
+| `--eval_test`, `-ee`      | Non-zero value for performing evaluation on joined clients' testset before and after local training.                                                                                                                |
+| `--eval_train`, `-er`     | Non-zero value for performing evaluation on joined clients' trainset before and after local training.                                                                                                               |
+| `--local_lr`, `-lr`       | Learning rate for client local training.                                                                                                                                                                            |
+| `--momentum`, `-mom`      | Momentum for client local opitimizer.                                                                                                                                                                               |
+| `--weight_decay`, `-wd`   | Weight decay for client local optimizer.                                                                                                                                                                            |
+| `--verbose_gap`, `-vg`    | Interval round of displaying clients training performance on terminal.                                                                                                                                              |
+| `--batch_size`, `-bs`     | Data batch size for client local training.                                                                                                                                                                          |
+| `--use_lr_scheduler`      | Non-zero value for using learning rate shceduler from PyTorch. The config of scheduler can be changed at [`./src/client/fedavg.py#L78`](https://github.com/KarhouTam/FL-bench/blob/master/src/client/fedavg.py#L78) |
+| `--server_cuda`           | Non-zero value indicates that tensors at server side are in gpu.                                                                                                                                                    |
+| `--client_cuda`           | Non-zero value indicates that tensors at client side are in gpu.                                                                                                                                                    |
+| `--visible`               | Non-zero value for using Visdom to monitor algorithm performance on `localhost:8097`.                                                                                                                               |
+| `--save_log`              | Non-zero value for saving algorithm running log in `FL-bench/out/{$algo}`.                                                                                                                                          |
+| `--save_model`            | Non-zero value for saving output model(s) parameters in `FL-bench/out/{$algo}`.                                                                                                                                     |
+| `--save_fig`              | Non-zero value for saving the accuracy curves showed on Visdom into a `.jpeg` file at `FL-bench/out/{$algo}`.                                                                                                       |
+| `--save_metrics`          | Non-zero value for saving metrics stats into a `.csv` file at `FL-bench/out/{$algo}`.                                                                                                                               |
 
 ## Supported Datasets 🎨
 

@@ -7,13 +7,12 @@ from typing import Dict, List, Tuple
 import torch
 from path import Path
 from rich.console import Console
-from torch.optim import SGD
 from torch.utils.data import DataLoader, Subset
 from torchvision.transforms import Compose, Normalize
 
 _PROJECT_DIR = Path(__file__).parent.parent.parent.abspath()
 
-from src.config.utils import trainable_params, evaluate
+from src.config.utils import trainable_params, evaluate, FLBenchOptimizer
 from src.config.models import DecoupledModel
 from data.utils.constants import MEAN, STD
 from data.utils.datasets import DATASETS
@@ -37,10 +36,10 @@ class FedAvgClient:
 
         self.data_indices: List[List[int]] = partition["data_indices"]
 
+        # you can add more data transformation operations there manually
         transform = Compose(
             [Normalize(MEAN[self.args.dataset], STD[self.args.dataset])]
         )
-        # transform = None
         target_transform = None
 
         self.dataset = DATASETS[self.args.dataset](
@@ -68,12 +67,22 @@ class FedAvgClient:
             if not param.requires_grad
         }
         self.opt_state_dict = {}
-        self.optimizer = SGD(
+
+        # you can change the type and arguments of optimizer and add more arguments there manually
+        optimizer = torch.optim.SGD(
             trainable_params(self.model),
             self.local_lr,
             self.args.momentum,
             self.args.weight_decay,
         )
+        scheduler = None
+        if self.args.use_lr_scheduler:
+            # you can change the type and arguments of lr scheduler there manually
+            scheduler = torch.optim.lr_scheduler.StepLR(
+                optimizer, step_size=50, gamma=0.9
+            )
+        self.optimizer = FLBenchOptimizer(optimizer=optimizer, scheduler=scheduler)
+        self.init_opt_state_dict = deepcopy(self.optimizer.state_dict())
 
     def load_dataset(self):
         self.trainset.indices = self.data_indices[self.client_id]["train"]
@@ -122,13 +131,14 @@ class FedAvgClient:
         return eval_stats
 
     def set_parameters(self, new_parameters: OrderedDict[str, torch.nn.Parameter]):
-        personal_parameters = self.init_personal_params_dict
-        if self.client_id in self.personal_params_dict.keys():
-            personal_parameters = self.personal_params_dict[self.client_id]
-        if self.client_id in self.opt_state_dict.keys():
-            self.optimizer.load_state_dict(self.opt_state_dict[self.client_id])
+        personal_parameters = self.personal_params_dict.get(
+            self.client_id, self.init_personal_params_dict
+        )
+        self.optimizer.load_state_dict(
+            self.opt_state_dict.get(self.client_id, self.init_opt_state_dict)
+        )
         self.model.load_state_dict(new_parameters, strict=False)
-        # personal params would overlap the dummy params from new_parameters at the same layers
+        # personal params would overlap the dummy params from new_parameters from the same layers
         self.model.load_state_dict(personal_parameters, strict=False)
 
     def save_state(self):

@@ -1,9 +1,9 @@
 import os
+import random
 from collections import OrderedDict
 from typing import List, Tuple, Union
 
 import torch
-import random
 import numpy as np
 from path import Path
 from torch.utils.data import DataLoader
@@ -86,3 +86,36 @@ def evaluate(
         correct += (pred == y).sum().item()
         sample_num += len(y)
     return loss, correct, sample_num
+
+
+class FLBenchOptimizer:
+    def __init__(
+        self,
+        optimizer: torch.optim.Optimizer,
+        scheduler: torch.optim.lr_scheduler._LRScheduler = None,
+    ):
+        self.optimizer = optimizer
+        self.scheduler = scheduler
+        # self.epoch_count = 0
+
+    def zero_grad(self):
+        self.optimizer.zero_grad()
+
+    def step(self):
+        # self.epoch_count += 1
+        self.optimizer.step()
+        if self.scheduler:
+            self.scheduler.step()
+
+    def state_dict(self):
+        return {
+            "optimizer": self.optimizer.state_dict(),
+            "scheduler": None if not self.scheduler else self.scheduler.state_dict(),
+            # "epoch_count": self.epoch_count,
+        }
+
+    def load_state_dict(self, state_dict):
+        # self.epoch_count = state_dict["epoch_count"]
+        self.optimizer.load_state_dict(state_dict["optimizer"])
+        if self.scheduler:
+            self.scheduler.load_state_dict(state_dict["scheduler"])
