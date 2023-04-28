@@ -2,6 +2,23 @@
 
 ALL methods I reproduced are inherited from `FedAvgServer` and `FedAvgClient`. If you wanna figure out the entire workflow of federated learning and details of variables setting, go check [`./src/server/fedavg.py`](https://github.com/KarhouTam/FL-bench/blob/master/src/server/fedavg.py) and [`./src/client/fedavg.py`](https://github.com/KarhouTam/FL-bench/blob/master/src/client/fedavg.py).
 
+## Environment Preparation
+
+I offer two approaches to install all required packages. 🎐
+
+1. `pip install -r requirements.txt`
+2. `poetry install` (Recommended 👍. To keep all dependencies you install are identical to mine.)
+     - If you are not from **China mainland** ☝:
+       1. Comment mirror related configs in [`pyproject.toml`](https://github.com/KarhouTam/FL-bench/blob/master/pyproject.toml).
+       2. Run `poetry lock --no-update` to update the `poetry.lock`. 
+
+If you are new to `poetry` 👀:
+
+1. `pip install poetry`
+2. `cd` to the root directory of FL-bench and run `poetry install`
+3. Run `poetry shell` to enter the virtual environement or `poetry run YOUR_COMMAND`.
+4. Have fun. 😏
+
 ## Method 🧬
 
 ### Regular FL Methods

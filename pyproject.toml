@@ -1,0 +1,33 @@
+[tool.poetry]
+name = "fl-bench"
+version = "0.1.0"
+description = "Benchmark of federated learning that aim solving image classification tasks."
+authors = ["KarhouTam <787992532@qq.com>"]
+license = "MIT"
+readme = "README.md"
+packages = [{ include = "fl_bench" }]
+
+[tool.poetry.dependencies]
+python = "3.9.13"
+torch = "1.13.1"
+torchvision = "0.14.1"
+rich = "13.3.1"
+numpy = "1.21.5"
+pandas = "1.4.4"
+path = "16.6.0"
+visdom = "0.2.4"
+Pillow = "9.2.0"
+scipy = "1.9.1"
+matplotlib = "3.5.2"
+
+#### comment these configs if you are not from China mainland ####
+[[tool.poetry.source]]
+name = "mirrors"
+url = "https://pypi.tuna.tsinghua.edu.cn/simple/"
+default = true
+secondary = false
+##################################################################
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
