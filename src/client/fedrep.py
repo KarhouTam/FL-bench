@@ -5,13 +5,6 @@ class FedRepClient(FedPerClient):
     def __init__(self, model, args, logger):
         super().__init__(model, args, logger)
 
-    def train(self, client_id, new_parameters, return_diff=True, verbose=False):
-        delta, _, stats = super().train(
-            client_id, new_parameters, return_diff=return_diff, verbose=verbose
-        )
-        # FedRep's model aggregation doesn't use weight
-        return delta, 1.0, stats
-
     def fit(self):
         self.model.train()
         for E in range(self.local_epoch + self.args.train_body_epoch):
