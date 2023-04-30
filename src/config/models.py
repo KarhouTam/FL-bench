@@ -17,7 +17,6 @@ class DecoupledModel(nn.Module):
         self.dropout: List[nn.Module] = []
 
     def need_all_features(self):
-        self.need_all_features_flag = True
         target_modules = [
             module
             for module in self.base.modules()
@@ -25,7 +24,8 @@ class DecoupledModel(nn.Module):
         ]
 
         def get_feature_hook_fn(model, input, output):
-            self.all_features.append(output)
+            if self.need_all_features_flag:
+                self.all_features.append(output)
 
         for module in target_modules:
             module.register_forward_hook(get_feature_hook_fn)
@@ -42,12 +42,9 @@ class DecoupledModel(nn.Module):
         ]
 
     def forward(self, x: torch.Tensor):
-        out = self.classifier(F.relu(self.base(x)))
-        if self.need_all_features_flag:
-            self.all_features = []
-        return out
+        return self.classifier(F.relu(self.base(x)))
 
-    def get_final_features(self, x: torch.Tensor, detach=True):
+    def get_final_features(self, x: torch.Tensor, detach=True) -> torch.Tensor:
         if len(self.dropout) > 0:
             for dropout in self.dropout:
                 dropout.eval()
@@ -61,21 +58,25 @@ class DecoupledModel(nn.Module):
 
         return func(out)
 
-    def get_all_features(self, x: torch.Tensor, detach=True):
+    def get_all_features(self, x: torch.Tensor, detach=True) -> List[torch.Tensor]:
         feature_list = None
-        if self.need_all_features_flag:
-            if len(self.dropout) > 0:
-                for dropout in self.dropout:
-                    dropout.eval()
+        if len(self.dropout) > 0:
+            for dropout in self.dropout:
+                dropout.eval()
 
-            func = (lambda x: x.clone().detach()) if detach else (lambda x: x)
-            _ = self.base(x)
+        func = (lambda x: x.clone().detach()) if detach else (lambda x: x)
+
+        self.need_all_features_flag = True
+        _ = self.base(x)
+        self.need_all_features_flag = False
+
+        if len(self.all_features) > 0:
             feature_list = [func(feature) for feature in self.all_features]
             self.all_features = []
 
-            if len(self.dropout) > 0:
-                for dropout in self.dropout:
-                    dropout.train()
+        if len(self.dropout) > 0:
+            for dropout in self.dropout:
+                dropout.train()
 
         return feature_list
 
@@ -277,8 +278,9 @@ class ResNet18(DecoupledModel):
 class AlexNet(DecoupledModel):
     def __init__(self, dataset):
         super().__init__()
-        # NOTE: AlexNet does not support datasets with data size smaller than (64 x 64)
         config = {"covid19": 4, "celeba": 2, "tiny_imagenet": 200}
+        if dataset not in config.keys():
+            raise NotImplementedError(f"AlexNet does not support dataset {dataset}")
 
         # NOTE: If you don't want parameters pretrained, set `pretrained` as False
         pretrained = True
@@ -291,6 +293,57 @@ class AlexNet(DecoupledModel):
         self.base.classifier[-1] = nn.Identity()
 
 
+class SqueezeNet(DecoupledModel):
+    def __init__(self, dataset):
+        super().__init__()
+        config = {
+            "mnist": 10,
+            "medmnistS": 11,
+            "medmnistC": 11,
+            "medmnistA": 11,
+            "fmnist": 10,
+            "svhn": 10,
+            "emnist": 62,
+            "femnist": 62,
+            "cifar10": 10,
+            "cinic10": 10,
+            "cifar100": 100,
+            "covid19": 4,
+            "usps": 10,
+            "celeba": 2,
+            "tiny_imagenet": 200,
+        }
+
+        # NOTE: If you don't want parameters pretrained, set `pretrained` as False
+        pretrained = True
+        sqz = models.squeezenet1_1(
+            weights=models.SqueezeNet1_1_Weights.DEFAULT if pretrained else None
+        )
+        self.base = sqz.features
+        self.classifier = nn.Sequential(
+            nn.Dropout(),
+            nn.Conv2d(sqz.classifier[1].in_channels, config[dataset], kernel_size=1),
+            nn.ReLU(True),
+            nn.AdaptiveAvgPool2d((1, 1)),
+            nn.Flatten(),
+        )
+
+    def forward(self, x):
+        if x.shape[1] == 1:
+            x = torch.expand_copy(x, (x.shape[0], 3, *x.shape[2:]))
+        return self.classifier(self.base(x))
+
+    def get_all_features(self, x, detach=True):
+        if x.shape[1] == 1:
+            x = torch.expand_copy(x, (x.shape[0], 3, *x.shape[2:]))
+        return super().get_all_features(x, detach)
+
+    def get_final_features(self, x, detach=True):
+        if x.shape[1] == 1:
+            x = torch.expand_copy(x, (x.shape[0], 3, *x.shape[2:]))
+        return super().get_final_features(x, detach)
+
+
 MODEL_DICT: Dict[str, Type[DecoupledModel]] = {
     "lenet5": LeNet5,
     "avgcnn": FedAvgCNN,
@@ -298,4 +351,5 @@ MODEL_DICT: Dict[str, Type[DecoupledModel]] = {
     "mobile": MobileNetV2,
     "res18": ResNet18,
     "alex": AlexNet,
+    "sqz": SqueezeNet,
 }

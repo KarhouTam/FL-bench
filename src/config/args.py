@@ -9,7 +9,7 @@ def get_fedavg_argparser() -> ArgumentParser:
         "--model",
         type=str,
         default="lenet5",
-        choices=["lenet5", "2nn", "avgcnn", "mobile", "res18", "alex"],
+        choices=["lenet5", "2nn", "avgcnn", "mobile", "res18", "alex", "sqz"],
     )
     parser.add_argument(
         "-d",
