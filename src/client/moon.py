@@ -41,10 +41,19 @@ class MOONClient(FedAvgClient):
                 logit = self.model.classifier(relu(z_curr))
                 loss_sup = self.criterion(logit, y)
                 loss_con = -torch.log(
-                    torch.exp(cosine_similarity(z_curr, z_global) / self.args.tau)
+                    torch.exp(
+                        cosine_similarity(z_curr.flatten(1), z_global.flatten(1))
+                        / self.args.tau
+                    )
                     / (
-                        torch.exp(cosine_similarity(z_prev, z_curr) / self.args.tau)
-                        + torch.exp(cosine_similarity(z_curr, z_global) / self.args.tau)
+                        torch.exp(
+                            cosine_similarity(z_prev.flatten(1), z_curr.flatten(1))
+                            / self.args.tau
+                        )
+                        + torch.exp(
+                            cosine_similarity(z_curr.flatten(1), z_global.flatten(1))
+                            / self.args.tau
+                        )
                     )
                 )
 
