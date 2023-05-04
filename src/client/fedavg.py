@@ -10,7 +10,7 @@ from rich.console import Console
 from torch.utils.data import DataLoader, Subset
 from torchvision.transforms import Compose, Normalize
 
-_PROJECT_DIR = Path(__file__).parent.parent.parent.abspath()
+PROJECT_DIR = Path(__file__).parent.parent.parent.abspath()
 
 from src.config.utils import trainable_params, evaluate, FLBenchOptimizer
 from src.config.models import DecoupledModel
@@ -28,7 +28,7 @@ class FedAvgClient:
 
         # load dataset and clients' data indices
         try:
-            partition_path = _PROJECT_DIR / "data" / self.args.dataset / "partition.pkl"
+            partition_path = PROJECT_DIR / "data" / self.args.dataset / "partition.pkl"
             with open(partition_path, "rb") as f:
                 partition = pickle.load(f)
         except:
@@ -43,7 +43,7 @@ class FedAvgClient:
         target_transform = None
 
         self.dataset = DATASETS[self.args.dataset](
-            root=_PROJECT_DIR / "data" / args.dataset,
+            root=PROJECT_DIR / "data" / args.dataset,
             args=args.dataset_args,
             transform=transform,
             target_transform=target_transform,

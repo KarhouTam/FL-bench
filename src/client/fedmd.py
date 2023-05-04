@@ -5,7 +5,7 @@ import torch
 from torchvision.transforms import Compose, Normalize
 from torch.utils.data import DataLoader
 
-from fedavg import FedAvgClient, _PROJECT_DIR
+from fedavg import FedAvgClient, PROJECT_DIR
 from data.utils.datasets import DATASETS
 from data.utils.constants import MEAN, STD
 from src.config.utils import trainable_params
@@ -22,7 +22,7 @@ class FedMDClient(FedAvgClient):
         target_transform = None
 
         self.public_dataset = DATASETS[self.args.public_dataset](
-            root=_PROJECT_DIR / "data" / args.public_dataset,
+            root=PROJECT_DIR / "data" / args.public_dataset,
             args=None,
             transform=transform,
             target_transform=target_transform,

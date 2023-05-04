@@ -8,9 +8,9 @@ import numpy as np
 from path import Path
 from torch.utils.data import DataLoader
 
-_PROJECT_DIR = Path(__file__).parent.parent.parent.abspath()
-OUT_DIR = _PROJECT_DIR / "out"
-TEMP_DIR = _PROJECT_DIR / "temp"
+PROJECT_DIR = Path(__file__).parent.parent.parent.abspath()
+OUT_DIR = PROJECT_DIR / "out"
+TEMP_DIR = PROJECT_DIR / "temp"
 
 
 def fix_random_seed(seed: int) -> None:

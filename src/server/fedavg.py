@@ -13,9 +13,9 @@ from path import Path
 from rich.console import Console
 from rich.progress import track
 
-_PROJECT_DIR = Path(__file__).parent.parent.parent.abspath()
+PROJECT_DIR = Path(__file__).parent.parent.parent.abspath()
 
-sys.path.append(_PROJECT_DIR)
+sys.path.append(PROJECT_DIR)
 
 from src.config.utils import OUT_DIR, fix_random_seed, trainable_params
 from src.config.models import MODEL_DICT
@@ -35,7 +35,7 @@ class FedAvgServer:
         self.algo = algo
         self.unique_model = unique_model
         fix_random_seed(self.args.seed)
-        with open(_PROJECT_DIR / "data" / self.args.dataset / "args.json", "r") as f:
+        with open(PROJECT_DIR / "data" / self.args.dataset / "args.json", "r") as f:
             self.args.dataset_args = json.load(f)
 
         # get client party info
@@ -43,7 +43,7 @@ class FedAvgServer:
         self.test_clients: List[int] = None
         self.client_num_in_total: int = None
         try:
-            partition_path = _PROJECT_DIR / "data" / self.args.dataset / "partition.pkl"
+            partition_path = PROJECT_DIR / "data" / self.args.dataset / "partition.pkl"
             with open(partition_path, "rb") as f:
                 partition = pickle.load(f)
         except:
