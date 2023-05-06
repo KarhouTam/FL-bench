@@ -21,6 +21,7 @@ data/svhn
 data/usps
 data/tiny_imagenet
 data/cinic10
+data/domain/raw
 
 # generated files
 out

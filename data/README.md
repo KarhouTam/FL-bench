@@ -1,4 +1,4 @@
-# Generating Federeated dataset
+# Generating Federated dataset
 
 This benckmark offers 3 methods to partition dataset.
 
@@ -10,13 +10,13 @@ This benckmark offers 3 methods to partition dataset.
 - *Randomly assign classes* (`-c`): Each client would be allocated data that belongs to `-c` classes. And classes for each client are randomly choosed.
 
 
-## Download Datasets
-
-Most of the datasets supported by this benchmark are integrated into `torchvision.datasets`. So there is no extra work to be done for downloading.
+## Download Datasets 🎨
 
 This benchmark also integrates [*LEAF*](https://github.com/TalwalkarLab/leaf), and supports *FEMNIST*, *CelebA*. For these datasets, this benchmark does not partition them further.
 
-Expect *Tiny-ImageNet-200*, *Covid-19*, *Organ-S/A/CMNIST*. For these datasets, I prepare download scripts (at [`data/download`](https://github.com/KarhouTam/FL-bench/blob/master/data/download)) for you. 🤗
+Most of the datasets supported by this benchmark are integrated into `torchvision.datasets`, expect *Tiny-ImageNet-200*, *Covid-19*, *Organ-S/A/CMNIST*, *DomainNet*. 
+
+For those datasets, I prepare download scripts (at [`data/download`](https://github.com/KarhouTam/FL-bench/blob/master/data/download)) for you. 🤗
 
 e.g.
 
@@ -25,7 +25,7 @@ cd data/download
 sh tiny_imagenet.sh
 ```
 
-## Usage
+## Usage 🚀
 
 e.g.
 
@@ -36,7 +36,14 @@ python run.py -d cifar10 -a 0.1 -cn 100
 
 The command above splits the *CIFAR-10* dataset into 100 subsets (for 100 clients) according to $Dir(0.1)$.
 
-## Arguments
+### Guideline for Processing DomainNet 🧾
+1. Through [`download/domain.sh`](https://github.com/KarhouTam/FL-bench/tree/master/data/download/domain.sh) downloading and decomporessing DomainNet.
+2. `cd` to `data/domain` and run `python preprocess.py` (an interactive wizard).
+   - Note that `python run.py -d domain` *without* additional arguments would build feature non-IID scenario already.
+   - Command `python run.py -d domain` is at the end of [`data/domain/preprocess.py`](https://github.com/KarhouTam/FL-bench/tree/master/data/domain/preprocess.py) already.
+   - (Optional) You can run `python run.py -d domain {$args}` with additional arguments showed below to further split DomainNet to build label Non-IID scenario deliberately.
+
+## Arguments 🔧
 📢 All arguments have default value.
 | Arguments for general datasets | Description                                                                                                                                             |
 | ------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -56,7 +63,7 @@ The command above splits the *CIFAR-10* dataset into 100 subsets (for 100 client
 
 
 
-## Acknowledgement
+## Acknowledgement 🤗
 
 [`data/femnist`](https://github.com/KarhouTam/FL-bench/tree/master/data/femnist), [`data/celeba`](https://github.com/KarhouTam/FL-bench/tree/master/data/celeba), [`data/leaf_utils`](https://github.com/KarhouTam/FL-bench/tree/master/data/leaf_utils) are copied from [*LEAF*](https://github.com/TalwalkarLab/leaf) with subtle modifications to be integrated into this benchmark. [`data/femnist/README.md`](https://github.com/KarhouTam/FL-bench/tree/master/data/femnist#readme) and [`data/celeba/README.md`](https://github.com/KarhouTam/FL-bench/tree/master/data/celeba#readme) for full partition details.
 

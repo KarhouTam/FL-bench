@@ -32,6 +32,7 @@ def get_fedavg_argparser() -> ArgumentParser:
             "usps",
             "tiny_imagenet",
             "cinic10",
+            "domain",
         ],
         default="cifar10",
     )

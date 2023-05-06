@@ -1,13 +1,16 @@
+import json
+import os
+import pickle
 from argparse import Namespace
 from typing import List
 
 import torch
 import numpy as np
 import torchvision
-import os
 import pandas as pd
 from path import Path
 from PIL import Image
+from torchvision import transforms
 from torchvision.transforms.functional import pil_to_tensor
 from torch.utils.data import Dataset
 
@@ -398,6 +401,52 @@ class CINIC10(BaseDataset):
         self.target_transform = target_transform
 
 
+class DomainNet(BaseDataset):
+    def __init__(self, root, args=None, transform=None, target_transform=None) -> None:
+        super().__init__()
+        if not os.path.isdir(root / "raw"):
+            raise RuntimeError(
+                "Using `data/download/domain.sh` to download the dataset first."
+            )
+        targets_path = root / "targets.pt"
+        metadata_path = root / "metadata.json"
+        filename_list_path = root / "filename_list.pkl"
+        if not (
+            os.path.isfile(targets_path)
+            and os.path.isfile(metadata_path)
+            and os.path.isfile(filename_list_path)
+        ):
+            raise RuntimeError(
+                "Run data/domain/preprocess.py to preprocess DomainNet first."
+            )
+
+        with open(metadata_path, "r") as f:
+            metadata = json.load(f)
+        with open(filename_list_path, "rb") as f:
+            self.filename_list = pickle.load(f)
+
+        self.classes = list(metadata["classes"].keys())
+        self.targets = torch.load(targets_path)
+        self.pre_transform = transforms.Compose(
+            [
+                transforms.Resize([metadata["image_size"], metadata["image_size"]]),
+                transforms.ToTensor(),
+            ]
+        )
+        self.transform = transform
+        
+        self.target_transform = target_transform
+
+    def __getitem__(self, index):
+        data = self.pre_transform(Image.open(self.filename_list[index]).convert("RGB"))
+        targets = self.targets[index]
+        if self.transform:
+            data = self.transform(data)
+        if self.target_transform:
+            targets = self.target_transform(targets)
+        return data, targets
+
+
 DATASETS = {
     "cifar10": CIFAR10,
     "cifar100": CIFAR100,
@@ -415,4 +464,5 @@ DATASETS = {
     "usps": USPS,
     "tiny_imagenet": TinyImagenet,
     "cinic10": CINIC10,
+    "domain": DomainNet,
 }

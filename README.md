@@ -7,8 +7,8 @@ ALL methods I reproduced are inherited from `FedAvgServer` and `FedAvgClient`. I
 I offer two approaches to install all required packages. 🎐
 
 1. `pip install -r requirements.txt`
-2. `poetry install` (Recommended 👍. To keep all dependencies you install are identical to mine.)
-     - If you are not from **China mainland** ☝:
+2. `poetry` (Recommended 👍. To keep all dependencies you install are identical to mine.)
+     - If you are not at **China mainland**:
        1. Comment mirror related configs in [`pyproject.toml`](https://github.com/KarhouTam/FL-bench/blob/master/pyproject.toml).
        2. Run `poetry lock --no-update` to update the `poetry.lock`. 
 
@@ -16,7 +16,7 @@ If you are new to `poetry` 👀:
 
 1. `pip install poetry`
 2. `cd` to the root directory of FL-bench and run `poetry install`
-3. Run `poetry shell` to enter the virtual environement or `poetry run YOUR_COMMAND`.
+3. Run `poetry shell` to enter the virtual environement or `poetry run {$your_command}`.
 4. Have fun. 😏
 
 ## Method 🧬
@@ -162,6 +162,9 @@ Medical Image Datasets
 - [*COVID-19*](https://www.researchgate.net/publication/344295900_Curated_Dataset_for_COVID-19_Posterior-Anterior_Chest_Radiography_Images_X-Rays) (3 x 244 x 224, 4 classes)
 
 - [*Organ-S/A/CMNIST*](https://medmnist.com/) (1 x 28 x 28, 11 classes)
+
+- [*DomainNet*](http://ai.bu.edu/DomainNet/) (3 x ? x ?, 345 classes) 
+  - Go check [`data/README.md`](https://github.com/KarhouTam/FL-bench/tree/master/data#readme) for the full process guideline 🧾.
 
 ## Acknowledgement 🤗
 

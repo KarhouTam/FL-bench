@@ -1,10 +1,13 @@
 from collections import OrderedDict
+import json
 from typing import Dict, List, Type
 
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
 import torchvision.models as models
+
+from .utils import PROJECT_DIR
 
 
 class DecoupledModel(nn.Module):
@@ -101,6 +104,7 @@ class FedAvgCNN(DecoupledModel):
             "celeba": (3, 133824, 2),
             "svhn": (3, 1600, 10),
             "usps": (1, 800, 10),
+            "domain": infer(dataset, "avgcnn"),
         }
         self.base = nn.Sequential(
             OrderedDict(
@@ -136,6 +140,7 @@ class LeNet5(DecoupledModel):
             "celeba": (3, 33456, 2),
             "usps": (1, 200, 10),
             "tiny_imagenet": (3, 2704, 200),
+            "domain": infer(dataset, "lenet5"),
         }
         self.base = nn.Sequential(
             OrderedDict(
@@ -218,6 +223,7 @@ class MobileNetV2(DecoupledModel):
             "usps": 10,
             "celeba": 2,
             "tiny_imagenet": 200,
+            "domain": infer(dataset, "mobile"),
         }
         # NOTE: If you don't want parameters pretrained, set `pretrained` as False
         pretrained = True
@@ -250,6 +256,7 @@ class ResNet18(DecoupledModel):
             "usps": 10,
             "celeba": 2,
             "tiny_imagenet": 200,
+            "domain": infer(dataset, "res18"),
         }
         # NOTE: If you don't want parameters pretrained, set `pretrained` as False
         pretrained = True
@@ -278,7 +285,12 @@ class ResNet18(DecoupledModel):
 class AlexNet(DecoupledModel):
     def __init__(self, dataset):
         super().__init__()
-        config = {"covid19": 4, "celeba": 2, "tiny_imagenet": 200}
+        config = {
+            "covid19": 4,
+            "celeba": 2,
+            "tiny_imagenet": 200,
+            "domain": infer(dataset, "alex"),
+        }
         if dataset not in config.keys():
             raise NotImplementedError(f"AlexNet does not support dataset {dataset}")
 
@@ -312,6 +324,7 @@ class SqueezeNet(DecoupledModel):
             "usps": 10,
             "celeba": 2,
             "tiny_imagenet": 200,
+            "domain": infer(dataset, "sqz"),
         }
 
         # NOTE: If you don't want parameters pretrained, set `pretrained` as False
@@ -342,6 +355,19 @@ class SqueezeNet(DecoupledModel):
         if x.shape[1] == 1:
             x = torch.expand_copy(x, (x.shape[0], 3, *x.shape[2:]))
         return super().get_final_features(x, detach)
+
+
+# Some dirty codes for adapting DomainNet
+def infer(dataset, model_type):
+    if dataset == "domain":
+        with open(PROJECT_DIR / "data" / "domain" / "metadata.json", "r") as f:
+            metadata = json.load(f)
+        class_num = metadata["class_num"]
+        img_size = metadata["image_size"]
+        coef = {"avgcnn": 50, "lenet5": 42.25}
+        if model_type in ["alex", "res18", "sqz", "mobile"]:
+            return class_num
+        return (3, int(coef[model_type] * img_size), class_num)
 
 
 MODEL_DICT: Dict[str, Type[DecoupledModel]] = {

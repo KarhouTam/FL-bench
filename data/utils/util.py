@@ -8,7 +8,7 @@ import numpy as np
 from path import Path
 from PIL import Image
 
-_DATA_ROOT = Path(__file__).parent.parent.abspath()
+DATA_ROOT = Path(__file__).parent.parent.abspath()
 
 
 def prune_args(args: Namespace) -> Dict:
@@ -28,7 +28,13 @@ def prune_args(args: Namespace) -> Dict:
         args_dict["beta"] = args.beta
         args_dict["gamma"] = args.gamma
         args_dict["dimension"] = args.dimension
-
+    elif args.dataset == "domain":
+        with open(DATA_ROOT / "domain" / "metadata.json", "r") as f:
+            metadata = json.load(f)
+            args_dict["data_amount"] = metadata["data_amount"]
+            args_dict["image_size"] = metadata["image_size"]
+            args_dict["class_num"] = metadata["class_num"]
+            args_dict["preprocess_seed"] = metadata["seed"]
     if args.iid == 1:
         args_dict["iid"] = True
     else:
@@ -47,8 +53,8 @@ def prune_args(args: Namespace) -> Dict:
 
 
 def process_femnist(args):
-    train_dir = _DATA_ROOT / "femnist" / "data" / "train"
-    test_dir = _DATA_ROOT / "femnist" / "data" / "test"
+    train_dir = DATA_ROOT / "femnist" / "data" / "train"
+    test_dir = DATA_ROOT / "femnist" / "data" / "test"
     stats = {}
     client_cnt = 0
     data_cnt = 0
@@ -161,8 +167,8 @@ def process_femnist(args):
             "stddev": num_samples.std(),
         }
 
-    np.save(_DATA_ROOT / "femnist" / "data", np.concatenate(all_data))
-    np.save(_DATA_ROOT / "femnist" / "targets", np.concatenate(all_targets))
+    np.save(DATA_ROOT / "femnist" / "data", np.concatenate(all_data))
+    np.save(DATA_ROOT / "femnist" / "targets", np.concatenate(all_targets))
 
     args.client_num_in_total = client_cnt
     partition["separation"] = {
@@ -175,9 +181,9 @@ def process_femnist(args):
 
 
 def process_celeba(args):
-    train_dir = _DATA_ROOT / "celeba" / "data" / "train"
-    test_dir = _DATA_ROOT / "celeba" / "data" / "test"
-    raw_data_dir = _DATA_ROOT / "celeba" / "data" / "raw" / "img_align_celeba"
+    train_dir = DATA_ROOT / "celeba" / "data" / "train"
+    test_dir = DATA_ROOT / "celeba" / "data" / "test"
+    raw_data_dir = DATA_ROOT / "celeba" / "data" / "raw" / "img_align_celeba"
     train_filename = os.listdir(train_dir)[0]
     test_filename = os.listdir(test_dir)[0]
     with open(train_dir / train_filename, "r") as f:
@@ -324,8 +330,8 @@ def process_celeba(args):
             "stddev": num_samples.std(),
         }
 
-    np.save(_DATA_ROOT / "celeba" / "data", all_data)
-    np.save(_DATA_ROOT / "celeba" / "targets", all_targets)
+    np.save(DATA_ROOT / "celeba" / "data", all_data)
+    np.save(DATA_ROOT / "celeba" / "targets", all_targets)
 
     args.client_num_in_total = client_cnt
     partition["separation"] = {
@@ -422,8 +428,8 @@ def generate_synthetic_data(args):
                 stats["test"][client_id]["x"] = samples_per_user[client_id]
                 stats["test"][client_id]["y"] = Counter(targets.tolist())
 
-    np.save(_DATA_ROOT / "synthetic" / "data", np.concatenate(all_data))
-    np.save(_DATA_ROOT / "synthetic" / "targets", np.concatenate(all_targets))
+    np.save(DATA_ROOT / "synthetic" / "data", np.concatenate(all_data))
+    np.save(DATA_ROOT / "synthetic" / "targets", np.concatenate(all_targets))
 
     num_samples = np.array(list(map(lambda stat_i: stat_i["x"], stats.values())))
     stats["sample per client"] = {

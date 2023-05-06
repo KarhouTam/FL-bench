@@ -1,3 +1,4 @@
+from curses import meta
 import json
 import os
 import pickle
@@ -57,6 +58,14 @@ def main(args):
                     num_clients=args.client_num_in_total,
                     num_shards=args.shards,
                 )
+            elif args.dataset == "domain":
+                with open(dataset_root / "original_partition.pkl", "rb") as f:
+                    partition = {}
+                    partition["data_indices"] = pickle.load(f)
+                    partition["separation"] = None
+                    args.client_num_in_total = len(partition["data_indices"])
+                with open(dataset_root / "original_stats.json", "r") as f:
+                    stats = json.load(f)
             else:
                 raise RuntimeError(
                     "Please set arbitrary one arg from [--alpha, --classes, --shards] to split the dataset."
@@ -98,13 +107,13 @@ def main(args):
                 else:
                     partition["data_indices"][client_id] = {"train": [], "test": idx}
 
-    with open(_CURRENT_DIR.parent / args.dataset / "partition.pkl", "wb") as f:
+    with open(dataset_root / "partition.pkl", "wb") as f:
         pickle.dump(partition, f)
 
-    with open(_CURRENT_DIR.parent / args.dataset / "all_stats.json", "w") as f:
+    with open(dataset_root / "all_stats.json", "w") as f:
         json.dump(stats, f)
 
-    with open(_CURRENT_DIR.parent / args.dataset / "args.json", "w") as f:
+    with open(dataset_root / "args.json", "w") as f:
         json.dump(prune_args(args), f)
 
 
@@ -131,6 +140,7 @@ if __name__ == "__main__":
             "usps",
             "tiny_imagenet",
             "cinic10",
+            "domain",
         ],
         default="cifar10",
     )
