@@ -7,6 +7,7 @@ import torch
 import numpy as np
 from path import Path
 from torch.utils.data import DataLoader
+from rich.console import Console
 
 PROJECT_DIR = Path(__file__).parent.parent.parent.abspath()
 OUT_DIR = PROJECT_DIR / "out"
@@ -119,3 +120,24 @@ class FLBenchOptimizer:
         self.optimizer.load_state_dict(state_dict["optimizer"])
         if self.scheduler:
             self.scheduler.load_state_dict(state_dict["scheduler"])
+
+
+class FLBenchLogger:
+    def __init__(self, stdout: Console, enable_log, logfile_path):
+        self.stdout = stdout
+        self.logfile_stream = None
+        self.enable_log = enable_log
+        if self.enable_log:
+            self.logfile_stream = open(logfile_path, "w")
+            self.logger = Console(
+                file=self.logfile_stream, record=True, log_path=False, log_time=False
+            )
+
+    def log(self, *args, **kwargs):
+        self.stdout.log(*args, **kwargs)
+        if self.enable_log:
+            self.logger.log(*args, **kwargs)
+
+    def close(self):
+        if self.logfile_stream:
+            self.logfile_stream.close()

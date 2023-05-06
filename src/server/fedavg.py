@@ -17,7 +17,7 @@ PROJECT_DIR = Path(__file__).parent.parent.parent.abspath()
 
 sys.path.append(PROJECT_DIR)
 
-from src.config.utils import OUT_DIR, fix_random_seed, trainable_params
+from src.config.utils import OUT_DIR, fix_random_seed, trainable_params, FLBenchLogger
 from src.config.models import MODEL_DICT
 from src.config.args import get_fedavg_argparser
 from src.client.fedavg import FedAvgClient
@@ -75,7 +75,8 @@ class FedAvgServer:
         # Some algorithms' implicit operations at client side may disturb the stream if sampling happens at each FL round's beginning.
         self.client_sample_stream = [
             random.sample(
-                self.train_clients, int(self.client_num_in_total * self.args.join_ratio)
+                self.train_clients,
+                max(1, int(self.client_num_in_total * self.args.join_ratio)),
             )
             for _ in range(self.args.global_epoch)
         ]
@@ -100,10 +101,15 @@ class FedAvgServer:
             "test_before": [],
             "test_after": [],
         }
-        self.logger = Console(record=self.args.save_log, log_path=False, log_time=False)
+        stdout = Console(log_path=False, log_time=False)
+        self.logger = FLBenchLogger(
+            stdout=stdout,
+            enable_log=self.args.save_log,
+            logfile_path=OUT_DIR / self.algo / f"{self.args.dataset}_log.html",
+        )
         self.test_results: Dict[int, Dict[str, str]] = {}
         self.train_progress_bar = track(
-            range(self.args.global_epoch), "[bold green]Training..."
+            range(self.args.global_epoch), "[bold green]Training...", console=stdout
         )
 
         self.logger.log("=" * 20, "ALGORITHM:", self.algo, "=" * 20)
@@ -313,8 +319,7 @@ class FedAvgServer:
         ):
             os.makedirs(OUT_DIR / self.algo, exist_ok=True)
 
-        if self.args.save_log:
-            self.logger.save_text(OUT_DIR / self.algo / f"{self.args.dataset}_log.html")
+        self.logger.close()
 
         if self.args.save_fig:
             import matplotlib
