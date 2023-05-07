@@ -84,6 +84,11 @@ class FedAvgServer:
         self.current_epoch = 0
 
         # variables for logging
+        if not os.path.isdir(OUT_DIR / self.algo) and (
+            self.args.save_log or self.args.save_fig or self.args.save_metrics
+        ):
+            os.makedirs(OUT_DIR / self.algo, exist_ok=True)
+
         if self.args.visible:
             from visdom import Visdom
 
@@ -312,12 +317,6 @@ class FedAvgServer:
         )
 
         self.check_convergence()
-
-        # save log files
-        if not os.path.isdir(OUT_DIR / self.algo) and (
-            self.args.save_log or self.args.save_fig or self.args.save_metrics
-        ):
-            os.makedirs(OUT_DIR / self.algo, exist_ok=True)
 
         self.logger.close()
 
