@@ -50,8 +50,7 @@ def get_fedavg_argparser() -> ArgumentParser:
     parser.add_argument("-vg", "--verbose_gap", type=int, default=100000)
     parser.add_argument("-bs", "--batch_size", type=int, default=32)
     parser.add_argument("--use_lr_scheduler", type=int, default=0)
-    parser.add_argument("--server_cuda", type=int, default=1)
-    parser.add_argument("--client_cuda", type=int, default=1)
+    parser.add_argument("--use_cuda", type=int, default=1)
     parser.add_argument("--visible", type=int, default=0)
     parser.add_argument("--save_log", type=int, default=1)
     parser.add_argument("--save_model", type=int, default=0)
@@ -219,4 +218,24 @@ def get_metafed_argparser() -> ArgumentParser:
     parser.add_argument("--lamda", type=float, default=1.0)
     parser.add_argument("--threshold_1", type=float, default=0.6)
     parser.add_argument("--threshold_2", type=float, default=0.5)
+    return parser
+
+
+def get_fedgen_argparser() -> ArgumentParser:
+    parser = get_fedavg_argparser()
+    parser.add_argument("--ensemble_lr", type=float, default=3e-4)
+    parser.add_argument("--gen_batch_size", type=int, default=32)
+    parser.add_argument("--generative_alpha", type=float, default=10)
+    parser.add_argument("--generative_beta", type=float, default=10)
+    parser.add_argument("--ensemble_alpha", type=float, default=1)
+    parser.add_argument("--ensemble_beta", type=float, default=0)
+    parser.add_argument("--ensemble_eta", type=float, default=0)
+    parser.add_argument("--noise_dim", type=int, default=32)
+    parser.add_argument("--hidden_dim", type=int, default=32)
+    parser.add_argument("--embedding", type=int, default=0)
+    parser.add_argument("--coef_decay", type=float, default=0.98)
+    parser.add_argument("--coef_decay_epoch", type=int, default=1)
+    parser.add_argument("--ensemble_epoch", type=int, default=50)
+    parser.add_argument("--train_generator_epoch", type=int, default=5)
+    parser.add_argument("--min_samples_per_label", type=int, default=1)
     return parser

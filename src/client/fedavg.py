@@ -12,7 +12,7 @@ from torchvision.transforms import Compose, Normalize
 
 PROJECT_DIR = Path(__file__).parent.parent.parent.abspath()
 
-from src.config.utils import trainable_params, evaluate, FLBenchOptimizer
+from src.config.utils import trainable_params, evaluate
 from src.config.models import DecoupledModel
 from data.utils.constants import MEAN, STD
 from data.utils.datasets import DATASETS
@@ -22,7 +22,7 @@ class FedAvgClient:
     def __init__(self, model: DecoupledModel, args: Namespace, logger: Console):
         self.args = args
         self.device = torch.device(
-            "cuda" if self.args.client_cuda and torch.cuda.is_available() else "cpu"
+            "cuda" if self.args.use_cuda and torch.cuda.is_available() else "cpu"
         )
         self.client_id: int = None
 
@@ -68,20 +68,12 @@ class FedAvgClient:
         }
         self.opt_state_dict = {}
 
-        # you can change the type and arguments of optimizer and add more arguments there manually
-        optimizer = torch.optim.SGD(
+        self.optimizer = torch.optim.SGD(
             trainable_params(self.model),
             self.local_lr,
             self.args.momentum,
             self.args.weight_decay,
         )
-        scheduler = None
-        if self.args.use_lr_scheduler:
-            # you can change the type and arguments of lr scheduler there manually
-            scheduler = torch.optim.lr_scheduler.StepLR(
-                optimizer, step_size=50, gamma=0.9
-            )
-        self.optimizer = FLBenchOptimizer(optimizer=optimizer, scheduler=scheduler)
         self.init_opt_state_dict = deepcopy(self.optimizer.state_dict())
 
     def load_dataset(self):
