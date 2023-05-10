@@ -23,7 +23,7 @@ class PerFedAvgClient(FedAvgClient):
     def train(
         self,
         client_id: int,
-        new_parameters: OrderedDict[str, torch.nn.Parameter],
+        new_parameters: OrderedDict[str, torch.Tensor],
         return_diff=True,
         verbose=False,
     ):

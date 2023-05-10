@@ -122,7 +122,7 @@ class FedAvgClient:
         eval_stats = {"before": before, "after": after}
         return eval_stats
 
-    def set_parameters(self, new_parameters: OrderedDict[str, torch.nn.Parameter]):
+    def set_parameters(self, new_parameters: OrderedDict[str, torch.Tensor]):
         personal_parameters = self.personal_params_dict.get(
             self.client_id, self.init_personal_params_dict
         )
@@ -144,7 +144,7 @@ class FedAvgClient:
     def train(
         self,
         client_id: int,
-        new_parameters: OrderedDict[str, torch.nn.Parameter],
+        new_parameters: OrderedDict[str, torch.Tensor],
         return_diff=True,
         verbose=False,
     ) -> Tuple[List[torch.nn.Parameter], int, Dict]:
@@ -219,7 +219,7 @@ class FedAvgClient:
         }
 
     def test(
-        self, client_id: int, new_parameters: OrderedDict[str, torch.nn.Parameter]
+        self, client_id: int, new_parameters: OrderedDict[str, torch.Tensor]
     ):
         self.client_id = client_id
         self.load_dataset()

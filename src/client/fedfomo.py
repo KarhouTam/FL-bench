@@ -6,7 +6,7 @@ import torch
 from torch.utils.data import DataLoader, Subset
 
 from fedavg import FedAvgClient
-from src.config.utils import trainable_params
+from src.config.utils import trainable_params, evaluate
 
 
 class FedFomoClient(FedAvgClient):
@@ -57,7 +57,12 @@ class FedFomoClient(FedAvgClient):
         )
         self.eval_model.load_state_dict(local_params_dict, strict=False)
         self.eval_model.load_state_dict(personal_params_dict, strict=False)
-        LOSS = self.evaluate_on_valset()[0]
+        LOSS = evaluate(
+            model=self.eval_model,
+            dataloader=self.valloader,
+            criterion=self.criterion,
+            device=self.device,
+        )[0]
         LOSS /= len(self.valset)
         W = []
         self.weight_vector.zero_()
@@ -66,7 +71,12 @@ class FedFomoClient(FedAvgClient):
                 self.eval_model.load_state_dict(
                     OrderedDict(zip(self.trainable_params_name, params_i)), strict=False
                 )
-                loss = self.evaluate_on_valset()[0]
+                loss = evaluate(
+                    model=self.eval_model,
+                    dataloader=self.valloader,
+                    criterion=self.criterion,
+                    device=self.device,
+                )[0]
                 loss /= len(self.valset)
                 params_diff = []
                 for p_new, p_old in zip(params_i, received_params[self.client_id]):
@@ -88,17 +98,3 @@ class FedFomoClient(FedAvgClient):
                     torch.stack(params, dim=-1) * W, dim=-1
                 )
         super().set_parameters(local_params_dict)
-
-    @torch.no_grad()
-    def evaluate_on_valset(self):
-        self.eval_model.eval()
-        criterion = torch.nn.CrossEntropyLoss(reduction="sum")
-        loss = 0
-        correct = 0
-        for x, y in self.valloader:
-            x, y = x.to(self.device), y.to(self.device)
-            logits = self.eval_model(x)
-            loss += criterion(logits, y).item()
-            pred = torch.argmax(logits, -1)
-            correct += (pred == y).sum().item()
-        return loss, correct, len(self.valset)

@@ -22,7 +22,7 @@ class FedAPClient(FedBNClient):
 
     @torch.no_grad()
     def get_all_features(
-        self, client_id: int, new_parameters: OrderedDict[str, torch.nn.Parameter]
+        self, client_id: int, new_parameters: OrderedDict[str, torch.Tensor]
     ):
         self.client_id = client_id
         self.load_dataset()

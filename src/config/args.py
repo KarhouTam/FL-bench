@@ -49,7 +49,6 @@ def get_fedavg_argparser() -> ArgumentParser:
     parser.add_argument("-wd", "--weight_decay", type=float, default=0.0)
     parser.add_argument("-vg", "--verbose_gap", type=int, default=100000)
     parser.add_argument("-bs", "--batch_size", type=int, default=32)
-    parser.add_argument("--use_lr_scheduler", type=int, default=0)
     parser.add_argument("--use_cuda", type=int, default=1)
     parser.add_argument("--visible", type=int, default=0)
     parser.add_argument("--save_log", type=int, default=1)

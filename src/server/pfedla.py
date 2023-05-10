@@ -2,7 +2,6 @@ import os
 from argparse import Namespace
 from copy import deepcopy
 from collections import OrderedDict
-from typing import OrderedDict
 
 import torch
 import torch.nn as nn

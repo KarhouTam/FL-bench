@@ -67,7 +67,7 @@ class FedAvgServer:
             self.client_trainable_params: List[List[torch.Tensor]] = [
                 deepcopy(init_trainable_params) for _ in self.train_clients
             ]
-        self.global_params_dict: OrderedDict[str, torch.nn.Parameter] = OrderedDict(
+        self.global_params_dict: OrderedDict[str, torch.Tensor] = OrderedDict(
             zip(self.trainable_params_name, deepcopy(init_trainable_params))
         )
 

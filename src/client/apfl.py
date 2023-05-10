@@ -1,5 +1,6 @@
 from copy import deepcopy
 from typing import Dict, OrderedDict
+
 import torch
 
 from fedavg import FedAvgClient

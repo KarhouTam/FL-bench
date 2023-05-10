@@ -18,7 +18,7 @@ class DittoClient(FedAvgClient):
             {"params": trainable_params(self.pers_model), "lr": self.local_lr}
         )
 
-    def set_parameters(self, new_parameters: OrderedDict[str, torch.nn.Parameter]):
+    def set_parameters(self, new_parameters: OrderedDict[str, torch.Tensor]):
         super().set_parameters(new_parameters)
         self.global_params = new_parameters
         self.pers_model.load_state_dict(self.pers_model_params_dict[self.client_id])
