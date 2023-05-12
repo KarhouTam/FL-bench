@@ -163,7 +163,7 @@ class Generator(nn.Module):
         )
         # obtain the latent dim
         dummy_model = MODEL_DICT[args.model](args.dataset)
-        x = torch.zeros(server.trainer.dataset.data[:10].shape)
+        x = torch.zeros(1, *server.trainer.dataset[0][0].shape)
 
         self.use_embedding = args.embedding
         self.latent_dim = dummy_model.base(x).shape[-1]
