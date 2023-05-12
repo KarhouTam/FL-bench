@@ -157,14 +157,15 @@ Regular Image Datasets
 
 - [*CINIC-10*](https://datashare.ed.ac.uk/handle/10283/3192) (3 x 32 x 32, 10 classes)
 
+- [*DomainNet*](http://ai.bu.edu/DomainNet/) (3 x ? x ?, 345 classes) 
+  - Go check [`data/README.md`](https://github.com/KarhouTam/FL-bench/tree/master/data#readme) for the full process guideline 🧾.
+  
 Medical Image Datasets
 
 - [*COVID-19*](https://www.researchgate.net/publication/344295900_Curated_Dataset_for_COVID-19_Posterior-Anterior_Chest_Radiography_Images_X-Rays) (3 x 244 x 224, 4 classes)
 
 - [*Organ-S/A/CMNIST*](https://medmnist.com/) (1 x 28 x 28, 11 classes)
 
-- [*DomainNet*](http://ai.bu.edu/DomainNet/) (3 x ? x ?, 345 classes) 
-  - Go check [`data/README.md`](https://github.com/KarhouTam/FL-bench/tree/master/data#readme) for the full process guideline 🧾.
 
 ## Acknowledgement 🤗
 
