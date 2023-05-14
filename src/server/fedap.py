@@ -47,7 +47,9 @@ class FedAPServer(FedAvgServer):
                 )
 
         warmup_progress_bar = track(
-            range(self.warmup_round), "[bold green]Warming-up..."
+            range(self.warmup_round),
+            "[bold green]Warming-up...",
+            console=self.logger.stdout,
         )
         for E in warmup_progress_bar:
             self.current_epoch = E
@@ -90,8 +92,7 @@ class FedAPServer(FedAvgServer):
         for client_id in track(
             self.train_clients,
             "[bold cyan]Generating weight matrix...",
-            console=self.logger,
-            disable=self.args.save_log,
+            console=self.logger.stdout,
         ):
             avgmeta = metacount(self.get_form()[0])
             client_local_params = self.generate_client_params(client_id)
@@ -115,7 +116,9 @@ class FedAPServer(FedAvgServer):
         self.generate_weight_matrix(bn_mean_list, bn_var_list)
         # regular training
         self.train_progress_bar = track(
-            range(self.warmup_round, self.args.global_epoch), "[bold green]Training..."
+            range(self.warmup_round, self.args.global_epoch),
+            "[bold green]Training...",
+            console=self.logger.stdout,
         )
         self.trainer.pretrain = False
         for E in self.train_progress_bar:

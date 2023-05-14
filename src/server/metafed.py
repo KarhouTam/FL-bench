@@ -25,7 +25,9 @@ class MetaFedServer(FedAvgServer):
         )
         self.warmup_progress_bar = track(self.train_clients, "[bold cyan]Warming-up...")
         self.pers_progress_bar = track(
-            self.train_clients, "[bold magenta]Personalizing..."
+            self.train_clients,
+            "[bold magenta]Personalizing...",
+            console=self.logger.stdout,
         )
 
     def train(self):
