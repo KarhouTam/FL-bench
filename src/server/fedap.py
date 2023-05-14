@@ -34,7 +34,7 @@ class FedAPServer(FedAvgServer):
         if 0 < self.args.warmup_round < 1:
             self.warmup_round = int(self.args.global_epoch * self.args.warmup_round)
         elif 1 <= self.args.warmup_round < self.args.global_epoch:
-            self.warmup_round = self.args.warmup_round
+            self.warmup_round = int(self.args.warmup_round)
 
     def train(self):
         # Pre-training phase
@@ -104,12 +104,8 @@ class FedAPServer(FedAvgServer):
                     tm, tv = [], []
                     for item in features:
                         if len(item.shape) == 4:
-                            tm.append(
-                                torch.mean(item, dim=[0, 2, 3]).detach().cpu().numpy()
-                            )
-                            tv.append(
-                                torch.var(item, dim=[0, 2, 3]).detach().cpu().numpy()
-                            )
+                            tm.append(torch.mean(item, dim=[0, 2, 3]).numpy())
+                            tv.append(torch.var(item, dim=[0, 2, 3]).numpy())
                     avgmeta.update(batchsize, tm, tv)
             bn_mean_list.append(avgmeta.getmean())
             bn_var_list.append(avgmeta.getvar())

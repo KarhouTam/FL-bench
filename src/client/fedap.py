@@ -30,7 +30,13 @@ class FedAPClient(FedBNClient):
         features_list = []
         batch_size_list = []
         for x, _ in self.trainloader:
-            features_list.append(self.model.get_all_features(x.to(self.device)))
+
+            features_list.append(
+                [
+                    feature.cpu()
+                    for feature in self.model.get_all_features(x.to(self.device))
+                ]
+            )
             batch_size_list.append(len(x))
 
         self.save_state()
