@@ -18,7 +18,7 @@ class DittoServer(FedAvgServer):
             args = get_ditto_argparser().parse_args()
         super().__init__(algo, args, unique_model, default_trainer)
         self.trainer = DittoClient(
-            deepcopy(self.model), self.args, self.logger, self.client_num_in_total
+            deepcopy(self.model), self.args, self.logger, self.client_num
         )
 
 

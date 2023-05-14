@@ -21,7 +21,7 @@ class MetaFedServer(FedAvgServer):
         super().__init__(algo, args, unique_model, default_trainer)
 
         self.trainer = MetaFedClient(
-            deepcopy(self.model), self.args, self.logger, self.client_num_in_total
+            deepcopy(self.model), self.args, self.logger, self.client_num
         )
         self.warmup_progress_bar = track(self.train_clients, "[bold cyan]Warming-up...")
         self.pers_progress_bar = track(
@@ -59,8 +59,7 @@ class MetaFedServer(FedAvgServer):
                 student_params = self.generate_client_params(client_id)
                 # teacher is the (i-1)-th client
                 teacher_params = self.generate_client_params(
-                    (client_id + self.client_num_in_total - 1)
-                    % self.client_num_in_total
+                    (client_id + self.client_num - 1) % self.client_num
                 )
                 student_params, self.client_stats[client_id][E] = self.trainer.train(
                     client_id=client_id,
@@ -81,7 +80,7 @@ class MetaFedServer(FedAvgServer):
         for client_id in self.pers_progress_bar:
             student_params = self.generate_client_params(client_id)
             teacher_params = self.generate_client_params(
-                (client_id + self.client_num_in_total - 1) % self.client_num_in_total
+                (client_id + self.client_num - 1) % self.client_num
             )
 
             (

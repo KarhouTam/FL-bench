@@ -10,11 +10,11 @@ from src.config.utils import trainable_params, evaluate
 
 
 class FedFomoClient(FedAvgClient):
-    def __init__(self, model, args, logger, client_num_in_total):
+    def __init__(self, model, args, logger, client_num):
         super().__init__(model, args, logger)
         self.received_params = {}
         self.eval_model = deepcopy(self.model)
-        self.weight_vector = torch.zeros(client_num_in_total, device=self.device)
+        self.weight_vector = torch.zeros(client_num, device=self.device)
         self.trainable_params_name = trainable_params(self.model, requires_name=True)[0]
         self.valset = Subset(self.dataset, indices=[])
         self.valloader: DataLoader = None

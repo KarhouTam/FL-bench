@@ -41,7 +41,7 @@ class FedAvgServer:
         # get client party info
         self.train_clients: List[int] = None
         self.test_clients: List[int] = None
-        self.client_num_in_total: int = None
+        self.client_num: int = None
         try:
             partition_path = PROJECT_DIR / "data" / self.args.dataset / "partition.pkl"
             with open(partition_path, "rb") as f:
@@ -50,7 +50,7 @@ class FedAvgServer:
             raise FileNotFoundError(f"Please partition {args.dataset} first.")
         self.train_clients = partition["separation"]["train"]
         self.test_clients = partition["separation"]["test"]
-        self.client_num_in_total = partition["separation"]["total"]
+        self.client_num = partition["separation"]["total"]
 
         # init model(s) parameters
         self.device = torch.device(
@@ -75,8 +75,7 @@ class FedAvgServer:
         # Some algorithms' implicit operations at client side may disturb the stream if sampling happens at each FL round's beginning.
         self.client_sample_stream = [
             random.sample(
-                self.train_clients,
-                max(1, int(self.client_num_in_total * self.args.join_ratio)),
+                self.train_clients, max(1, int(self.client_num * self.args.join_ratio))
             )
             for _ in range(self.args.global_epoch)
         ]

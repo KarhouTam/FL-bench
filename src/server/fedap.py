@@ -29,7 +29,7 @@ class FedAPServer(FedAvgServer):
         super().__init__(algo, args, unique_model, default_trainer)
 
         self.trainer = FedAPClient(deepcopy(self.model), self.args, self.logger)
-        self.weight_matrix = torch.eye(self.client_num_in_total, device=self.device)
+        self.weight_matrix = torch.eye(self.client_num, device=self.device)
         self.warmup_round = 0
         if 0 < self.args.warmup_round < 1:
             self.warmup_round = int(self.args.global_epoch * self.args.warmup_round)
@@ -55,7 +55,7 @@ class FedAPServer(FedAvgServer):
             if self.args.version == "f":
                 self.selected_clients = self.client_sample_stream[E]
             else:
-                self.selected_clients = list(range(self.client_num_in_total))
+                self.selected_clients = list(range(self.client_num))
 
             delta_cache = []
             weight_cache = []

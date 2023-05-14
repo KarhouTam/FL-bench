@@ -77,7 +77,7 @@ class SCAFFOLDServer(FedAvgServer):
         # update global control
         for c_global, c_delta in zip(self.c_global, zip(*c_delta_cache)):
             c_delta = torch.stack(c_delta, dim=-1).sum(dim=-1).to(self.device)
-            c_global.data += (1 / self.client_num_in_total) * c_delta.data
+            c_global.data += (1 / self.client_num) * c_delta.data
 
 
 if __name__ == "__main__":

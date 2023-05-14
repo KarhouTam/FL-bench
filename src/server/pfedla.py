@@ -26,7 +26,7 @@ class pFedLAServer(FedAvgServer):
         super().__init__(algo, args, unique_model, default_trainer)
         self.hypernet = HyperNetwork(
             embedding_dim=self.args.embedding_dim,
-            client_num=self.client_num_in_total,
+            client_num=self.client_num,
             hidden_dim=self.args.hidden_dim,
             backbone=self.model,
             K=self.args.k,
@@ -93,7 +93,7 @@ class pFedLAServer(FedAvgServer):
             zip(self.trainable_params_name, self.client_trainable_params[client_id])
         )
         default_weight = torch.zeros(
-            self.client_num_in_total, dtype=torch.float, device=self.device
+            self.client_num, dtype=torch.float, device=self.device
         )
         default_weight[client_id] = 1.0
 

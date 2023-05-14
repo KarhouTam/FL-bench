@@ -49,7 +49,7 @@ The command above splits the *CIFAR-10* dataset into 100 subsets (for 100 client
 | ------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `--dataset`, `-d`              | The name of dataset you wanna partition.                                                                                                                |
 | `--iid`                        | Non-zero value for randomly partitioning data and disabling all other Non-IID partition methods.                                                        |
-| `--client_num_in_total`, `-cn` | The number of clients.                                                                                                                                  |
+| `--client_num`, `-cn`          | The number of clients.                                                                                                                                  |
 | `--split`                      | Chooses from `[sample, user]`.  `user`: partition clients into train-test groups; `sample`: partition each client's data samples into train-test groups |
 | `--fraction`                   | Propotion of train data/clients (depends on `--split`).                                                                                                 |
 | `--classes`, `-c`              | Number of classes that one client's data belong to.                                                                                                     |

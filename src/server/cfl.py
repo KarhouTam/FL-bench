@@ -21,7 +21,7 @@ class ClusteredFL(FedAvgServer):
             args = get_cfl_argparser().parse_args()
         super().__init__(algo, args, unique_model, default_trainer)
         assert (
-            len(self.train_clients) == self.client_num_in_total
+            len(self.train_clients) == self.client_num
         ), "CFL doesn't support `User` type split."
 
         self.test_flag = True

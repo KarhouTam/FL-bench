@@ -15,7 +15,7 @@ def prune_args(args: Namespace) -> Dict:
     args_dict = {}
     # general settings
     args_dict["dataset"] = args.dataset
-    args_dict["client_num_in_total"] = args.client_num_in_total
+    args_dict["client_num"] = args.client_num
     args_dict["fraction"] = args.fraction
     args_dict["seed"] = args.seed
     args_dict["split"] = args.split
@@ -170,7 +170,7 @@ def process_femnist(args):
     np.save(DATA_ROOT / "femnist" / "data", np.concatenate(all_data))
     np.save(DATA_ROOT / "femnist" / "targets", np.concatenate(all_targets))
 
-    args.client_num_in_total = client_cnt
+    args.client_num = client_cnt
     partition["separation"] = {
         "train": clients_4_train,
         "test": clients_4_test,
@@ -333,7 +333,7 @@ def process_celeba(args):
     np.save(DATA_ROOT / "celeba" / "data", all_data)
     np.save(DATA_ROOT / "celeba" / "targets", all_targets)
 
-    args.client_num_in_total = client_cnt
+    args.client_num = client_cnt
     partition["separation"] = {
         "train": clients_4_train,
         "test": clients_4_test,
@@ -353,23 +353,23 @@ def generate_synthetic_data(args):
     NUM_CLASS = 10 if args.classes <= 0 else args.classes
 
     samples_per_user = (
-        np.random.lognormal(4, 2, args.client_num_in_total).astype(int) + 50
+        np.random.lognormal(4, 2, args.client_num).astype(int) + 50
     ).tolist()
-    # samples_per_user = [10 for _ in range(args.client_num_in_total)]
+    # samples_per_user = [10 for _ in range(args.client_num)]
     W_global = np.zeros((args.dimension, NUM_CLASS))
     b_global = np.zeros(NUM_CLASS)
 
-    mean_W = np.random.normal(0, args.gamma, args.client_num_in_total)
+    mean_W = np.random.normal(0, args.gamma, args.client_num)
     mean_b = mean_W
-    B = np.random.normal(0, args.beta, args.client_num_in_total)
-    mean_x = np.zeros((args.client_num_in_total, args.dimension))
+    B = np.random.normal(0, args.beta, args.client_num)
+    mean_x = np.zeros((args.client_num, args.dimension))
 
     diagonal = np.zeros(args.dimension)
     for j in range(args.dimension):
         diagonal[j] = np.power((j + 1), -1.2)
     cov_x = np.diag(diagonal)
 
-    for client_id in range(args.client_num_in_total):
+    for client_id in range(args.client_num):
         if args.iid:
             mean_x[client_id] = np.ones(args.dimension) * B[client_id]  # all zeros
         else:
@@ -383,12 +383,12 @@ def generate_synthetic_data(args):
     all_targets = []
     data_cnt = 0
     partition = {"separation": None, "data_indices": None}
-    data_indices = [[] for _ in range(args.client_num_in_total)]
+    data_indices = [[] for _ in range(args.client_num)]
     stats = {}
     if args.split == "user":
         stats["train"] = {}
         stats["test"] = {}
-    for client_id in range(args.client_num_in_total):
+    for client_id in range(args.client_num):
 
         W = np.random.normal(mean_W[client_id], 1, (args.dimension, NUM_CLASS))
         b = np.random.normal(mean_b[client_id], 1, NUM_CLASS)
@@ -419,7 +419,7 @@ def generate_synthetic_data(args):
             stats[client_id]["y"] = Counter(targets.tolist())
 
         else:
-            if client_id < int(args.client_num_in_total * args.fraction):
+            if client_id < int(args.client_num * args.fraction):
                 stats["train"][client_id] = {}
                 stats["train"][client_id]["x"] = samples_per_user[client_id]
                 stats["train"][client_id]["y"] = Counter(targets.tolist())

@@ -35,7 +35,7 @@ class FedDynServer(FedAvgServer):
             )
         ]
         self.h = [
-            prev_h - (self.args.alpha / self.client_num_in_total) * delta
+            prev_h - (self.args.alpha / self.client_num) * delta
             for prev_h, delta in zip(self.h, aggregated_delta)
         ]
 

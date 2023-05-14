@@ -20,9 +20,9 @@ class FedFomoServer(FedAvgServer):
             args = get_fedfomo_argparser().parse_args()
         super().__init__(algo, args, unique_model, default_trainer)
         self.trainer = FedFomoClient(
-            deepcopy(self.model), self.args, self.logger, self.client_num_in_total
+            deepcopy(self.model), self.args, self.logger, self.client_num
         )
-        self.P = torch.eye(self.client_num_in_total, device=self.device)
+        self.P = torch.eye(self.client_num, device=self.device)
         self.test_flag = False
 
     def train(self):

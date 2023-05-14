@@ -41,7 +41,7 @@ def main(args):
             if args.alpha > 0:  # Dirichlet(alpha)
                 partition, stats = dirichlet(
                     ori_dataset=ori_dataset,
-                    num_clients=args.client_num_in_total,
+                    num_clients=args.client_num,
                     alpha=args.alpha,
                     least_samples=args.least_samples,
                 )
@@ -49,13 +49,13 @@ def main(args):
                 args.classes = max(1, min(args.classes, len(ori_dataset.classes)))
                 partition, stats = randomly_assign_classes(
                     ori_dataset=ori_dataset,
-                    num_clients=args.client_num_in_total,
+                    num_clients=args.client_num,
                     num_classes=args.classes,
                 )
             elif args.shards > 0:  # allocate shards
                 partition, stats = allocate_shards(
                     ori_dataset=ori_dataset,
-                    num_clients=args.client_num_in_total,
+                    num_clients=args.client_num,
                     num_shards=args.shards,
                 )
             elif args.dataset == "domain":
@@ -63,7 +63,7 @@ def main(args):
                     partition = {}
                     partition["data_indices"] = pickle.load(f)
                     partition["separation"] = None
-                    args.client_num_in_total = len(partition["data_indices"])
+                    args.client_num = len(partition["data_indices"])
                 with open(dataset_root / "original_stats.json", "r") as f:
                     stats = json.load(f)
             else:
@@ -73,22 +73,22 @@ def main(args):
 
         else:  # iid partition
             partition, stats = iid_partition(
-                ori_dataset=ori_dataset, num_clients=args.client_num_in_total
+                ori_dataset=ori_dataset, num_clients=args.client_num
             )
 
     if partition["separation"] is None:
         if args.split == "user":
-            train_clients_num = int(args.client_num_in_total * args.fraction)
+            train_clients_num = int(args.client_num * args.fraction)
             clients_4_train = list(range(train_clients_num))
-            clients_4_test = list(range(train_clients_num, args.client_num_in_total))
+            clients_4_test = list(range(train_clients_num, args.client_num))
         else:
-            clients_4_train = list(range(args.client_num_in_total))
-            clients_4_test = list(range(args.client_num_in_total))
+            clients_4_train = list(range(args.client_num))
+            clients_4_test = list(range(args.client_num))
 
         partition["separation"] = {
             "train": clients_4_train,
             "test": clients_4_test,
-            "total": args.client_num_in_total,
+            "total": args.client_num,
         }
 
     if args.dataset not in ["femnist", "celeba"]:
@@ -145,7 +145,7 @@ if __name__ == "__main__":
         default="cifar10",
     )
     parser.add_argument("--iid", type=int, default=0)
-    parser.add_argument("-cn", "--client_num_in_total", type=int, default=20)
+    parser.add_argument("-cn", "--client_num", type=int, default=20)
     parser.add_argument("--seed", type=int, default=42)
     parser.add_argument(
         "--split", type=str, choices=["sample", "user"], default="sample"

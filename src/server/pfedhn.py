@@ -30,9 +30,7 @@ class pFedHNServer(FedAvgServer):
         if args.version == "pfedhn_pc":
             self.trainer = FedPerClient(deepcopy(self.model), self.args, self.logger)
 
-        self.hn = HyperNetwork(self.model, self.args, self.client_num_in_total).to(
-            self.device
-        )
+        self.hn = HyperNetwork(self.model, self.args, self.client_num).to(self.device)
         embed_lr = (
             self.args.embed_lr if self.args.embed_lr is not None else self.args.hn_lr
         )
