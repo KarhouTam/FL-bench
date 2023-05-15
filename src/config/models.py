@@ -1,6 +1,7 @@
-from collections import OrderedDict
 import json
-from typing import Dict, List, Type
+from collections import OrderedDict
+from typing import Dict, List, Optional, Type
+from copy import deepcopy
 
 import torch
 import torch.nn as nn
@@ -28,7 +29,7 @@ class DecoupledModel(nn.Module):
 
         def get_feature_hook_fn(model, input, output):
             if self.need_all_features_flag:
-                self.all_features.append(output)
+                self.all_features.append(output.clone().detach())
 
         for module in target_modules:
             module.register_forward_hook(get_feature_hook_fn)
@@ -61,20 +62,18 @@ class DecoupledModel(nn.Module):
 
         return func(out)
 
-    def get_all_features(self, x: torch.Tensor, detach=True) -> List[torch.Tensor]:
+    def get_all_features(self, x: torch.Tensor) -> Optional[List[torch.Tensor]]:
         feature_list = None
         if len(self.dropout) > 0:
             for dropout in self.dropout:
                 dropout.eval()
-
-        func = (lambda x: x.clone().detach()) if detach else (lambda x: x)
 
         self.need_all_features_flag = True
         _ = self.base(x)
         self.need_all_features_flag = False
 
         if len(self.all_features) > 0:
-            feature_list = [func(feature) for feature in self.all_features]
+            feature_list = self.all_features
             self.all_features = []
 
         if len(self.dropout) > 0:
@@ -200,7 +199,7 @@ class TwoNN(DecoupledModel):
         x = self.base(x)
         return func(x)
 
-    def get_all_features(self, x, detach=True):
+    def get_all_features(self, x):
         raise RuntimeError("2NN has 0 Conv layer, so is unable to get all features.")
 
 
@@ -271,10 +270,10 @@ class ResNet18(DecoupledModel):
             x = torch.expand_copy(x, (x.shape[0], 3, *x.shape[2:]))
         return super().forward(x)
 
-    def get_all_features(self, x, detach=True):
+    def get_all_features(self, x):
         if x.shape[1] == 1:
             x = torch.expand_copy(x, (x.shape[0], 3, *x.shape[2:]))
-        return super().get_all_features(x, detach)
+        return super().get_all_features(x)
 
     def get_final_features(self, x, detach=True):
         if x.shape[1] == 1:
@@ -346,10 +345,10 @@ class SqueezeNet(DecoupledModel):
             x = torch.expand_copy(x, (x.shape[0], 3, *x.shape[2:]))
         return self.classifier(self.base(x))
 
-    def get_all_features(self, x, detach=True):
+    def get_all_features(self, x):
         if x.shape[1] == 1:
             x = torch.expand_copy(x, (x.shape[0], 3, *x.shape[2:]))
-        return super().get_all_features(x, detach)
+        return super().get_all_features(x)
 
     def get_final_features(self, x, detach=True):
         if x.shape[1] == 1:
