@@ -404,6 +404,8 @@ class CINIC10(BaseDataset):
 class DomainNet(BaseDataset):
     def __init__(self, root, args=None, transform=None, target_transform=None) -> None:
         super().__init__()
+        if not isinstance(root, Path):
+            root = Path(root)
         if not os.path.isdir(root / "raw"):
             raise RuntimeError(
                 "Using `data/download/domain.sh` to download the dataset first."
@@ -434,7 +436,7 @@ class DomainNet(BaseDataset):
             ]
         )
         self.transform = transform
-        
+
         self.target_transform = target_transform
 
     def __getitem__(self, index):

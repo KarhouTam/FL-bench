@@ -7,14 +7,12 @@ import sys
 import torch
 from path import Path
 
-
 CURRENT_DIR = Path(__file__).parent.abspath()
 
 sys.path.append(CURRENT_DIR.parent)
 
 
 if __name__ == "__main__":
-
     if not os.path.isdir(CURRENT_DIR / "raw"):
         raise RuntimeError(
             "Using `data/download/domain.sh` to download the dataset first."
@@ -24,9 +22,15 @@ if __name__ == "__main__":
     seed = input("Fix the random seed (42 by default): ")
     img_size = input("What image size you want (64 by default): ")
     ratio = input("Ratio of data in each class you gather (100 by default): ")
+    client_num_foreach_domain = input(
+        "How many client share one domain dataset (1 by default): "
+    )
     seed = 42 if not seed else int(seed)
     img_size = 64 if not img_size else int(img_size)
     ratio = 1 if not ratio else float(ratio) / 100
+    client_num_foreach_domain = (
+        1 if not client_num_foreach_domain else int(client_num_foreach_domain)
+    )
 
     random.seed(seed)
     torch.manual_seed(seed)
@@ -65,7 +69,15 @@ if __name__ == "__main__":
                 stats[i]["y"][c] += 1
                 new_count += 1
         print(f"Indices of data from {domain} [{old_count}, {new_count})")
-        original_partition.append(list(range(old_count, new_count)))
+        data_idxs = list(range(old_count, new_count))
+        subset_size = len(data_idxs) // client_num_foreach_domain
+        for j in range(client_num_foreach_domain):
+            subset_idxs = random.sample(data_idxs, subset_size)
+            data_idxs = list(set(data_idxs) - set(subset_idxs))
+            original_partition.append(subset_idxs)
+        # If data_idxs % client_num > 0, residual indices would be allocated to the final client
+        if len(data_idxs) > 0:
+            original_partition[-1].extend(data_idxs)
         old_count = new_count
 
     torch.save(torch.tensor(targets, dtype=torch.long), "targets.pt")
@@ -80,6 +92,7 @@ if __name__ == "__main__":
         json.dump(
             {
                 "class_num": class_num,
+                "client_num": client_num_foreach_domain * 6,
                 "data_amount": len(targets),
                 "image_size": img_size,
                 "classes": {
