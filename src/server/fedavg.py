@@ -3,19 +3,19 @@ import sys
 import json
 import os
 import random
+from pathlib import Path
 from argparse import Namespace
 from collections import OrderedDict
 from copy import deepcopy
 from typing import Dict, List
 
 import torch
-from path import Path
 from rich.console import Console
 from rich.progress import track
 
-PROJECT_DIR = Path(__file__).parent.parent.parent.abspath()
+PROJECT_DIR = Path(__file__).parent.parent.parent.absolute()
 
-sys.path.append(PROJECT_DIR)
+sys.path.append(PROJECT_DIR.as_posix())
 
 from src.config.utils import OUT_DIR, fix_random_seed, trainable_params, FLBenchLogger
 from src.config.models import MODEL_DICT

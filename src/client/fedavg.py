@@ -3,14 +3,14 @@ from argparse import Namespace
 from collections import OrderedDict
 from copy import deepcopy
 from typing import Dict, List, Tuple
+from pathlib import Path
 
 import torch
-from path import Path
 from rich.console import Console
 from torch.utils.data import DataLoader, Subset
 from torchvision.transforms import Compose, Normalize
 
-PROJECT_DIR = Path(__file__).parent.parent.parent.abspath()
+PROJECT_DIR = Path(__file__).parent.parent.parent.absolute()
 
 from src.config.utils import trainable_params, evaluate
 from src.config.models import DecoupledModel
@@ -218,9 +218,7 @@ class FedAvgClient:
             "test_size": float(max(1, test_sample_num)),
         }
 
-    def test(
-        self, client_id: int, new_parameters: OrderedDict[str, torch.Tensor]
-    ):
+    def test(self, client_id: int, new_parameters: OrderedDict[str, torch.Tensor]):
         self.client_id = client_id
         self.load_dataset()
         self.set_parameters(new_parameters)

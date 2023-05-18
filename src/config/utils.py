@@ -2,14 +2,14 @@ import os
 import random
 from collections import OrderedDict
 from typing import List, Tuple, Union
+from pathlib import Path
 
 import torch
 import numpy as np
-from path import Path
 from torch.utils.data import DataLoader
 from rich.console import Console
 
-PROJECT_DIR = Path(__file__).parent.parent.parent.abspath()
+PROJECT_DIR = Path(__file__).parent.parent.parent.absolute()
 OUT_DIR = PROJECT_DIR / "out"
 TEMP_DIR = PROJECT_DIR / "temp"
 

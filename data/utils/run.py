@@ -1,23 +1,22 @@
-from curses import meta
 import json
 import os
 import pickle
 import random
 from argparse import ArgumentParser
+from pathlib import Path
 
 import torch
 import numpy as np
-from path import Path
 
 from datasets import DATASETS
 from partition import dirichlet, iid_partition, randomly_assign_classes, allocate_shards
 from util import prune_args, generate_synthetic_data, process_celeba, process_femnist
 
-_CURRENT_DIR = Path(__file__).parent.abspath()
+CURRENT_DIR = Path(__file__).parent.absolute()
 
 
 def main(args):
-    dataset_root = _CURRENT_DIR.parent / args.dataset
+    dataset_root = CURRENT_DIR.parent / args.dataset
 
     np.random.seed(args.seed)
     random.seed(args.seed)

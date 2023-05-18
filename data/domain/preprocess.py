@@ -3,11 +3,11 @@ import random
 import os
 import json
 import sys
+from pathlib import Path
 
 import torch
-from path import Path
 
-CURRENT_DIR = Path(__file__).parent.abspath()
+CURRENT_DIR = Path(__file__).parent.absolute()
 
 sys.path.append(CURRENT_DIR.parent)
 

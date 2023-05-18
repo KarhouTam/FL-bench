@@ -2,13 +2,13 @@ import json
 import os
 import pickle
 from argparse import Namespace
+from pathlib import Path
 from typing import List
 
 import torch
 import numpy as np
 import torchvision
 import pandas as pd
-from path import Path
 from PIL import Image
 from torchvision import transforms
 from torchvision.transforms.functional import pil_to_tensor

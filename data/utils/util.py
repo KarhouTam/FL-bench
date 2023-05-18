@@ -3,12 +3,12 @@ import os
 from argparse import Namespace
 from collections import Counter
 from typing import Dict
+from pathlib import Path
 
 import numpy as np
-from path import Path
 from PIL import Image
 
-DATA_ROOT = Path(__file__).parent.parent.abspath()
+DATA_ROOT = Path(__file__).parent.parent.absolute()
 
 
 def prune_args(args: Namespace) -> Dict:

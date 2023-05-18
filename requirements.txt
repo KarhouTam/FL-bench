@@ -1,5 +1,4 @@
 torch~=1.13.1
-path~=16.6.0
 rich~=13.3.1
 torchvision~=0.14.1
 numpy~=1.21.5
