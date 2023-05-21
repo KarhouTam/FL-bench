@@ -7,7 +7,7 @@ class FedRepClient(FedPerClient):
 
     def fit(self):
         self.model.train()
-        for E in range(self.local_epoch + self.args.train_body_epoch):
+        for E in range(self.local_epoch):
             for x, y in self.trainloader:
                 if len(x) <= 1:
                     continue
@@ -18,7 +18,7 @@ class FedRepClient(FedPerClient):
                 self.optimizer.zero_grad()
                 loss.backward()
                 # freeze body, train head
-                if E < self.local_epoch:
+                if E < self.local_epoch - self.args.train_body_epoch:
                     for name, param in self.model.named_parameters():
                         if name not in self.personal_params_name:
                             param.grad.zero_()
@@ -34,7 +34,7 @@ class FedRepClient(FedPerClient):
         full_model = True
         if full_model:
             # fine-tune the full model
-            for E in range(self.args.finetune_epoch + self.args.train_body_epoch):
+            for E in range(self.args.finetune_epoch):
                 for x, y in self.trainloader:
                     if len(x) <= 1:
                         continue
@@ -45,7 +45,7 @@ class FedRepClient(FedPerClient):
                     self.optimizer.zero_grad()
                     loss.backward()
                     # freeze body, train head
-                    if E < self.args.finetune_epoch:
+                    if E < self.args.finetune_epoch - self.args.train_body_epoch:
                         for name, param in self.model.named_parameters():
                             if name not in self.personal_params_name:
                                 param.grad.zero_()
