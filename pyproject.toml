@@ -23,8 +23,7 @@ matplotlib = "3.5.2"
 [[tool.poetry.source]]
 name = "mirrors"
 url = "https://pypi.tuna.tsinghua.edu.cn/simple/"
-default = true
-secondary = false
+priority = "default"
 ##################################################################
 
 [build-system]
