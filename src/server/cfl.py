@@ -29,59 +29,46 @@ class ClusteredFL(FedAvgServer):
         self.similarity_matrix = np.eye(len(self.train_clients))
         self.client_clusters = [list(range(len(self.train_clients)))]
 
-    def train(self):
-        for E in self.train_progress_bar:
-            self.current_epoch = E
+    def train_one_round(self):
+        for client_id in self.selected_clients:
 
-            if (E + 1) % self.args.verbose_gap == 0:
-                self.logger.log(" " * 30, f"TRAINING EPOCH: {E + 1}", " " * 30)
+            client_local_params = self.generate_client_params(client_id)
 
-            if (E + 1) % self.args.test_gap == 0:
-                self.tesst_flag = True
-                self.test()
-                self.tesst_flag = False
+            (
+                delta,
+                _,
+                self.client_stats[client_id][self.current_epoch],
+            ) = self.trainer.train(
+                client_id=client_id,
+                new_parameters=client_local_params,
+                verbose=((self.current_epoch + 1) % self.args.verbose_gap) == 0,
+            )
+            self.delta_list[client_id] = [
+                -diff.detach().to(self.device) for diff in delta.values()
+            ]
 
-            self.selected_clients = self.client_sample_stream[E]
+        self.compute_pairwise_similarity()
+        client_clusters_new = []
+        for indices in self.client_clusters:
+            max_norm = compute_max_delta_norm([self.delta_list[i] for i in indices])
+            mean_norm = compute_mean_delta_norm([self.delta_list[i] for i in indices])
 
-            for client_id in self.selected_clients:
-
-                client_local_params = self.generate_client_params(client_id)
-
-                delta, _, self.client_stats[client_id][E] = self.trainer.train(
-                    client_id=client_id,
-                    new_parameters=client_local_params,
-                    verbose=((E + 1) % self.args.verbose_gap) == 0,
+            if (
+                mean_norm < self.args.eps_1
+                and max_norm > self.args.eps_2
+                and len(indices) > self.args.min_cluster_size
+                and self.current_epoch >= self.args.start_clustering_round
+            ):
+                cluster_1, cluster_2 = self.cluster_clients(
+                    self.similarity_matrix[indices][:, indices]
                 )
-                self.delta_list[client_id] = [
-                    -diff.detach().to(self.device) for diff in delta.values()
-                ]
+                client_clusters_new += [cluster_1, cluster_2]
 
-            self.compute_pairwise_similarity()
-            client_clusters_new = []
-            for indices in self.client_clusters:
-                max_norm = compute_max_delta_norm([self.delta_list[i] for i in indices])
-                mean_norm = compute_mean_delta_norm(
-                    [self.delta_list[i] for i in indices]
-                )
+            else:
+                client_clusters_new += [indices]
 
-                if (
-                    mean_norm < self.args.eps_1
-                    and max_norm > self.args.eps_2
-                    and len(indices) > self.args.min_cluster_size
-                    and self.current_epoch >= self.args.start_clustering_round
-                ):
-                    cluster_1, cluster_2 = self.cluster_clients(
-                        self.similarity_matrix[indices][:, indices]
-                    )
-                    client_clusters_new += [cluster_1, cluster_2]
-
-                else:
-                    client_clusters_new += [indices]
-
-            self.client_clusters = client_clusters_new
-            self.aggregate_clusterwise()
-
-            self.log_info()
+        self.client_clusters = client_clusters_new
+        self.aggregate_clusterwise()
 
     @torch.no_grad()
     def compute_pairwise_similarity(self):

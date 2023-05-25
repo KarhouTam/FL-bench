@@ -89,7 +89,7 @@ def evaluate(
     return loss, correct, sample_num
 
 
-class FLBenchLogger:
+class Logger:
     def __init__(self, stdout: Console, enable_log, logfile_path):
         self.stdout = stdout
         self.logfile_stream = None

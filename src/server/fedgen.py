@@ -36,44 +36,31 @@ class FedGenServer(FedAvgServer):
         self.unique_labels = range(len(self.trainer.dataset.classes))
         self.teacher_model = deepcopy(self.model)
 
-    def train(self):
-        for E in self.train_progress_bar:
-            self.current_epoch = E
+    def train_one_round(self):
+        client_params_cache = []
+        weight_cache = []
+        label_counts_cache = []
+        for client_id in self.selected_clients:
+            client_local_params = self.generate_client_params(client_id)
 
-            if (E + 1) % self.args.verbose_gap == 0:
-                self.logger.log("-" * 26, f"TRAINING EPOCH: {E + 1}", "-" * 26)
-
-            if (E + 1) % self.args.test_gap == 0:
-                self.test()
-
-            self.selected_clients = self.client_sample_stream[E]
-
-            client_params_cache = []
-            weight_cache = []
-            label_counts_cache = []
-            for client_id in self.selected_clients:
-
-                client_local_params = self.generate_client_params(client_id)
-
-                (
-                    delta,
-                    weight,
-                    label_counts,
-                    self.client_stats[client_id][E],
-                ) = self.trainer.train(
-                    client_id=client_id,
-                    new_parameters=client_local_params,
-                    global_epoch=self.current_epoch,
-                    generator=self.generator,
-                    regularization=self.current_epoch > 0,
-                    verbose=((E + 1) % self.args.verbose_gap) == 0,
-                )
-                label_counts_cache.append(label_counts)
-                client_params_cache.append(delta)
-                weight_cache.append(weight)
-            self.train_generator(client_params_cache, label_counts_cache)
-            self.aggregate(client_params_cache, weight_cache)
-            self.log_info()
+            (
+                delta,
+                weight,
+                label_counts,
+                self.client_stats[client_id][self.current_epoch],
+            ) = self.trainer.train(
+                client_id=client_id,
+                new_parameters=client_local_params,
+                global_epoch=self.current_epoch,
+                generator=self.generator,
+                regularization=self.current_epoch > 0,
+                verbose=((self.current_epoch + 1) % self.args.verbose_gap) == 0,
+            )
+            label_counts_cache.append(label_counts)
+            client_params_cache.append(delta)
+            weight_cache.append(weight)
+        self.train_generator(client_params_cache, label_counts_cache)
+        self.aggregate(client_params_cache, weight_cache)
 
     @torch.no_grad()
     def aggregate(

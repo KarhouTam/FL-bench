@@ -57,44 +57,36 @@ class pFedHNServer(FedAvgServer):
             weight_decay=self.args.hn_weight_decay,
         )
 
-    def train(self):
-        for E in self.train_progress_bar:
-            self.current_epoch = E
-
-            if (E + 1) % self.args.verbose_gap == 0:
-                self.logger.log(" " * 30, f"TRAINING EPOCH: {E + 1}", " " * 30)
-
-            if (E + 1) % self.args.test_gap == 0:
-                self.test()
-
-            self.selected_clients = self.client_sample_stream[E]
-            hn_grads_cache = []
-            weight_cache = []
-            for client_id in self.selected_clients:
-                client_local_params = self.generate_client_params(client_id)
-
-                delta, weight, self.client_stats[client_id][E] = self.trainer.train(
-                    client_id=client_id,
-                    new_parameters=client_local_params,
-                    verbose=((E + 1) % self.args.verbose_gap) == 0,
+    def train_one_round(self):
+        hn_grads_cache = []
+        weight_cache = []
+        for client_id in self.selected_clients:
+            client_local_params = self.generate_client_params(client_id)
+            (
+                delta,
+                weight,
+                self.client_stats[client_id][self.current_epoch],
+            ) = self.trainer.train(
+                client_id=client_id,
+                new_parameters=client_local_params,
+                verbose=((self.current_epoch + 1) % self.args.verbose_gap) == 0,
+            )
+            if self.args.version == "pfedhn_pc":
+                for name, diff in delta.items():
+                    # set diff to all-zero can stop HN's nn.Linear modules that responsible for the classifier from updating.
+                    if "classifier" in name:
+                        diff.zero_()
+            weight_cache.append(weight)
+            hn_grads_cache.append(
+                torch.autograd.grad(
+                    outputs=list(client_local_params.values()),
+                    inputs=self.hn.parameters(),
+                    grad_outputs=list(delta.values()),
+                    allow_unused=True,
                 )
-                if self.args.version == "pfedhn_pc":
-                    for name, diff in delta.items():
-                        # set diff to all-zero can stop HN's nn.Linear modules that responsible for the classifier from updating.
-                        if "classifier" in name:
-                            diff.zero_()
-                weight_cache.append(weight)
-                hn_grads_cache.append(
-                    torch.autograd.grad(
-                        outputs=list(client_local_params.values()),
-                        inputs=self.hn.parameters(),
-                        grad_outputs=list(delta.values()),
-                        allow_unused=True,
-                    )
-                )
+            )
 
-            self.update_hn(weight_cache, hn_grads_cache)
-            self.log_info()
+        self.update_hn(weight_cache, hn_grads_cache)
 
     def generate_client_params(self, client_id) -> OrderedDict[str, torch.Tensor]:
         return self.hn(torch.tensor(client_id, device=self.device))

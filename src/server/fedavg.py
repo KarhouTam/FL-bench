@@ -17,7 +17,7 @@ PROJECT_DIR = Path(__file__).parent.parent.parent.absolute()
 
 sys.path.append(PROJECT_DIR.as_posix())
 
-from src.config.utils import OUT_DIR, fix_random_seed, trainable_params, FLBenchLogger
+from src.config.utils import OUT_DIR, Logger, fix_random_seed, trainable_params
 from src.config.models import MODEL_DICT
 from src.config.args import get_fedavg_argparser
 from src.client.fedavg import FedAvgClient
@@ -81,6 +81,8 @@ class FedAvgServer:
         ]
         self.selected_clients: List[int] = []
         self.current_epoch = 0
+        # For controlling behaviors of some specific methods while testing (not used by all methods)
+        self.test_flag = False
 
         # variables for logging
         if not os.path.isdir(OUT_DIR / self.algo) and (
@@ -106,7 +108,7 @@ class FedAvgServer:
             "test_after": [],
         }
         stdout = Console(log_path=False, log_time=False)
-        self.logger = FLBenchLogger(
+        self.logger = Logger(
             stdout=stdout,
             enable_log=self.args.save_log,
             logfile_path=OUT_DIR / self.algo / f"{self.args.dataset}_log.html",
@@ -135,26 +137,32 @@ class FedAvgServer:
                 self.test()
 
             self.selected_clients = self.client_sample_stream[E]
-
-            delta_cache = []
-            weight_cache = []
-            for client_id in self.selected_clients:
-
-                client_local_params = self.generate_client_params(client_id)
-
-                delta, weight, self.client_stats[client_id][E] = self.trainer.train(
-                    client_id=client_id,
-                    new_parameters=client_local_params,
-                    verbose=((E + 1) % self.args.verbose_gap) == 0,
-                )
-
-                delta_cache.append(delta)
-                weight_cache.append(weight)
-
-            self.aggregate(delta_cache, weight_cache)
+            self.train_one_round()
             self.log_info()
 
+    def train_one_round(self):
+        delta_cache = []
+        weight_cache = []
+        for client_id in self.selected_clients:
+
+            client_local_params = self.generate_client_params(client_id)
+            (
+                delta,
+                weight,
+                self.client_stats[client_id][self.current_epoch],
+            ) = self.trainer.train(
+                client_id=client_id,
+                new_parameters=client_local_params,
+                verbose=((self.current_epoch + 1) % self.args.verbose_gap) == 0,
+            )
+
+            delta_cache.append(delta)
+            weight_cache.append(weight)
+
+        self.aggregate(delta_cache, weight_cache)
+
     def test(self):
+        self.test_flag = True
         loss_before, loss_after = [], []
         correct_before, correct_after = [], []
         num_samples = []
@@ -184,6 +192,7 @@ class FedAvgServer:
                 correct_after.sum() / num_samples.sum() * 100,
             ),
         }
+        self.test_flag = False
 
     @torch.no_grad()
     def update_client_params(self, client_params_cache: List[List[torch.nn.Parameter]]):

@@ -46,28 +46,21 @@ class pFedLAServer(FedAvgServer):
             or isinstance(module, nn.BatchNorm2d)
         ]
 
-    def train(self) -> None:
-        for E in self.train_progress_bar:
-            self.current_epoch = E
-            if (E + 1) % self.args.verbose_gap == 0:
-                self.logger.log(" " * 30, f"TRAINING EPOCH: {E + 1}", " " * 30)
-            if (E + 1) % self.args.test_gap == 0:
-                self.test_flag = True
-                self.test()
-                self.test_flag = False
-            self.selected_clients = self.client_sample_stream[E]
-            for client_id in self.selected_clients:
-                client_local_params = self.generate_client_params(client_id)
-                delta, _, self.client_stats[client_id][E] = self.trainer.train(
-                    client_id=client_id,
-                    new_parameters=client_local_params,
-                    verbose=((E + 1) % self.args.verbose_gap) == 0,
-                )
+    def train_one_round(self) -> None:
+        for client_id in self.selected_clients:
+            client_local_params = self.generate_client_params(client_id)
+            (
+                delta,
+                _,
+                self.client_stats[client_id][self.current_epoch],
+            ) = self.trainer.train(
+                client_id=client_id,
+                new_parameters=client_local_params,
+                verbose=((self.current_epoch + 1) % self.args.verbose_gap) == 0,
+            )
 
-                self.update_hn(client_id, delta)
-                self.update_client_params(client_id, delta)
-
-            self.log_info()
+            self.update_hn(client_id, delta)
+            self.update_client_params(client_id, delta)
 
     @torch.no_grad()
     def update_client_params(self, client_id, delta):
@@ -79,32 +72,29 @@ class pFedLAServer(FedAvgServer):
         self.client_trainable_params[client_id] = new_params
 
     def generate_client_params(self, client_id: int) -> OrderedDict[str, torch.Tensor]:
-        layer_params_dict = dict(
-            zip(self.trainable_params_name, list(zip(*self.client_trainable_params)))
-        )
-
-        if self.test_flag:
-            with torch.no_grad():
-                alpha = self.hypernet(client_id)
-        else:
-            alpha = self.hypernet(client_id)
-
         aggregated_params = OrderedDict(
             zip(self.trainable_params_name, self.client_trainable_params[client_id])
         )
-        default_weight = torch.zeros(
-            self.client_num, dtype=torch.float, device=self.device
-        )
-        default_weight[client_id] = 1.0
-
-        for name, params in layer_params_dict.items():
-            a = alpha[".".join(name.split(".")[:-1])]
-            if a.sum() == 0:
-                a = default_weight
-            aggregated_params[name] = torch.sum(
-                (a / a.sum()) * torch.stack(params, dim=-1).to(self.device), dim=-1
+        if not self.test_flag:
+            layer_params_dict = dict(
+                zip(
+                    self.trainable_params_name, list(zip(*self.client_trainable_params))
+                )
             )
-        self.client_trainable_params[client_id] = list(aggregated_params.values())
+            alpha = self.hypernet(client_id)
+            default_weight = torch.zeros(
+                self.client_num, dtype=torch.float, device=self.device
+            )
+            default_weight[client_id] = 1.0
+
+            for name, params in layer_params_dict.items():
+                a = alpha[".".join(name.split(".")[:-1])]
+                if a.sum() == 0:
+                    a = default_weight
+                aggregated_params[name] = torch.sum(
+                    (a / a.sum()) * torch.stack(params, dim=-1).to(self.device), dim=-1
+                )
+            self.client_trainable_params[client_id] = list(aggregated_params.values())
         return aggregated_params
 
     def update_hn(self, client_id: int, delta: OrderedDict[str, torch.Tensor]) -> None:

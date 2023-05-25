@@ -27,40 +27,25 @@ class SCAFFOLDServer(FedAvgServer):
         ]
 
     def train(self):
-        for E in self.train_progress_bar:
-            self.current_epoch = E
+        y_delta_cache = []
+        c_delta_cache = []
+        for client_id in self.selected_clients:
+            client_local_params = self.generate_client_params(client_id)
+            (
+                y_delta,
+                c_delta,
+                self.client_stats[client_id][self.current_epoch],
+            ) = self.trainer.train(
+                client_id=client_id,
+                new_parameters=client_local_params,
+                c_global=self.c_global,
+                verbose=((self.current_epoch + 1) % self.args.verbose_gap) == 0,
+            )
 
-            if (E + 1) % self.args.verbose_gap == 0:
-                self.logger.log(" " * 30, f"TRAINING EPOCH: {E + 1}", " " * 30)
+            y_delta_cache.append(y_delta)
+            c_delta_cache.append(c_delta)
 
-            if (E + 1) % self.args.test_gap == 0:
-                self.test()
-
-            self.selected_clients = self.client_sample_stream[E]
-
-            y_delta_cache = []
-            c_delta_cache = []
-            for client_id in self.selected_clients:
-
-                client_local_params = self.generate_client_params(client_id)
-
-                (
-                    y_delta,
-                    c_delta,
-                    self.client_stats[client_id][E],
-                ) = self.trainer.train(
-                    client_id=client_id,
-                    new_parameters=client_local_params,
-                    c_global=self.c_global,
-                    verbose=((E + 1) % self.args.verbose_gap) == 0,
-                )
-
-                y_delta_cache.append(y_delta)
-                c_delta_cache.append(c_delta)
-
-            self.aggregate(y_delta_cache, c_delta_cache)
-
-            self.log_info()
+        self.aggregate(y_delta_cache, c_delta_cache)
 
     @torch.no_grad()
     def aggregate(
