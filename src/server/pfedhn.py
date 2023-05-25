@@ -19,7 +19,7 @@ class pFedHNServer(FedAvgServer):
         self,
         algo: str = None,
         args: Namespace = None,
-        unique_model=False,
+        unique_model=True,
         default_trainer=True,
     ):
         if args is None:
@@ -89,7 +89,11 @@ class pFedHNServer(FedAvgServer):
         self.update_hn(weight_cache, hn_grads_cache)
 
     def generate_client_params(self, client_id) -> OrderedDict[str, torch.Tensor]:
-        return self.hn(torch.tensor(client_id, device=self.device))
+        if not self.test_flag:
+            self.client_trainable_params[client_id] = self.hn(
+                torch.tensor(client_id, device=self.device)
+            )
+        return self.client_trainable_params[client_id]
 
     def update_hn(self, weight_cache, hn_grads_cache):
         weights = torch.tensor(weight_cache, device=self.device) / sum(weight_cache)
