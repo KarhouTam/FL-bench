@@ -238,3 +238,13 @@ def get_fedgen_argparser() -> ArgumentParser:
     parser.add_argument("--train_generator_epoch", type=int, default=5)
     parser.add_argument("--min_samples_per_label", type=int, default=1)
     return parser
+
+
+def get_fedhkd_argparser() -> ArgumentParser:
+    parser = get_fedavg_argparser()
+    parser.add_argument("--sigma", type=float, default=7)
+    parser.add_argument("--temperature", type=float, default=0.5)
+    parser.add_argument("--gamma", type=float, default=0.05)
+    parser.add_argument("--lamda", type=float, default=0.05)
+    parser.add_argument("--threshold", type=float, default=0.25)
+    return parser
