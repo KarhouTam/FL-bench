@@ -248,3 +248,9 @@ def get_fedhkd_argparser() -> ArgumentParser:
     parser.add_argument("--lamda", type=float, default=0.05)
     parser.add_argument("--threshold", type=float, default=0.25)
     return parser
+
+
+def get_pfedsim_argparser() -> ArgumentParser:
+    parser = get_fedavg_argparser()
+    parser.add_argument("-wr", "--warmup_round", type=float, default=0.5)
+    return parser
