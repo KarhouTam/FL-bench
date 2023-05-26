@@ -5,15 +5,13 @@ from copy import deepcopy
 import numpy as np
 import torch
 import torch.nn.functional as F
-from rich.console import Console
 
-from src.config.models import DecoupledModel
 from src.config.utils import trainable_params
 from fedavg import FedAvgClient
 
 
 class FedGenClient(FedAvgClient):
-    def __init__(self, model: DecoupledModel, args: Namespace, logger: Console):
+    def __init__(self, model, args, logger):
         super().__init__(model, args, logger)
         self.ensemble_loss = torch.nn.KLDivLoss(reduction="batchmean")
         self.label_counts = [1 for _ in range(len(self.dataset.classes))]
@@ -48,7 +46,7 @@ class FedGenClient(FedAvgClient):
             eval_stats,
         )
 
-    def set_parameters(self, new_parameters: OrderedDict[str, torch.nn.Parameter]):
+    def set_parameters(self, new_parameters: OrderedDict[str, torch.Tensor]):
         super().set_parameters(new_parameters)
         self.available_labels = torch.unique(
             self.dataset.targets[self.trainset.indices]

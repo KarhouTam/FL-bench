@@ -12,8 +12,8 @@ from src.config.utils import trainable_params
 class FedHKDClient(FedAvgClient):
     def __init__(self, model, args, logger):
         super().__init__(model, args, logger)
-        self.Q: List[torch.Tensor] = None
-        self.H: List[torch.Tensor] = None
+        self.Q: torch.Tensor = None
+        self.H: torch.Tensor = None
         self.data_count = []
         for indices in self.data_indices:
             counter = Counter(self.dataset.targets[indices["train"]].tolist())
@@ -25,7 +25,7 @@ class FedHKDClient(FedAvgClient):
     def train(
         self,
         client_id: int,
-        new_parameters: OrderedDict[str, torch.nn.Parameter],
+        new_parameters: OrderedDict[str, torch.Tensor],
         global_hyper_knowledge: Tuple[torch.Tensor, torch.Tensor],
         return_diff=True,
         verbose=False,

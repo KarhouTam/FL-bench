@@ -59,5 +59,5 @@ class DittoClient(FedAvgClient):
                     )
                 self.optimizer.step()
 
-    def evaluate(self) -> Dict[str, Dict[str, float]]:
+    def evaluate(self) -> Dict[str, float]:
         return super().evaluate(self.pers_model)

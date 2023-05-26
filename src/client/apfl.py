@@ -39,7 +39,7 @@ class APFLClient(FedAvgClient):
             {"params": trainable_params(self.local_model), "lr": self.local_lr}
         )
 
-    def set_parameters(self, new_parameters: OrderedDict[str, torch.nn.Parameter]):
+    def set_parameters(self, new_parameters: OrderedDict[str, torch.Tensor]):
         super().set_parameters(new_parameters)
         self.local_model.load_state_dict(self.local_params_dict[self.client_id])
         self.alpha = self.alpha_list[self.client_id]
@@ -93,7 +93,7 @@ class APFLClient(FedAvgClient):
         self.alpha.clip_(0, 1.0)
 
     @torch.no_grad()
-    def evaluate(self) -> Dict[str, Dict[str, float]]:
+    def evaluate(self) -> Dict[str, float]:
         self.model.eval()
         self.local_model.eval()
         train_loss, test_loss = 0, 0

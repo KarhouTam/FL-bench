@@ -6,20 +6,19 @@ from typing import Dict, List, Tuple
 from pathlib import Path
 
 import torch
-from rich.console import Console
 from torch.utils.data import DataLoader, Subset
 from torchvision.transforms import Compose, Normalize
 
 PROJECT_DIR = Path(__file__).parent.parent.parent.absolute()
 
-from src.config.utils import trainable_params, evaluate
+from src.config.utils import trainable_params, evaluate, Logger
 from src.config.models import DecoupledModel
 from data.utils.constants import MEAN, STD
 from data.utils.datasets import DATASETS
 
 
 class FedAvgClient:
-    def __init__(self, model: DecoupledModel, args: Namespace, logger: Console):
+    def __init__(self, model: DecoupledModel, args: Namespace, logger: Logger):
         self.args = args
         self.device = torch.device(
             "cuda" if self.args.use_cuda and torch.cuda.is_available() else "cpu"
@@ -77,12 +76,21 @@ class FedAvgClient:
         self.init_opt_state_dict = deepcopy(self.optimizer.state_dict())
 
     def load_dataset(self):
+        """This function is for loading data indices for No.`self.client_id` client."""
         self.trainset.indices = self.data_indices[self.client_id]["train"]
         self.testset.indices = self.data_indices[self.client_id]["test"]
         self.trainloader = DataLoader(self.trainset, self.args.batch_size)
         self.testloader = DataLoader(self.testset, self.args.batch_size)
 
     def train_and_log(self, verbose=False) -> Dict[str, Dict[str, float]]:
+        """This function includes the local training and logging process.
+
+        Args:
+            verbose (bool, optional): Set to `True` for print logging info onto the stdout (Controled by the server by default). Defaults to False.
+
+        Returns:
+            Dict[str, Dict[str, float]]: The logging info, which contains metric stats.
+        """
         before = {
             "train_loss": 0,
             "test_loss": 0,
@@ -123,6 +131,11 @@ class FedAvgClient:
         return eval_stats
 
     def set_parameters(self, new_parameters: OrderedDict[str, torch.Tensor]):
+        """Load model parameters received from the server.
+
+        Args:
+            new_parameters (OrderedDict[str, torch.Tensor]): Parameters of FL model.
+        """
         personal_parameters = self.personal_params_dict.get(
             self.client_id, self.init_personal_params_dict
         )
@@ -134,6 +147,7 @@ class FedAvgClient:
         self.model.load_state_dict(personal_parameters, strict=False)
 
     def save_state(self):
+        """Save client model personal parameters and the state of optimizer at the end of local training."""
         self.personal_params_dict[self.client_id] = {
             key: param.clone().detach()
             for key, param in self.model.state_dict(keep_vars=True).items()
@@ -147,7 +161,24 @@ class FedAvgClient:
         new_parameters: OrderedDict[str, torch.Tensor],
         return_diff=True,
         verbose=False,
-    ) -> Tuple[List[torch.nn.Parameter], int, Dict]:
+    ) -> Tuple[List[torch.Tensor], int, Dict]:
+        """
+        The funtion for including all operations in client local training phase.
+        If you wanna implement your method, consider to override this funciton.
+        Args:
+            client_id (int): The ID of client.
+
+            new_parameters (OrderedDict[str, torch.Tensor]): Parameters of FL model.
+
+            return_diff (bool, optional):
+            Set as `True` to send the difference between FL model parameters that before and after training;
+            Set as `False` to send FL model parameters without any change.  Defaults to True.
+
+            verbose (bool, optional): Set to `True` for print logging info onto the stdout (Controled by the server by default). Defaults to False.
+
+        Returns:
+            Tuple[List[torch.Tensor], int, Dict]:  The difference / whole parameters, the weight of this client, the evaluation metric stats.
+        """
         self.client_id = client_id
         self.load_dataset()
         self.set_parameters(new_parameters)
@@ -169,6 +200,10 @@ class FedAvgClient:
             )
 
     def fit(self):
+        """
+        The function for specifying operations in local training phase.
+        If you wanna implement your method and your method has different local training operations to FedAvg, this method has to be overrided.
+        """
         self.model.train()
         for _ in range(self.local_epoch):
             for x, y in self.trainloader:
@@ -185,7 +220,15 @@ class FedAvgClient:
                 self.optimizer.step()
 
     @torch.no_grad()
-    def evaluate(self, model: torch.nn.Module = None) -> Dict[str, Dict[str, float]]:
+    def evaluate(self, model: torch.nn.Module = None) -> Dict[str, float]:
+        """The evaluation function. Would be activated before and after local training if `eval_test = True` or `eval_train = True`.
+
+        Args:
+            model (torch.nn.Module, optional): The target model needed evaluation (set to `None` for using `self.model`). Defaults to None.
+
+        Returns:
+            Dict[str, float]: The evaluation metric stats.
+        """
         eval_model = self.model if model is None else model
         eval_model.eval()
         train_loss, test_loss = 0, 0
@@ -218,7 +261,18 @@ class FedAvgClient:
             "test_size": float(max(1, test_sample_num)),
         }
 
-    def test(self, client_id: int, new_parameters: OrderedDict[str, torch.Tensor]):
+    def test(
+        self, client_id: int, new_parameters: OrderedDict[str, torch.Tensor]
+    ) -> Dict[str, Dict[str, float]]:
+        """Test function. Only be activated while in FL test round.
+
+        Args:
+            client_id (int): The ID of client.
+            new_parameters (OrderedDict[str, torch.Tensor]): The FL model parameters.
+
+        Returns:
+            Dict[str, Dict[str, float]]: the evalutaion metrics stats.
+        """
         self.client_id = client_id
         self.load_dataset()
         self.set_parameters(new_parameters)
@@ -240,6 +294,9 @@ class FedAvgClient:
         return {"before": before, "after": after}
 
     def finetune(self):
+        """
+        The fine-tune function. If your method has different fine-tuning opeation, consider to override this.
+        This function will only be activated while in FL test round."""
         self.model.train()
         for _ in range(self.args.finetune_epoch):
             for x, y in self.trainloader:

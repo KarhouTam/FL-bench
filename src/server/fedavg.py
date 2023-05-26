@@ -127,6 +127,7 @@ class FedAvgServer:
             self.trainer = FedAvgClient(deepcopy(self.model), self.args, self.logger)
 
     def train(self):
+        """The Generic FL training process"""
         for E in self.train_progress_bar:
             self.current_epoch = E
 
@@ -141,6 +142,7 @@ class FedAvgServer:
             self.log_info()
 
     def train_one_round(self):
+        """The function of indicating specific things FL method need to do (at server side) in each communication round."""
         delta_cache = []
         weight_cache = []
         for client_id in self.selected_clients:
@@ -162,6 +164,7 @@ class FedAvgServer:
         self.aggregate(delta_cache, weight_cache)
 
     def test(self):
+        """The function for testing FL method's output (a single global model or personalized client models)."""
         self.test_flag = True
         loss_before, loss_after = [], []
         correct_before, correct_after = [], []
@@ -195,7 +198,17 @@ class FedAvgServer:
         self.test_flag = False
 
     @torch.no_grad()
-    def update_client_params(self, client_params_cache: List[List[torch.nn.Parameter]]):
+    def update_client_params(self, client_params_cache: List[List[torch.Tensor]]):
+        """
+        The function for updating clients model while unique_model is `True`.
+        This function is only useful for some pFL methods.
+
+        Args:
+            client_params_cache (List[List[torch.Tensor]]): models parameters of selected clients.
+
+        Raises:
+            RuntimeError: If unique_model = `False`, this function will not work properly.
+        """
         if self.unique_model:
             for i, client_id in enumerate(self.selected_clients):
                 self.client_trainable_params[client_id] = [
@@ -207,6 +220,15 @@ class FedAvgServer:
             )
 
     def generate_client_params(self, client_id: int) -> OrderedDict[str, torch.Tensor]:
+        """
+        This function is for outputting model parameters that asked by `client_id`.
+
+        Args:
+            client_id (int): The ID of query client.
+
+        Returns:
+            OrderedDict[str, torch.Tensor]: The trainable model parameters.
+        """
         if self.unique_model:
             return OrderedDict(
                 zip(self.trainable_params_name, self.client_trainable_params[client_id])
@@ -216,6 +238,15 @@ class FedAvgServer:
 
     @torch.no_grad()
     def aggregate(self, delta_cache: List[List[torch.Tensor]], weight_cache: List[int]):
+        """
+        This function is for aggregating recevied model parameters from selected clients.
+        The method of aggregation is weighted averaging by default.
+
+        Args:
+            delta_cache (List[List[torch.Tensor]]): `delta` means the difference between client model parameters that before and after local training.
+
+            weight_cache (List[int]): Weight for each `delta` (client dataset size by default).
+        """
         weights = torch.tensor(weight_cache, device=self.device) / sum(weight_cache)
         delta_list = [list(delta.values()) for delta in delta_cache]
         aggregated_delta = [
@@ -227,6 +258,7 @@ class FedAvgServer:
             param.data -= diff.to(self.device)
 
     def check_convergence(self):
+        """This function is for checking model convergence through the entire FL training process."""
         for label, metric in self.metrics.items():
             if len(metric) > 0:
                 self.logger.log(f"Convergence ({label}):")
@@ -247,6 +279,7 @@ class FedAvgServer:
                     acc_range = acc_range[:min_acc_idx]
 
     def log_info(self):
+        """This function is for logging each selected client's training info."""
         for label in ["train", "test"]:
             # In the `user` split, there is no test data held by train clients, so plotting is unnecessary.
             if (label == "train" and self.args.eval_train) or (
@@ -310,6 +343,11 @@ class FedAvgServer:
                     )
 
     def run(self):
+        """The comprehensive FL process.
+
+        Raises:
+            RuntimeError: If `trainer` is not set.
+        """
         if self.trainer is None:
             raise RuntimeError(
                 "Specify your unique trainer or set `default_trainer` as True."

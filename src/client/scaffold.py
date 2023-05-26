@@ -2,6 +2,7 @@ from collections import OrderedDict
 from typing import Dict, Iterator, List
 
 import torch
+from torch.utils.data import DataLoader
 
 from fedavg import FedAvgClient
 from src.config.utils import trainable_params
@@ -12,7 +13,7 @@ class SCAFFOLDClient(FedAvgClient):
         super().__init__(model, args, logger)
         self.c_local: Dict[List[torch.Tensor]] = {}
         self.c_global: List[torch.Tensor] = []
-        self.iter_trainloader: Iterator[torch.utils.data.DataLoader] = None
+        self.iter_trainloader: Iterator[DataLoader] = None
 
     def train(
         self,

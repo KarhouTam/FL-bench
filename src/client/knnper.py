@@ -27,7 +27,7 @@ class kNNPerClient(FedAvgClient):
         return res
 
     @torch.no_grad()
-    def evaluate(self) -> Dict[str, Dict[str, float]]:
+    def evaluate(self) -> Dict[str, float]:
         if self.test_flag:
             self.model.eval()
             criterion = torch.nn.CrossEntropyLoss(reduction="sum")
