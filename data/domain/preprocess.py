@@ -9,7 +9,7 @@ import torch
 
 CURRENT_DIR = Path(__file__).parent.absolute()
 
-sys.path.append(CURRENT_DIR.parent)
+sys.path.append(CURRENT_DIR.parent.as_posix())
 
 
 if __name__ == "__main__":
