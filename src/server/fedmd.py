@@ -32,7 +32,7 @@ class FedMDServer(FedAvgServer):
             model=deepcopy(self.model), args=self.args, logger=self.logger
         )
 
-    def train(self):
+    def train_one_round(self):
         self.trainer.load_public_data_batches()
         scores_cache = []
         for client_id in self.selected_clients:

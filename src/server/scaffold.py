@@ -26,7 +26,7 @@ class SCAFFOLDServer(FedAvgServer):
             torch.zeros_like(param) for param in trainable_params(self.model)
         ]
 
-    def train(self):
+    def train_one_round(self):
         y_delta_cache = []
         c_delta_cache = []
         for client_id in self.selected_clients:
