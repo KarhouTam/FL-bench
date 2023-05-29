@@ -4,6 +4,7 @@ import os
 import json
 import sys
 from pathlib import Path
+from collections import Counter
 
 import torch
 
@@ -46,11 +47,6 @@ if __name__ == "__main__":
     # record each domain's data indices
     original_partition = []
 
-    stats = {
-        i: {"x": 0, "y": {c: 0 for c in range(len(selected_classes))}}
-        for i in range(len(domains))
-    }
-
     targets = []
     filename_list = []
     old_count = 0
@@ -65,10 +61,10 @@ if __name__ == "__main__":
             for name in filenames:
                 filename_list.append(str(folder / name))
                 targets.append(target_mapping[cls])
-                stats[i]["x"] += 1
-                stats[i]["y"][c] += 1
                 new_count += 1
+
         print(f"Indices of data from {domain} [{old_count}, {new_count})")
+
         data_idxs = list(range(old_count, new_count))
         subset_size = len(data_idxs) // client_num_foreach_domain
         for j in range(client_num_foreach_domain):
@@ -80,7 +76,20 @@ if __name__ == "__main__":
             original_partition[-1].extend(data_idxs)
         old_count = new_count
 
-    torch.save(torch.tensor(targets, dtype=torch.long), "targets.pt")
+    targets = torch.tensor(targets, dtype=torch.long)
+    torch.save(targets, "targets.pt")
+
+    original_stats = {
+        domains[i]: {
+            cid: {"x": len(data_idxs), "y": Counter(targets[data_idxs].tolist())}
+            for cid, data_idxs in enumerate(
+                original_partition[j : j + client_num_foreach_domain], start=j
+            )
+        }
+        for i, j in enumerate(
+            range(0, client_num_foreach_domain * 6, client_num_foreach_domain)
+        )
+    }
 
     with open("original_partition.pkl", "wb") as f:
         pickle.dump(original_partition, f)
@@ -89,6 +98,10 @@ if __name__ == "__main__":
         pickle.dump(filename_list, f)
 
     with open("metadata.json", "w") as f:
+        label_count = {}
+        for domain_stat in original_stats.values():
+            for client_stat in domain_stat.values():
+                label_count = Counter(label_count) + Counter(client_stat["y"])
         json.dump(
             {
                 "class_num": class_num,
@@ -96,8 +109,7 @@ if __name__ == "__main__":
                 "data_amount": len(targets),
                 "image_size": img_size,
                 "classes": {
-                    cls: sum([stats[i]["y"][c] for i in range(len(domains))])
-                    for c, cls in enumerate(selected_classes)
+                    cls: label_count[c] for c, cls in enumerate(selected_classes)
                 },
                 "seed": seed,
             },
@@ -105,6 +117,6 @@ if __name__ == "__main__":
         )
 
     with open("original_stats.json", "w") as f:
-        json.dump(stats, f)
+        json.dump(original_stats, f)
 
     os.system(f"cd ../utils; python run.py -d domain")
