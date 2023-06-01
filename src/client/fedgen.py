@@ -1,12 +1,12 @@
-from argparse import Namespace
-from collections import OrderedDict, Counter
+from collections import OrderedDict
 from copy import deepcopy
+from typing import List
 
 import numpy as np
 import torch
 import torch.nn.functional as F
 
-from src.config.utils import trainable_params
+from src.config.utils import count_labels, trainable_params
 from fedavg import FedAvgClient
 
 
@@ -14,7 +14,10 @@ class FedGenClient(FedAvgClient):
     def __init__(self, model, args, logger):
         super().__init__(model, args, logger)
         self.ensemble_loss = torch.nn.KLDivLoss(reduction="batchmean")
-        self.label_counts = [1 for _ in range(len(self.dataset.classes))]
+        self.label_counts: List[List[int]] = [
+            count_labels(self.dataset, indices["train"], min_value=1)
+            for indices in self.data_indices
+        ]
         self.lr_scheduler = torch.optim.lr_scheduler.ExponentialLR(
             optimizer=self.optimizer, gamma=0.99
         )
@@ -26,7 +29,6 @@ class FedGenClient(FedAvgClient):
         global_epoch,
         generator: torch.nn.Module,
         regularization: bool,
-        return_diff=False,
         verbose=False,
     ):
         self.client_id = client_id
@@ -34,7 +36,6 @@ class FedGenClient(FedAvgClient):
         self.generator = generator
         self.regularization = regularization
         self.load_dataset()
-        self.iter_trainloader = iter(self.trainloader)
         self.set_parameters(new_parameters)
 
         eval_stats = self.train_and_log(verbose)
@@ -42,7 +43,7 @@ class FedGenClient(FedAvgClient):
         return (
             deepcopy(trainable_params(self.model)),
             len(self.trainset),
-            self.label_counts,
+            self.label_counts[self.client_id],
             eval_stats,
         )
 
@@ -55,15 +56,11 @@ class FedGenClient(FedAvgClient):
     def fit(self):
         self.model.train()
         self.generator.train()
-        self.label_counts = [1 for _ in range(len(self.dataset.classes))]
         for _ in range(self.local_epoch):
             for x, y in self.trainloader:
                 if len(y) <= 1:
                     continue
                 x, y = x.to(self.device), y.to(self.device)
-                # update label count
-                for i, num in Counter(y.tolist()).items():
-                    self.label_counts[i] += num
 
                 logits = self.model(x)
                 loss = self.criterion(logits, y)

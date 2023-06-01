@@ -10,7 +10,7 @@ import numpy as np
 
 from datasets import DATASETS
 from partition import dirichlet, iid_partition, randomly_assign_classes, allocate_shards
-from util import prune_args, generate_synthetic_data, process_celeba, process_femnist
+from process import prune_args, generate_synthetic_data, process_celeba, process_femnist
 
 CURRENT_DIR = Path(__file__).parent.absolute()
 

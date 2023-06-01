@@ -1,6 +1,6 @@
 import os
 import random
-from collections import OrderedDict
+from collections import Counter, OrderedDict
 from typing import List, Tuple, Union
 from pathlib import Path
 
@@ -8,6 +8,8 @@ import torch
 import numpy as np
 from torch.utils.data import DataLoader
 from rich.console import Console
+
+from data.utils.datasets import BaseDataset
 
 PROJECT_DIR = Path(__file__).parent.parent.parent.absolute()
 OUT_DIR = PROJECT_DIR / "out"
@@ -87,6 +89,11 @@ def evaluate(
         correct += (pred == y).sum().item()
         sample_num += len(y)
     return loss, correct, sample_num
+
+
+def count_labels(dataset: BaseDataset, indices: List[int], min_value=0) -> List[int]:
+    counter = Counter(dataset.targets[indices].tolist())
+    return [counter.get(i, min_value) for i in range(len(dataset.classes))]
 
 
 class Logger:

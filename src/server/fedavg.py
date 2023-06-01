@@ -237,7 +237,12 @@ class FedAvgServer:
             return self.global_params_dict
 
     @torch.no_grad()
-    def aggregate(self, delta_cache: List[List[torch.Tensor]], weight_cache: List[int]):
+    def aggregate(
+        self,
+        delta_cache: List[List[torch.Tensor]],
+        weight_cache: List[int],
+        return_diff=True,
+    ):
         """
         This function is for aggregating recevied model parameters from selected clients.
         The method of aggregation is weighted averaging by default.
@@ -246,16 +251,27 @@ class FedAvgServer:
             delta_cache (List[List[torch.Tensor]]): `delta` means the difference between client model parameters that before and after local training.
 
             weight_cache (List[int]): Weight for each `delta` (client dataset size by default).
+
+            return_diff (bool): Differnt value brings different operations. Default to True.
         """
         weights = torch.tensor(weight_cache, device=self.device) / sum(weight_cache)
-        delta_list = [list(delta.values()) for delta in delta_cache]
-        aggregated_delta = [
-            torch.sum(weights * torch.stack(diff, dim=-1), dim=-1)
-            for diff in zip(*delta_list)
-        ]
+        if return_diff:
+            delta_list = [list(delta.values()) for delta in delta_cache]
+            aggregated_delta = [
+                torch.sum(weights * torch.stack(diff, dim=-1), dim=-1)
+                for diff in zip(*delta_list)
+            ]
 
-        for param, diff in zip(self.global_params_dict.values(), aggregated_delta):
-            param.data -= diff.to(self.device)
+            for param, diff in zip(self.global_params_dict.values(), aggregated_delta):
+                param.data -= diff.to(self.device)
+        else:
+            for old_param, zipped_new_param in zip(
+                self.global_params_dict.values(), zip(*delta_cache)
+            ):
+                old_param.data = (torch.stack(zipped_new_param, dim=-1) * weights).sum(
+                    dim=-1
+                )
+        self.model.load_state_dict(self.global_params_dict, strict=False)
 
     def check_convergence(self):
         """This function is for checking model convergence through the entire FL training process."""

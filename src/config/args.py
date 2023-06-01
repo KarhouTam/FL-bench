@@ -49,8 +49,8 @@ def get_fedavg_argparser() -> ArgumentParser:
     parser.add_argument("-wd", "--weight_decay", type=float, default=0.0)
     parser.add_argument("-vg", "--verbose_gap", type=int, default=100000)
     parser.add_argument("-bs", "--batch_size", type=int, default=32)
+    parser.add_argument("-v", "--visible", type=int, default=0)
     parser.add_argument("--use_cuda", type=int, default=1)
-    parser.add_argument("--visible", type=int, default=0)
     parser.add_argument("--save_log", type=int, default=1)
     parser.add_argument("--save_model", type=int, default=0)
     parser.add_argument("--save_fig", type=int, default=1)
@@ -237,16 +237,6 @@ def get_fedgen_argparser() -> ArgumentParser:
     parser.add_argument("--ensemble_epoch", type=int, default=50)
     parser.add_argument("--train_generator_epoch", type=int, default=5)
     parser.add_argument("--min_samples_per_label", type=int, default=1)
-    return parser
-
-
-def get_fedhkd_argparser() -> ArgumentParser:
-    parser = get_fedavg_argparser()
-    parser.add_argument("--sigma", type=float, default=7)
-    parser.add_argument("--temperature", type=float, default=0.5)
-    parser.add_argument("--gamma", type=float, default=0.05)
-    parser.add_argument("--lamda", type=float, default=0.05)
-    parser.add_argument("--threshold", type=float, default=0.25)
     return parser
 
 
