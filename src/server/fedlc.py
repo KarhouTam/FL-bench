@@ -1,9 +1,15 @@
-from argparse import Namespace
+from argparse import ArgumentParser, Namespace
 from copy import deepcopy
 
-from fedavg import FedAvgServer
-from src.config.args import get_fedlc_argparser
+from fedavg import FedAvgServer, get_fedavg_argparser
 from src.client.fedlc import FedLCClient
+
+
+def get_fedlc_argparser() -> ArgumentParser:
+    parser = get_fedavg_argparser()
+    parser.add_argument("--tau", type=float, default=1.0)
+    return parser
+
 
 # NOTE: The difference between the loss function in this benchmark and the one in the paper.
 # In the paper, the logit of right class is removed from the sum (the denominator).

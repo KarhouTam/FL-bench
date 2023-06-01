@@ -1,9 +1,15 @@
-from argparse import Namespace
+from argparse import ArgumentParser, Namespace
 from copy import deepcopy
 
-from fedavg import FedAvgServer
-from src.config.args import get_apfl_argparser
+from fedavg import FedAvgServer, get_fedavg_argparser
 from src.client.apfl import APFLClient
+
+
+def get_apfl_argparser() -> ArgumentParser:
+    parser = get_fedavg_argparser()
+    parser.add_argument("--alpha", type=float, default=0.5)
+    parser.add_argument("--adaptive_alpha", type=int, default=1)
+    return parser
 
 
 class APFLServer(FedAvgServer):

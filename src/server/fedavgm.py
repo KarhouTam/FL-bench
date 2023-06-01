@@ -1,8 +1,13 @@
-from argparse import Namespace
+from argparse import ArgumentParser, Namespace
 import torch
 
-from fedavg import FedAvgServer
-from src.config.args import get_fedavgm_argparser
+from fedavg import FedAvgServer, get_fedavg_argparser
+
+
+def get_fedavgm_argparser() -> ArgumentParser:
+    parser = get_fedavg_argparser()
+    parser.add_argument("--server_momentum", type=float, default=0.9)
+    return parser
 
 
 class FedAvgMServer(FedAvgServer):

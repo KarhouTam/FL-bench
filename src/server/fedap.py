@@ -1,5 +1,5 @@
 import math
-from argparse import Namespace
+from argparse import ArgumentParser, Namespace
 from collections import OrderedDict
 from copy import deepcopy
 from typing import List
@@ -8,10 +8,21 @@ import torch
 import numpy as np
 from rich.progress import track
 
-from fedavg import FedAvgServer
-from src.config.args import get_fedap_argparser
+from fedavg import FedAvgServer, get_fedavg_argparser
 from src.config.utils import trainable_params
 from src.client.fedap import FedAPClient
+
+
+def get_fedap_argparser() -> ArgumentParser:
+    parser = get_fedavg_argparser()
+    parser.add_argument(
+        "--version", type=str, choices=["original", "f", "d"], default="original"
+    )
+    parser.add_argument("--pretrain_ratio", type=float, default=0.3)
+    parser.add_argument("--warmup_round", type=float, default=0.5)
+    parser.add_argument("--model_momentum", type=float, default=0.5)
+    return parser
+
 
 # Codes below are modified from FedAP's official repo: https://github.com/microsoft/PersonalizedFL
 class FedAPServer(FedAvgServer):

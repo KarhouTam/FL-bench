@@ -1,9 +1,16 @@
-from argparse import Namespace
+from argparse import ArgumentParser, Namespace
 from copy import deepcopy
 
-from fedavg import FedAvgServer
-from src.config.args import get_perfedavg_argparser
+from fedavg import FedAvgServer, get_fedavg_argparser
 from src.client.perfedavg import PerFedAvgClient
+
+
+def get_perfedavg_argparser() -> ArgumentParser:
+    parser = get_fedavg_argparser()
+    parser.add_argument("--version", choices=["fo", "hf"], default="fo")
+    parser.add_argument("--beta", type=float, default=1e-3)
+    parser.add_argument("--delta", type=float, default=1e-3)
+    return parser
 
 
 class PerFedAvgServer(FedAvgServer):

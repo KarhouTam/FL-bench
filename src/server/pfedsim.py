@@ -1,13 +1,18 @@
-from argparse import Namespace
+from argparse import ArgumentParser, Namespace
 from collections import OrderedDict
 from copy import deepcopy
 
 import torch
 from rich.progress import track
 
-from fedavg import FedAvgServer
+from fedavg import FedAvgServer, get_fedavg_argparser
 from src.config.utils import trainable_params
-from src.config.args import get_pfedsim_argparser
+
+
+def get_pfedsim_argparser() -> ArgumentParser:
+    parser = get_fedavg_argparser()
+    parser.add_argument("-wr", "--warmup_round", type=float, default=0.5)
+    return parser
 
 
 class pFedSimServer(FedAvgServer):

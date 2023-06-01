@@ -1,9 +1,17 @@
-from argparse import Namespace
+from argparse import ArgumentParser, Namespace
 from copy import deepcopy
 
-from fedavg import FedAvgServer
-from src.config.args import get_knnper_argparser
+from fedavg import FedAvgServer, get_fedavg_argparser
 from src.client.knnper import kNNPerClient
+
+
+def get_knnper_argparser() -> ArgumentParser:
+    parser = get_fedavg_argparser()
+    parser.add_argument("--capacity", type=int, default=500)
+    parser.add_argument("--weight", type=float, default=0.5)
+    parser.add_argument("--scale", type=float, default=1)
+    parser.add_argument("--k", type=int, default=5)
+    return parser
 
 
 class kNNPerServer(FedAvgServer):

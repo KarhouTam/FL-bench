@@ -4,7 +4,7 @@ import json
 import os
 import random
 from pathlib import Path
-from argparse import Namespace
+from argparse import ArgumentParser, Namespace
 from collections import OrderedDict
 from copy import deepcopy
 from typing import Dict, List
@@ -19,8 +19,63 @@ sys.path.append(PROJECT_DIR.as_posix())
 
 from src.config.utils import OUT_DIR, Logger, fix_random_seed, trainable_params
 from src.config.models import MODEL_DICT
-from src.config.args import get_fedavg_argparser
 from src.client.fedavg import FedAvgClient
+
+
+def get_fedavg_argparser() -> ArgumentParser:
+    parser = ArgumentParser()
+    parser.add_argument(
+        "-m",
+        "--model",
+        type=str,
+        default="lenet5",
+        choices=["lenet5", "2nn", "avgcnn", "mobile", "res18", "alex", "sqz"],
+    )
+    parser.add_argument(
+        "-d",
+        "--dataset",
+        type=str,
+        choices=[
+            "mnist",
+            "cifar10",
+            "cifar100",
+            "synthetic",
+            "femnist",
+            "emnist",
+            "fmnist",
+            "celeba",
+            "medmnistS",
+            "medmnistA",
+            "medmnistC",
+            "covid19",
+            "svhn",
+            "usps",
+            "tiny_imagenet",
+            "cinic10",
+            "domain",
+        ],
+        default="cifar10",
+    )
+    parser.add_argument("--seed", type=int, default=42)
+    parser.add_argument("-jr", "--join_ratio", type=float, default=0.1)
+    parser.add_argument("-ge", "--global_epoch", type=int, default=100)
+    parser.add_argument("-le", "--local_epoch", type=int, default=5)
+    parser.add_argument("-fe", "--finetune_epoch", type=int, default=0)
+    parser.add_argument("-tg", "--test_gap", type=int, default=100)
+    parser.add_argument("-ee", "--eval_test", type=int, default=1)
+    parser.add_argument("-er", "--eval_train", type=int, default=0)
+    parser.add_argument("-lr", "--local_lr", type=float, default=1e-2)
+    parser.add_argument("-mom", "--momentum", type=float, default=0.0)
+    parser.add_argument("-wd", "--weight_decay", type=float, default=0.0)
+    parser.add_argument("-vg", "--verbose_gap", type=int, default=100000)
+    parser.add_argument("-bs", "--batch_size", type=int, default=32)
+    parser.add_argument("-v", "--visible", type=int, default=0)
+    parser.add_argument("--use_cuda", type=int, default=1)
+    parser.add_argument("--save_log", type=int, default=1)
+    parser.add_argument("--save_model", type=int, default=0)
+    parser.add_argument("--save_fig", type=int, default=1)
+    parser.add_argument("--save_metrics", type=int, default=1)
+    return parser
 
 
 class FedAvgServer:

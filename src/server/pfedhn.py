@@ -1,17 +1,29 @@
-from argparse import Namespace
+from argparse import ArgumentParser, Namespace
 from collections import OrderedDict
 from copy import deepcopy
 
 import torch
 import torch.nn as nn
 
-from fedavg import FedAvgServer
+from fedavg import FedAvgServer, get_fedavg_argparser
 from src.client.fedper import FedPerClient
-from src.config.args import get_pfedhn_argparser
 from src.config.utils import trainable_params
 
 
-args = get_pfedhn_argparser().parse_args()
+def get_pfedhn_argparser() -> ArgumentParser:
+    parser = get_fedavg_argparser()
+    parser.add_argument(
+        "--version", type=str, choices=["pfedhn", "pfedhn_pc"], default="pfedhn"
+    )
+    parser.add_argument("--embed_dim", type=int, default=-1)
+    parser.add_argument("--hn_lr", type=float, default=1e-2)
+    parser.add_argument("--embed_lr", type=float, default=None)
+    parser.add_argument("--hn_momentum", type=float, default=0.9)
+    parser.add_argument("--hn_weight_decay", type=float, default=1e-3)
+    parser.add_argument("--hidden_dim", type=int, default=100)
+    parser.add_argument("--hidden_num", type=int, default=3)
+    parser.add_argument("--norm_clip", type=int, default=50)
+    return parser
 
 
 class pFedHNServer(FedAvgServer):

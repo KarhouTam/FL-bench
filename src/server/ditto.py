@@ -1,9 +1,15 @@
-from argparse import Namespace
+from argparse import ArgumentParser, Namespace
 from copy import deepcopy
 
-from fedavg import FedAvgServer
-from src.config.args import get_ditto_argparser
+from fedavg import FedAvgServer, get_fedavg_argparser
 from src.client.ditto import DittoClient
+
+
+def get_ditto_argparser() -> ArgumentParser:
+    parser = get_fedavg_argparser()
+    parser.add_argument("--pers_epoch", type=int, default=1)
+    parser.add_argument("--lamda", type=float, default=1)
+    return parser
 
 
 class DittoServer(FedAvgServer):

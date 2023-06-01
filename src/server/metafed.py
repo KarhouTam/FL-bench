@@ -1,9 +1,18 @@
-from argparse import Namespace
+from argparse import ArgumentParser, Namespace
 from copy import deepcopy
-from fedavg import FedAvgServer
+from fedavg import FedAvgServer, get_fedavg_argparser
 from rich.progress import track
 from src.client.metafed import MetaFedClient
-from src.config.args import get_metafed_argparser
+
+
+def get_metafed_argparser() -> ArgumentParser:
+    parser = get_fedavg_argparser()
+    parser.add_argument("--valset_ratio", type=float, default=0.2)
+    parser.add_argument("--warmup_epoch", type=int, default=30)
+    parser.add_argument("--lamda", type=float, default=1.0)
+    parser.add_argument("--threshold_1", type=float, default=0.6)
+    parser.add_argument("--threshold_2", type=float, default=0.5)
+    return parser
 
 
 class MetaFedServer(FedAvgServer):

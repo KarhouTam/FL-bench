@@ -1,12 +1,17 @@
-from argparse import Namespace
+from argparse import ArgumentParser, Namespace
 from copy import deepcopy
 
 import torch
 
-from fedavg import FedAvgServer
+from fedavg import FedAvgServer, get_fedavg_argparser
 from src.client.feddyn import FedDynClient
-from src.config.args import get_feddyn_argparser
 from src.config.utils import trainable_params
+
+
+def get_feddyn_argparser() -> ArgumentParser:
+    parser = get_fedavg_argparser()
+    parser.add_argument("--alpha", type=float, default=0.01)
+    return parser
 
 
 class FedDynServer(FedAvgServer):

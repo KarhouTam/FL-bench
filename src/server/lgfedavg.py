@@ -1,9 +1,14 @@
-from argparse import Namespace
+from argparse import ArgumentParser, Namespace
 from copy import deepcopy
 
-from fedavg import FedAvgServer
-from src.config.args import get_lgfedavg_argparser
+from fedavg import FedAvgServer, get_fedavg_argparser
 from src.client.lgfedavg import LGFedAvgClient
+
+
+def get_lgfedavg_argparser() -> ArgumentParser:
+    parser = get_fedavg_argparser()
+    parser.add_argument("--num_global_layers", type=int, default=1)
+    return parser
 
 
 class LGFedAvgServer(FedAvgServer):

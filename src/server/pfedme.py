@@ -1,12 +1,21 @@
-from argparse import Namespace
+from argparse import ArgumentParser, Namespace
 from copy import deepcopy
 from typing import List
 
 import torch
 
-from fedavg import FedAvgServer
+from fedavg import FedAvgServer, get_fedavg_argparser
 from src.client.pfedme import pFedMeClient
-from src.config.args import get_pfedme_argparser
+
+
+def get_pfedme_argparser() -> ArgumentParser:
+    parser = get_fedavg_argparser()
+    parser.add_argument("--beta", type=float, default=1.0)
+    parser.add_argument("--lamda", type=float, default=15)
+    parser.add_argument("--pers_lr", type=float, default=0.01)
+    parser.add_argument("--mu", type=float, default=1e-3)
+    parser.add_argument("--k", type=int, default=5)
+    return parser
 
 
 class pFedMeServer(FedAvgServer):

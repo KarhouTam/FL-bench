@@ -1,13 +1,19 @@
 from copy import deepcopy
 from typing import List
-from argparse import Namespace
+from argparse import ArgumentParser, Namespace
 
 import torch
 
-from fedavg import FedAvgServer
+from fedavg import FedAvgServer, get_fedavg_argparser
 from src.client.scaffold import SCAFFOLDClient
 from src.config.args import get_scaffold_argparser
 from src.config.utils import trainable_params
+
+
+def get_scaffold_argparser() -> ArgumentParser:
+    parser = get_fedavg_argparser()
+    parser.add_argument("--global_lr", type=float, default=1.0)
+    return parser
 
 
 class SCAFFOLDServer(FedAvgServer):

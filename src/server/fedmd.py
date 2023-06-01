@@ -1,12 +1,20 @@
-from argparse import Namespace
+from argparse import ArgumentParser, Namespace
 from copy import deepcopy
 from typing import List
 
 import torch
 
-from fedavg import FedAvgServer
-from src.config.args import get_fedmd_argparser
+from fedavg import FedAvgServer, get_fedavg_argparser
 from src.client.fedmd import FedMDClient
+
+
+def get_fedmd_argparser() -> ArgumentParser:
+    parser = get_fedavg_argparser()
+    parser.add_argument("--digest_epoch", type=int, default=1)
+    parser.add_argument("--public_dataset", type=str, default="mnist")
+    parser.add_argument("--public_batch_size", type=int, default=32)
+    parser.add_argument("--public_batch_num", type=int, default=5)
+    return parser
 
 
 class FedMDServer(FedAvgServer):

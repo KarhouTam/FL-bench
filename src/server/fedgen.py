@@ -1,4 +1,4 @@
-from argparse import Namespace
+from argparse import ArgumentParser, Namespace
 from copy import deepcopy
 from collections import OrderedDict
 from typing import List
@@ -8,10 +8,29 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
-from fedavg import FedAvgServer
+from fedavg import FedAvgServer, get_fedavg_argparser
 from src.client.fedgen import FedGenClient
-from src.config.args import get_fedgen_argparser
 from src.config.utils import trainable_params
+
+
+def get_fedgen_argparser() -> ArgumentParser:
+    parser = get_fedavg_argparser()
+    parser.add_argument("--ensemble_lr", type=float, default=3e-4)
+    parser.add_argument("--gen_batch_size", type=int, default=32)
+    parser.add_argument("--generative_alpha", type=float, default=10)
+    parser.add_argument("--generative_beta", type=float, default=10)
+    parser.add_argument("--ensemble_alpha", type=float, default=1)
+    parser.add_argument("--ensemble_beta", type=float, default=0)
+    parser.add_argument("--ensemble_eta", type=float, default=0)
+    parser.add_argument("--noise_dim", type=int, default=32)
+    parser.add_argument("--hidden_dim", type=int, default=32)
+    parser.add_argument("--embedding", type=int, default=0)
+    parser.add_argument("--coef_decay", type=float, default=0.98)
+    parser.add_argument("--coef_decay_epoch", type=int, default=1)
+    parser.add_argument("--ensemble_epoch", type=int, default=50)
+    parser.add_argument("--train_generator_epoch", type=int, default=5)
+    parser.add_argument("--min_samples_per_label", type=int, default=1)
+    return parser
 
 
 class FedGenServer(FedAvgServer):

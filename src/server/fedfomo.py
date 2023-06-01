@@ -1,11 +1,17 @@
-from argparse import Namespace
+from argparse import ArgumentParser, Namespace
 from copy import deepcopy
 
 import torch
 
-from fedavg import FedAvgServer
-from src.config.args import get_fedfomo_argparser
+from fedavg import FedAvgServer, get_fedavg_argparser
 from src.client.fedfomo import FedFomoClient
+
+
+def get_fedfomo_argparser() -> ArgumentParser:
+    parser = get_fedavg_argparser()
+    parser.add_argument("--M", type=int, default=5)
+    parser.add_argument("--valset_ratio", type=float, default=0.2)
+    return parser
 
 
 class FedFomoServer(FedAvgServer):

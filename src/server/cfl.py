@@ -1,12 +1,20 @@
-from argparse import Namespace
+from argparse import ArgumentParser, Namespace
 from typing import List
 
 import torch
 import numpy as np
 from sklearn.cluster import AgglomerativeClustering
 
-from fedavg import FedAvgServer
-from src.config.args import get_cfl_argparser
+from fedavg import FedAvgServer, get_fedavg_argparser
+
+
+def get_cfl_argparser() -> ArgumentParser:
+    parser = get_fedavg_argparser()
+    parser.add_argument("--eps_1", type=float, default=0.4)
+    parser.add_argument("--eps_2", type=float, default=1.6)
+    parser.add_argument("--min_cluster_size", type=int, default=2)
+    parser.add_argument("--start_clustering_round", type=int, default=20)
+    return parser
 
 
 class ClusteredFL(FedAvgServer):

@@ -1,5 +1,5 @@
 import os
-from argparse import Namespace
+from argparse import ArgumentParser, Namespace
 from copy import deepcopy
 from collections import OrderedDict
 
@@ -7,9 +7,18 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
-from fedavg import FedAvgServer
-from src.config.args import get_pfedla_argparser
+from fedavg import FedAvgServer, get_fedavg_argparser
 from src.config.utils import TEMP_DIR, trainable_params
+
+
+def get_pfedla_argparser() -> ArgumentParser:
+    parser = get_fedavg_argparser()
+    parser.add_argument("--k", type=int, default=0)
+    parser.add_argument("--hn_lr", type=float, default=5e-3)
+    parser.add_argument("--hn_momentum", type=float, default=0.0)
+    parser.add_argument("--embedding_dim", type=int, default=100)
+    parser.add_argument("--hidden_dim", type=int, default=100)
+    return parser
 
 
 class pFedLAServer(FedAvgServer):
