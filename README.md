@@ -8,16 +8,15 @@ I offer two approaches to install all required packages. 🎐
 
 1. `pip install -r requirements.txt`
 2. `poetry` (Recommended 👍. To keep all dependencies you install are identical to mine.)
-     - If you are not at **China mainland**:
-       1. Comment mirror related configs in [`pyproject.toml`](https://github.com/KarhouTam/FL-bench/blob/master/pyproject.toml).
-       2. Run `poetry lock --no-update` to update the `poetry.lock`. 
 
-If you are new to `poetry` 👀:
-
-1. `pip install poetry`
-2. `cd` to the root directory of FL-bench and run `poetry install`
-3. Run `poetry shell` to enter the virtual environement or `poetry run ${your_command}`.
-4. Have fun. 😏
+   - If you are new to `poetry` 👀:
+     1. `pip install poetry`
+     2. `cd` to the root directory of FL-bench and run `poetry install`
+     3. Run `poetry shell` to enter the virtual environement or `poetry run ${your_command}`.
+     4. Have fun. 😏
+   - If you are not at **China mainland**:
+     1. Comment mirror related configs in [`pyproject.toml`](https://github.com/KarhouTam/FL-bench/blob/master/pyproject.toml).
+     2. Run `poetry lock --no-update` to update the `poetry.lock`. 
 
 ## Method 🧬
 
@@ -101,11 +100,11 @@ About methods of generating federated dastaset, go check [`data/README.md`](http
 1. Run `python -m visdom.server` on terminal.
 2. Run `src/server/${algo}.py --visible 1`
 3. Go check `localhost:8097` on your browser.
-## Arguments 🔧
+## Generic Arguments 🔧
 
-📢 All arguments have default value.
+📢 All generic arguments have their default value. Go check `get_fedavg_argparser()` in [`FL-bench/src/server/fedavg.py`](https://github.com/KarhouTam/FL-bench/tree/master/src/server/fedavg.py) for full details about generic arguments. 
 
-About the default values and hyperparameters of advanced FL methods, go check [`src/config/args.py`](https://github.com/KarhouTam/FL-bench/tree/master/src/config/args.py) for full details.
+About the default values and hyperparameters of advanced FL methods, go check corresponding `FL-bench/src/server/${algo}.py` for full details.
 | Argument           | Description                                                                                                   |
 | ------------------ | ------------------------------------------------------------------------------------------------------------- |
 | `--dataset`        | The name of dataset that experiment run on.                                                                   |
