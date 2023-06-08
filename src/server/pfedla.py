@@ -39,7 +39,7 @@ class pFedLAServer(FedAvgServer):
             hidden_dim=self.args.hidden_dim,
             backbone=self.model,
             K=self.args.k,
-            gpu=self.args.server_cuda,
+            device=self.device,
         )
         self.hn_optimizer = torch.optim.SGD(
             self.hypernet.parameters(),
@@ -136,14 +136,12 @@ class HyperNetwork(nn.Module):
         hidden_dim: int,
         backbone: nn.Module,
         K: int,
-        gpu=True,
+        device: torch.device,
     ):
         super(HyperNetwork, self).__init__()
-        self.device = torch.device(
-            "cuda" if gpu and torch.cuda.is_available() else "cpu"
-        )
         self.K = K
         self.client_num = client_num
+        self.device = device
         self.embedding = nn.Embedding(client_num, embedding_dim, device=self.device)
         # for tracking the current client's hn parameters
         self.client_id: int = None
