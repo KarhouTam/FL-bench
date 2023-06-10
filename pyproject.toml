@@ -3,27 +3,30 @@ name = "fl-bench"
 version = "0.1.0"
 description = "Benchmark of federated learning that aim solving image classification tasks."
 authors = ["KarhouTam <787992532@qq.com>"]
-license = "MIT"
+license = "GPL-2.0"
 readme = "README.md"
 packages = [{ include = "fl_bench" }]
 
 [tool.poetry.dependencies]
-python = "3.9.13"
+python = "3.10.10"
 torch = "1.13.1"
 torchvision = "0.14.1"
-rich = "13.3.1"
-numpy = "1.21.5"
-pandas = "1.4.4"
+torchaudio = "0.13.1"
+rich = "13.3.5"
+numpy = "1.24.3"
+pandas = "2.0.1"
 visdom = "0.2.4"
-Pillow = "9.2.0"
-scipy = "1.9.1"
-matplotlib = "3.5.2"
+Pillow = "9.4.0"
+scipy = "1.10.1"
+matplotlib = "3.7.1"
+faiss-cpu = "1.7.4"
 
-#### comment these configs if you are not from China mainland ####
+
+#### comment these configs if you are not at China mainland ####
 [[tool.poetry.source]]
 name = "mirrors"
-url = "https://pypi.tuna.tsinghua.edu.cn/simple/"
-priority = "default"
+url = "https://mirrors.sustech.edu.cn/pypi/simple"
+default = true
 ##################################################################
 
 [build-system]

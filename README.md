@@ -4,10 +4,11 @@ ALL classes of methods are inherited from `FedAvgServer` and `FedAvgClient`. If 
 
 ## Environment Preparation
 
-I offer two approaches to install all required packages. 🎐
+I offer three approaches to install all required packages. 🎐
 
 1. `pip install -r requirements.txt`
-2. `poetry` (Recommended 👍. To keep all dependencies you install are identical to mine.)
+2. `conda env create -f environment.yml`
+3. `poetry` (Recommended 👍. To keep all dependencies you install are identical to mine.)
 
    - If you are new to `poetry` 👀:
      1. `pip install poetry`
