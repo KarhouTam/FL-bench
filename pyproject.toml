@@ -19,6 +19,7 @@ visdom = "0.2.4"
 Pillow = "9.4.0"
 scipy = "1.10.1"
 matplotlib = "3.7.1"
+scikit-learn = "1.2.2"
 faiss-cpu = "1.7.4"
 
 
