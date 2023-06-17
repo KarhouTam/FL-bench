@@ -1,6 +1,7 @@
 from copy import deepcopy
 
 import torch.nn.functional as F
+
 from fedavg import FedAvgClient
 from torch.utils.data import Subset, DataLoader
 from src.config.utils import trainable_params, evaluate
@@ -29,7 +30,7 @@ class MetaFedClient(FedAvgClient):
         self.fit()
         self.save_state()
         self.update_flag()
-        return deepcopy(trainable_params(self.model))
+        return trainable_params(self.model, detach=True)
 
     def update_flag(self):
         _, val_correct, val_sample_num = evaluate(
@@ -47,7 +48,7 @@ class MetaFedClient(FedAvgClient):
         self.teacher.load_state_dict(teacher_parameters, strict=False)
         self.load_dataset()
         stats = self.train_and_log(verbose)
-        return deepcopy(trainable_params(self.model)), stats
+        return trainable_params(self.model, detach=True), stats
 
     def fit(self):
         self.teacher.eval()
@@ -88,4 +89,4 @@ class MetaFedClient(FedAvgClient):
                 (10 ** (min(1, (teacher_acc - student_acc) * 5))) / 10 * self.args.lamda
             )
         stats = self.train_and_log(verbose)
-        return deepcopy(trainable_params(self.model)), stats
+        return trainable_params(self.model, detach=True), stats

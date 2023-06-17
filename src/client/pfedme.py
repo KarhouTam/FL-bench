@@ -12,7 +12,7 @@ from src.config.utils import trainable_params
 class pFedMeClient(FedAvgClient):
     def __init__(self, model, args, logger):
         super(pFedMeClient, self).__init__(model, args, logger)
-        self.local_parameters = deepcopy(trainable_params(self.model))
+        self.local_parameters: List[torch.Tensor] = None
         self.personalized_params_dict: Dict[str, OrderedDict[str, torch.Tensor]] = {}
         self.optimzier = pFedMeOptimizer(
             trainable_params(self.model),
@@ -30,7 +30,7 @@ class pFedMeClient(FedAvgClient):
         self.client_id = client_id
         self.load_dataset()
         self.set_parameters(new_parameters)
-        self.local_parameters = deepcopy(trainable_params(new_parameters))
+        self.local_parameters = trainable_params(new_parameters, detach=True)
         # self.iter_trainloader = iter(self.trainloader)
         stats = self.train_and_log(verbose=verbose)
         return (deepcopy(self.local_parameters), 1.0, stats)

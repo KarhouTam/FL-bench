@@ -71,7 +71,7 @@ if __name__ == "__main__":
             subset_idxs = random.sample(data_idxs, subset_size)
             data_idxs = list(set(data_idxs) - set(subset_idxs))
             original_partition.append(subset_idxs)
-        # If data_idxs % client_num > 0, residual indices would be allocated to the final client
+        # If data_idxs % client_num > 0, residual indices would be all allocated to the final client
         if len(data_idxs) > 0:
             original_partition[-1].extend(data_idxs)
         old_count = new_count

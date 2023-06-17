@@ -6,7 +6,6 @@ import torch
 
 from fedavg import FedAvgServer, get_fedavg_argparser
 from src.client.scaffold import SCAFFOLDClient
-from src.config.args import get_scaffold_argparser
 from src.config.utils import trainable_params
 
 
@@ -62,12 +61,12 @@ class SCAFFOLDServer(FedAvgServer):
         for param, y_delta in zip(
             trainable_params(self.global_params_dict), zip(*y_delta_cache)
         ):
-            x_delta = torch.stack(y_delta, dim=-1).mean(dim=-1).to(self.device)
-            param.data += self.args.global_lr * x_delta.to(self.device)
+            x_delta = torch.stack(y_delta, dim=-1).mean(dim=-1)
+            param.data += self.args.global_lr * x_delta
 
         # update global control
         for c_global, c_delta in zip(self.c_global, zip(*c_delta_cache)):
-            c_delta = torch.stack(c_delta, dim=-1).sum(dim=-1).to(self.device)
+            c_delta = torch.stack(c_delta, dim=-1).sum(dim=-1)
             c_global.data += (1 / self.client_num) * c_delta.data
 
 

@@ -105,7 +105,9 @@ class pFedHNServer(FedAvgServer):
             self.client_trainable_params[client_id] = self.hn(
                 torch.tensor(client_id, device=self.device)
             )
-        return self.client_trainable_params[client_id]
+        return OrderedDict(
+            zip(self.trainable_params_name, self.client_trainable_params[client_id])
+        )
 
     def update_hn(self, weight_cache, hn_grads_cache):
         weights = torch.tensor(weight_cache, device=self.device) / sum(weight_cache)
@@ -149,17 +151,11 @@ class HyperNetwork(nn.Module):
         emd = self.embedding(client_id)
         features = self.mlp(emd)
 
-        parameters = OrderedDict(
-            [
-                [
-                    name,
-                    self.params_generator[name](features).reshape(
-                        self.params_shape[name]
-                    ),
-                ]
-                for name in self.params_name
-            ]
-        )
+        parameters = [
+            self.params_generator[name](features).reshape(self.params_shape[name])
+            for name in self.params_name
+        ]
+
         return parameters
 
 

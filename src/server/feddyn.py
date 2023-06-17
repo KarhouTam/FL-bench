@@ -1,16 +1,18 @@
 from argparse import ArgumentParser, Namespace
 from copy import deepcopy
+from collections import OrderedDict
 
 import torch
 
 from fedavg import FedAvgServer, get_fedavg_argparser
 from src.client.feddyn import FedDynClient
-from src.config.utils import trainable_params
+from src.config.utils import trainable_params, vectorize
 
 
 def get_feddyn_argparser() -> ArgumentParser:
     parser = get_fedavg_argparser()
     parser.add_argument("--alpha", type=float, default=0.01)
+    parser.add_argument("--max_grad_norm", type=float, default=10)
     return parser
 
 
@@ -26,33 +28,56 @@ class FedDynServer(FedAvgServer):
             args = get_feddyn_argparser().parse_args()
         super().__init__(algo, args, unique_model, default_trainer)
         self.trainer = FedDynClient(deepcopy(self.model), self.args, self.logger)
-        self.h = [
-            torch.zeros_like(param, device=self.device)
-            for param in trainable_params(self.model)
+        param_numel = vectorize(self.model).numel()
+        self.nabla = [
+            torch.zeros(param_numel, device=self.device) for _ in range(self.client_num)
         ]
+
+    def train_one_round(self):
+        """The function of indicating specific things FL method need to do (at server side) in each communication round."""
+        delta_cache = []
+        for client_id in self.selected_clients:
+            client_local_params = self.generate_client_params(client_id)
+            (
+                delta,
+                _,
+                self.client_stats[client_id][self.current_epoch],
+            ) = self.trainer.train(
+                client_id=client_id,
+                new_parameters=client_local_params,
+                nabla=self.nabla[client_id],
+                return_diff=False,
+                verbose=((self.current_epoch + 1) % self.args.verbose_gap) == 0,
+            )
+
+            delta_cache.append(delta)
+
+        self.aggregate(delta_cache)
 
     @torch.no_grad()
-    def aggregate(self, client_params_cache, weight_cache):
-        aggregated_delta = [
-            torch.sum(torch.stack(client_params, dim=0) - global_param, dim=0)
-            for client_params, global_param in zip(
-                zip(*client_params_cache), self.global_params_dict.values()
-            )
+    def aggregate(self, client_params_cache):
+        avg_parameters = [
+            torch.stack(params).mean(dim=0) for params in zip(*client_params_cache)
         ]
-        self.h = [
-            prev_h - (self.args.alpha / self.client_num) * delta
-            for prev_h, delta in zip(self.h, aggregated_delta)
-        ]
+        params_shape = [(param.numel(), param.shape) for param in avg_parameters]
+        flatten_avg_parameters = vectorize(avg_parameters)
 
-        new_parameters = [
-            torch.stack(client_param, dim=0).mean(dim=0) - h / self.args.alpha
-            for client_param, h in zip(zip(*client_params_cache), self.h)
-        ]
+        for i, client_params in enumerate(client_params_cache):
+            self.nabla[i] += vectorize(client_params) - flatten_avg_parameters
 
-        for param_old, param_new in zip(
-            self.global_params_dict.values(), new_parameters
-        ):
-            param_old.data = param_new.data
+        flatten_new_parameters = flatten_avg_parameters + torch.stack(self.nabla).mean(
+            dim=0
+        )
+
+        # reshape
+        new_parameters = []
+        i = 0
+        for numel, shape in params_shape:
+            new_parameters.append(flatten_new_parameters[i : i + numel].reshape(shape))
+            i += numel
+        self.global_params_dict = OrderedDict(
+            zip(self.trainable_params_name, new_parameters)
+        )
 
 
 if __name__ == '__main__':

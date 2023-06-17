@@ -16,6 +16,7 @@ from rich.progress import track
 PROJECT_DIR = Path(__file__).parent.parent.parent.absolute()
 
 sys.path.append(PROJECT_DIR.as_posix())
+sys.path.append(PROJECT_DIR.joinpath("src").as_posix())
 
 from src.config.utils import OUT_DIR, Logger, fix_random_seed, trainable_params
 from src.config.models import MODEL_DICT
@@ -70,6 +71,7 @@ def get_fedavg_argparser() -> ArgumentParser:
     parser.add_argument("-vg", "--verbose_gap", type=int, default=100000)
     parser.add_argument("-bs", "--batch_size", type=int, default=32)
     parser.add_argument("-v", "--visible", type=int, default=0)
+    parser.add_argument("--global_testset", type=int, default=0)
     parser.add_argument("--use_cuda", type=int, default=1)
     parser.add_argument("--save_log", type=int, default=1)
     parser.add_argument("--save_model", type=int, default=0)
@@ -114,7 +116,7 @@ class FedAvgServer:
         self.model = MODEL_DICT[self.args.model](self.args.dataset).to(self.device)
         self.model.check_avaliability()
         self.trainable_params_name, init_trainable_params = trainable_params(
-            self.model, requires_name=True
+            self.model, requires_name=True, detach=True
         )
         # client_trainable_params is for pFL, which outputs exclusive model per client
         # global_params_dict is for regular FL, which outputs a single global model
@@ -123,7 +125,7 @@ class FedAvgServer:
                 deepcopy(init_trainable_params) for _ in self.train_clients
             ]
         self.global_params_dict: OrderedDict[str, torch.Tensor] = OrderedDict(
-            zip(self.trainable_params_name, deepcopy(init_trainable_params))
+            zip(self.trainable_params_name, init_trainable_params)
         )
 
         # To make sure all algorithms run through the same client sampling stream.
@@ -201,7 +203,6 @@ class FedAvgServer:
         delta_cache = []
         weight_cache = []
         for client_id in self.selected_clients:
-
             client_local_params = self.generate_client_params(client_id)
             (
                 delta,
@@ -266,9 +267,7 @@ class FedAvgServer:
         """
         if self.unique_model:
             for i, client_id in enumerate(self.selected_clients):
-                self.client_trainable_params[client_id] = [
-                    param.detach().to(self.device) for param in client_params_cache[i]
-                ]
+                self.client_trainable_params[client_id] = client_params_cache[i]
         else:
             raise RuntimeError(
                 "FL system don't preserve params for each client (unique_model = False)."
@@ -318,7 +317,7 @@ class FedAvgServer:
             ]
 
             for param, diff in zip(self.global_params_dict.values(), aggregated_delta):
-                param.data -= diff.to(self.device)
+                param.data -= diff
         else:
             for old_param, zipped_new_param in zip(
                 self.global_params_dict.values(), zip(*delta_cache)

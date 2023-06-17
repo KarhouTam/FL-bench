@@ -17,6 +17,7 @@ class DittoClient(FedAvgClient):
         self.optimizer.add_param_group(
             {"params": trainable_params(self.pers_model), "lr": self.local_lr}
         )
+        self.init_opt_state_dict = deepcopy(self.optimizer.state_dict())
 
     def set_parameters(self, new_parameters: OrderedDict[str, torch.Tensor]):
         super().set_parameters(new_parameters)

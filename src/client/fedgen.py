@@ -13,7 +13,6 @@ from fedavg import FedAvgClient
 class FedGenClient(FedAvgClient):
     def __init__(self, model, args, logger):
         super().__init__(model, args, logger)
-        self.ensemble_loss = torch.nn.KLDivLoss(reduction="batchmean")
         self.label_counts: List[List[int]] = [
             count_labels(self.dataset, indices["train"], min_value=1)
             for indices in self.data_indices
@@ -41,7 +40,7 @@ class FedGenClient(FedAvgClient):
         eval_stats = self.train_and_log(verbose)
 
         return (
-            deepcopy(trainable_params(self.model)),
+            trainable_params(self.model, detach=True),
             len(self.trainset),
             self.label_counts[self.client_id],
             eval_stats,
@@ -71,8 +70,10 @@ class FedGenClient(FedAvgClient):
                     generator_output, _ = self.generator(y)
                     logits_gen = self.model.classifier(generator_output).detach()
 
-                    latent_loss = beta * self.ensemble_loss(
-                        F.log_softmax(logits, dim=1), F.softmax(logits_gen, dim=1)
+                    latent_loss = beta * F.kl_div(
+                        F.log_softmax(logits, dim=1),
+                        F.softmax(logits_gen, dim=1),
+                        reduction="batchmean",
                     )
 
                     sampled_y = torch.tensor(

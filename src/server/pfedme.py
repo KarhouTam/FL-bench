@@ -37,7 +37,7 @@ class pFedMeServer(FedAvgServer):
     ):
         weights = torch.tensor(weight_cache, device=self.device) / sum(weight_cache)
         aggregated_params = [
-            torch.sum(weights * torch.stack(params, dim=-1), dim=-1).to(self.device)
+            torch.sum(weights * torch.stack(params, dim=-1), dim=-1)
             for params in zip(*local_params_cache)
         ]
         for param_prev, param_new in zip(

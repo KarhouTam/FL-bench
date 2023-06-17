@@ -1,8 +1,8 @@
 import pickle
 from argparse import Namespace
-from collections import OrderedDict
+from collections import OrderedDict, defaultdict
 from copy import deepcopy
-from typing import Dict, List, Tuple
+from typing import Dict, List, Tuple, Union
 from pathlib import Path
 
 import torch
@@ -52,6 +52,12 @@ class FedAvgClient:
         self.testloader: DataLoader = None
         self.trainset: Subset = Subset(self.dataset, indices=[])
         self.testset: Subset = Subset(self.dataset, indices=[])
+        self.global_testset: Subset = None
+        if self.args.global_testset:
+            all_testdata_indices = []
+            for indices in self.data_indices:
+                all_testdata_indices.extend(indices["test"])
+            self.global_testset = Subset(self.dataset, all_testdata_indices)
 
         self.model = model.to(self.device)
         self.local_epoch = self.args.local_epoch
@@ -80,7 +86,10 @@ class FedAvgClient:
         self.trainset.indices = self.data_indices[self.client_id]["train"]
         self.testset.indices = self.data_indices[self.client_id]["test"]
         self.trainloader = DataLoader(self.trainset, self.args.batch_size)
-        self.testloader = DataLoader(self.testset, self.args.batch_size)
+        if self.args.global_testset:
+            self.testloader = DataLoader(self.global_testset, self.args.batch_size)
+        else:
+            self.testloader = DataLoader(self.testset, self.args.batch_size)
 
     def train_and_log(self, verbose=False) -> Dict[str, Dict[str, float]]:
         """This function includes the local training and logging process.
@@ -161,7 +170,7 @@ class FedAvgClient:
         new_parameters: OrderedDict[str, torch.Tensor],
         return_diff=True,
         verbose=False,
-    ) -> Tuple[List[torch.Tensor], int, Dict]:
+    ) -> Tuple[Union[OrderedDict[str, torch.Tensor], List[torch.Tensor]], int, Dict]:
         """
         The funtion for including all operations in client local training phase.
         If you wanna implement your method, consider to override this funciton.
@@ -177,7 +186,7 @@ class FedAvgClient:
             verbose (bool, optional): Set to `True` for print logging info onto the stdout (Controled by the server by default). Defaults to False.
 
         Returns:
-            Tuple[List[torch.Tensor], int, Dict]:  The difference / whole parameters, the weight of this client, the evaluation metric stats.
+            Tuple[Union[OrderedDict[str, torch.Tensor], List[torch.Tensor]], int, Dict]:  The difference / all trainable parameters, the weight of this client, the evaluation metric stats.
         """
         self.client_id = client_id
         self.load_dataset()
@@ -189,12 +198,12 @@ class FedAvgClient:
             for (name, p0), p1 in zip(
                 new_parameters.items(), trainable_params(self.model)
             ):
-                delta[name] = p0.to(self.device) - p1
+                delta[name] = p0 - p1
 
             return delta, len(self.trainset), eval_stats
         else:
             return (
-                deepcopy(trainable_params(self.model)),
+                trainable_params(self.model, detach=True),
                 len(self.trainset),
                 eval_stats,
             )
@@ -296,7 +305,8 @@ class FedAvgClient:
     def finetune(self):
         """
         The fine-tune function. If your method has different fine-tuning opeation, consider to override this.
-        This function will only be activated while in FL test round."""
+        This function will only be activated while in FL test round.
+        """
         self.model.train()
         for _ in range(self.args.finetune_epoch):
             for x, y in self.trainloader:

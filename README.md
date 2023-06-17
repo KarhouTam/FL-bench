@@ -1,5 +1,9 @@
 # Federated Learning Benchmark
 
+This is a benchmark for evaluating well-known federated learning (FL) and personalized federated learning (pFL) methods. 
+
+This benchmark is not complicated and easy to modify.
+
 ALL classes of methods are inherited from `FedAvgServer` and `FedAvgClient`. If you wanna figure out the entire workflow and detail of variable settings, go check [`./src/server/fedavg.py`](https://github.com/KarhouTam/FL-bench/blob/master/src/server/fedavg.py) and [`./src/client/fedavg.py`](https://github.com/KarhouTam/FL-bench/blob/master/src/client/fedavg.py).
 
 ## Environment Preparation
@@ -106,29 +110,30 @@ About methods of generating federated dastaset, go check [`data/README.md`](http
 📢 All generic arguments have their default value. Go check `get_fedavg_argparser()` in [`FL-bench/src/server/fedavg.py`](https://github.com/KarhouTam/FL-bench/tree/master/src/server/fedavg.py) for full details about generic arguments. 
 
 About the default values and hyperparameters of advanced FL methods, go check corresponding `FL-bench/src/server/${algo}.py` for full details.
-| Argument           | Description                                                                                                   |
-| ------------------ | ------------------------------------------------------------------------------------------------------------- |
-| `--dataset`        | The name of dataset that experiment run on.                                                                   |
-| `--model`          | The model backbone experiment used.                                                                           |
-| `--seed`           | Random seed for running experiment.                                                                           |
-| `--join_ratio`     | Ratio for (client each round) / (client num in total).                                                        |
-| `--global_epoch`   | Global epoch, also called communication round.                                                                |
-| `--local_epoch`    | Local epoch for client local training.                                                                        |
-| `--finetune_epoch` | Epoch for clients fine-tunning their models before test.                                                      |
-| `--test_gap`       | Interval round of performing test on clients.                                                                 |
-| `--eval_test`      | Non-zero value for performing evaluation on joined clients' testset before and after local training.          |
-| `--eval_train`     | Non-zero value for performing evaluation on joined clients' trainset before and after local training.         |
-| `--local_lr`       | Learning rate for client local training.                                                                      |
-| `--momentum`       | Momentum for client local opitimizer.                                                                         |
-| `--weight_decay`   | Weight decay for client local optimizer.                                                                      |
-| `--verbose_gap`    | Interval round of displaying clients training performance on terminal.                                        |
-| `--batch_size`     | Data batch size for client local training.                                                                    |
-| `--use_cuda`       | Non-zero value indicates that tensors are in gpu.                                                             |
-| `--visible`        | Non-zero value for using Visdom to monitor algorithm performance on `localhost:8097`.                         |
-| `--save_log`       | Non-zero value for saving algorithm running log in `FL-bench/out/${algo}`.                                    |
-| `--save_model`     | Non-zero value for saving output model(s) parameters in `FL-bench/out/${algo}`.                               |
-| `--save_fig`       | Non-zero value for saving the accuracy curves showed on Visdom into a `.jpeg` file at `FL-bench/out/${algo}`. |
-| `--save_metrics`   | Non-zero value for saving metrics stats into a `.csv` file at `FL-bench/out/${algo}`.                         |
+| Argument           | Description                                                                                                                                                                                                                                                                                                                               |
+| ------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `--dataset`        | The name of dataset that experiment run on.                                                                                                                                                                                                                                                                                               |
+| `--model`          | The model backbone experiment used.                                                                                                                                                                                                                                                                                                       |
+| `--seed`           | Random seed for running experiment.                                                                                                                                                                                                                                                                                                       |
+| `--join_ratio`     | Ratio for (client each round) / (client num in total).                                                                                                                                                                                                                                                                                    |
+| `--global_epoch`   | Global epoch, also called communication round.                                                                                                                                                                                                                                                                                            |
+| `--local_epoch`    | Local epoch for client local training.                                                                                                                                                                                                                                                                                                    |
+| `--finetune_epoch` | Epoch for clients fine-tunning their models before test.                                                                                                                                                                                                                                                                                  |
+| `--test_gap`       | Interval round of performing test on clients.                                                                                                                                                                                                                                                                                             |
+| `--eval_test`      | Non-zero value for performing evaluation on joined clients' testset before and after local training.                                                                                                                                                                                                                                      |
+| `--eval_train`     | Non-zero value for performing evaluation on joined clients' trainset before and after local training.                                                                                                                                                                                                                                     |
+| `--local_lr`       | Learning rate for client local training.                                                                                                                                                                                                                                                                                                  |
+| `--momentum`       | Momentum for client local opitimizer.                                                                                                                                                                                                                                                                                                     |
+| `--weight_decay`   | Weight decay for client local optimizer.                                                                                                                                                                                                                                                                                                  |
+| `--verbose_gap`    | Interval round of displaying clients training performance on terminal.                                                                                                                                                                                                                                                                    |
+| `--batch_size`     | Data batch size for client local training.                                                                                                                                                                                                                                                                                                |
+| `--use_cuda`       | Non-zero value indicates that tensors are in gpu.                                                                                                                                                                                                                                                                                         |
+| `--visible`        | Non-zero value for using Visdom to monitor algorithm performance on `localhost:8097`.                                                                                                                                                                                                                                                     |
+| `--global_testset` | Non-zero value for evaluating client models over the global testset before and after local training, instead of evaluating over clients own testset. The global testset is the union set of all client's testset. *NOTE: Activating this setting will considerably slow down the entire training process, especially the dataset is big.* |
+| `--save_log`       | Non-zero value for saving algorithm running log in `FL-bench/out/${algo}`.                                                                                                                                                                                                                                                                |
+| `--save_model`     | Non-zero value for saving output model(s) parameters in `FL-bench/out/${algo}`.                                                                                                                                                                                                                                                           |
+| `--save_fig`       | Non-zero value for saving the accuracy curves showed on Visdom into a `.jpeg` file at `FL-bench/out/${algo}`.                                                                                                                                                                                                                             |
+| `--save_metrics`   | Non-zero value for saving metrics stats into a `.csv` file at `FL-bench/out/${algo}`.                                                                                                                                                                                                                                                     |
 
 ## Supported Datasets 🎨
 
@@ -171,14 +176,11 @@ Medical Image Datasets
 
 ## Acknowledgement 🤗
 
+This benchmark does not contain the feature/method you interested? Describe them in [here](https://github.com/KarhouTam/FL-bench/discussions/11). I can't guarantee your request will be accomplised in time or even considered. So feel free to do it! 💡
+
 Some reproductions in this benchmark are referred to <https://github.com/TsingZ0/PFL-Non-IID>, which is a great FL benchmark. 👍
 
 This benchmark is still young, which means I will update it frequently and unpredictably. Therefore, periodically fetching the latest code is recommended. 🤖
 
 If this benchmark is helpful to your research, it's my pleasure. 😏
-
-
-
-
-
 

@@ -6,6 +6,7 @@ import numpy as np
 from sklearn.cluster import AgglomerativeClustering
 
 from fedavg import FedAvgServer, get_fedavg_argparser
+from src.config.utils import vectorize
 
 
 def get_cfl_argparser() -> ArgumentParser:
@@ -17,7 +18,7 @@ def get_cfl_argparser() -> ArgumentParser:
     return parser
 
 
-class ClusteredFL(FedAvgServer):
+class CFLServer(FedAvgServer):
     def __init__(
         self,
         algo: str = "CFL",
@@ -39,7 +40,6 @@ class ClusteredFL(FedAvgServer):
 
     def train_one_round(self):
         for client_id in self.selected_clients:
-
             client_local_params = self.generate_client_params(client_id)
 
             (
@@ -52,7 +52,7 @@ class ClusteredFL(FedAvgServer):
                 verbose=((self.current_epoch + 1) % self.args.verbose_gap) == 0,
             )
             self.delta_list[client_id] = [
-                -diff.detach().to(self.device) for diff in delta.values()
+                -diff.detach().clone() for diff in delta.values()
             ]
 
         self.compute_pairwise_similarity()
@@ -85,10 +85,7 @@ class ClusteredFL(FedAvgServer):
             for j, delta_b in enumerate(self.delta_list[i + 1 :], i + 1):
                 if delta_a is not None and delta_b is not None:
                     score = torch.cosine_similarity(
-                        flatten_and_concat(delta_a),
-                        flatten_and_concat(delta_b),
-                        dim=0,
-                        eps=1e-12,
+                        vectorize(delta_a), vectorize(delta_b), dim=0, eps=1e-12
                     ).item()
                     self.similarity_matrix[i, j] = score
                     self.similarity_matrix[j, i] = score
@@ -109,8 +106,7 @@ class ClusteredFL(FedAvgServer):
                 self.delta_list[i] for i in cluster if self.delta_list[i] is not None
             ]
             aggregated_delta = [
-                torch.stack(diff).mean(dim=0).to(self.device)
-                for diff in zip(*delta_list)
+                torch.stack(diff).mean(dim=0) for diff in zip(*delta_list)
             ]
             for i in cluster:
                 for param, diff in zip(
@@ -122,31 +118,20 @@ class ClusteredFL(FedAvgServer):
 @torch.no_grad()
 def compute_max_delta_norm(delta_list: List[List[torch.Tensor]]):
     return max(
-        [
-            flatten_and_concat(delta).norm().item()
-            for delta in delta_list
-            if delta is not None
-        ]
+        [vectorize(delta).norm().item() for delta in delta_list if delta is not None]
     )
 
 
 @torch.no_grad()
 def compute_mean_delta_norm(delta_list: List[List[torch.Tensor]]):
     return (
-        torch.stack(
-            [flatten_and_concat(delta) for delta in delta_list if delta is not None]
-        )
+        torch.stack([vectorize(delta) for delta in delta_list if delta is not None])
         .mean(dim=0)
         .norm()
         .item()
     )
 
 
-@torch.no_grad()
-def flatten_and_concat(src: List[torch.Tensor]):
-    return torch.cat([tensor.flatten() for tensor in src if tensor is not None])
-
-
 if __name__ == "__main__":
-    server = ClusteredFL()
+    server = CFLServer()
     server.run()

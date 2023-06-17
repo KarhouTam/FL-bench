@@ -38,6 +38,7 @@ class APFLClient(FedAvgClient):
         self.optimizer.add_param_group(
             {"params": trainable_params(self.local_model), "lr": self.local_lr}
         )
+        self.init_opt_state_dict = deepcopy(self.optimizer.state_dict())
 
     def set_parameters(self, new_parameters: OrderedDict[str, torch.Tensor]):
         super().set_parameters(new_parameters)
@@ -92,39 +93,23 @@ class APFLClient(FedAvgClient):
         self.alpha.data -= self.local_lr * alpha_grad
         self.alpha.clip_(0, 1.0)
 
-    @torch.no_grad()
-    def evaluate(self) -> Dict[str, float]:
-        self.model.eval()
-        self.local_model.eval()
-        train_loss, test_loss = 0, 0
-        train_correct, test_correct = 0, 0
-        criterion = torch.nn.CrossEntropyLoss(reduction="sum")
+    def evaluate(self):
+        return super().evaluate(
+            MixedModel(self.local_model, self.model, alpha=self.alpha)
+        )
 
-        if len(self.testset) > 0 and self.args.eval_test:
-            for x, y in self.testloader:
-                x, y = x.to(self.device), y.to(self.device)
-                logit_g = self.model(x)
-                logit_l = self.local_model(x)
-                logit_p = self.alpha * logit_l + (1 - self.alpha) * logit_g
-                test_loss += criterion(logit_p, y).item()
-                pred = torch.argmax(logit_p, -1)
-                test_correct += (pred == y).sum().item()
 
-        if len(self.trainset) > 0 and self.args.eval_train:
-            for x, y in self.trainloader:
-                x, y = x.to(self.device), y.to(self.device)
-                logit_g = self.model(x)
-                logit_l = self.local_model(x)
-                logit_p = self.alpha * logit_l + (1 - self.alpha) * logit_g
-                train_loss += criterion(logit_p, y).item()
-                pred = torch.argmax(logit_p, -1)
-                train_correct += (pred == y).sum().item()
+class MixedModel(torch.nn.Module):
+    def __init__(
+        self, local_model: torch.nn.Module, global_model: torch.nn.Module, alpha: float
+    ):
+        super().__init__()
+        self.local_model = local_model
+        self.global_model = global_model
+        self.alpha = alpha
 
-        return {
-            "train_loss": train_loss,
-            "test_loss": test_loss,
-            "train_correct": train_correct,
-            "test_correct": test_correct,
-            "train_size": float(max(len(self.trainset), 1)),
-            "test_size": float(max(len(self.testset), 1)),
-        }
+    def forward(self, x):
+        return (
+            self.alpha * self.local_model(x)
+            + (1 - self.alpha) * self.global_model(x).detach()
+        )

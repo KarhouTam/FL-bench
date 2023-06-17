@@ -28,15 +28,12 @@ class SCAFFOLDClient(FedAvgClient):
         self.set_parameters(new_parameters)
         self.c_global = c_global
         if self.client_id not in self.c_local.keys():
-            self.c_local[self.client_id] = [
-                torch.zeros_like(c, device=self.device) for c in c_global
-            ]
+            self.c_local[self.client_id] = [torch.zeros_like(c) for c in c_global]
 
         stats = self.train_and_log(verbose=verbose)
 
         # update local control variate
         with torch.no_grad():
-
             y_delta = []
             c_plus = []
             c_delta = []

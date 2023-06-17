@@ -30,7 +30,6 @@ class FedAvgMServer(FedAvgServer):
 
     @torch.no_grad()
     def aggregate(self, delta_cache, weight_cache):
-
         weights = torch.tensor(weight_cache, device=self.device) / sum(weight_cache)
 
         delta_list = [list(delta.values()) for delta in delta_cache]
@@ -38,9 +37,7 @@ class FedAvgMServer(FedAvgServer):
         aggregated_delta = []
         for layer_delta in zip(*delta_list):
             aggregated_delta.append(
-                torch.sum(
-                    torch.stack(layer_delta, dim=-1).to(self.device) * weights, dim=-1
-                )
+                torch.sum(torch.stack(layer_delta, dim=-1) * weights, dim=-1)
             )
 
         self.global_optimizer.zero_grad()

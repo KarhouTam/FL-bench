@@ -3,13 +3,7 @@ from typing import Dict, List
 
 import torch
 import numpy as np
-
-try:
-    import faiss
-except:
-    raise ModuleNotFoundError(
-        "Install faiss according to https://github.com/facebookresearch/faiss#installing first."
-    )
+import faiss
 
 from fedavg import FedAvgClient
 
@@ -91,7 +85,9 @@ class kNNPerClient(FedAvgClient):
         for class_id in list(range(len(self.dataset.classes))):
             masks[class_id] = neighbors_targets == class_id
 
-        knn_logits = (similarities * masks).sum(axis=2) / similarities.sum(axis=1)
+        knn_logits = (similarities * masks).sum(axis=2) / (
+            similarities.sum(axis=1) + 1e-9
+        )
 
         return torch.tensor(knn_logits.T, device=self.device)
 

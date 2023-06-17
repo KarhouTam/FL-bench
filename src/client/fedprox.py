@@ -15,7 +15,7 @@ class FedProxClient(FedAvgClient):
 
     def fit(self):
         self.model.train()
-        global_params = [p.clone().detach() for p in trainable_params(self.model)]
+        global_params = trainable_params(self.model, detach=True)
         for _ in range(self.local_epoch):
             for x, y in self.trainloader:
                 if len(x) <= 1:

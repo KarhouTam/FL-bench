@@ -85,7 +85,7 @@ class FedAPServer(FedAvgServer):
                     for old_param, diff in zip(
                         self.global_params_dict.values(), delta.values()
                     ):
-                        old_param.data -= diff.data.to(self.device)
+                        old_param.data -= diff.data
 
             if self.args.version == "f":
                 self.aggregate(delta_cache, weight_cache)
@@ -94,7 +94,7 @@ class FedAPServer(FedAvgServer):
 
         # update clients params to pretrain params
         self.client_trainable_params = [
-            deepcopy(trainable_params(self.global_params_dict))
+            trainable_params(self.global_params_dict, detach=True)
             for _ in self.train_clients
         ]
 

@@ -29,7 +29,6 @@ class FedFomoServer(FedAvgServer):
             deepcopy(self.model), self.args, self.logger, self.client_num
         )
         self.P = torch.eye(self.client_num, device=self.device)
-        self.test_flag = False
 
     def train_one_round(self):
         client_params_cache = []
@@ -47,7 +46,7 @@ class FedFomoServer(FedAvgServer):
             )
 
             client_params_cache.append(client_params)
-            self.P[client_id] += weight_vector.to(self.device)
+            self.P[client_id] += weight_vector
 
         self.update_client_params(client_params_cache)
 

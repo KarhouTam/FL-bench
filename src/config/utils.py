@@ -1,5 +1,6 @@
 import os
 import random
+from copy import deepcopy
 from collections import Counter, OrderedDict
 from typing import List, Tuple, Union
 from pathlib import Path
@@ -29,45 +30,39 @@ def fix_random_seed(seed: int) -> None:
     torch.backends.cudnn.benchmark = False
 
 
-def clone_params(
-    src: Union[OrderedDict[str, torch.Tensor], torch.nn.Module]
-) -> OrderedDict[str, torch.Tensor]:
-    if isinstance(src, OrderedDict):
-        return OrderedDict(
-            {
-                name: param.clone().detach().requires_grad_(param.requires_grad)
-                for name, param in src.items()
-            }
-        )
-    if isinstance(src, torch.nn.Module):
-        return OrderedDict(
-            {
-                name: param.clone().detach().requires_grad_(param.requires_grad)
-                for name, param in src.state_dict(keep_vars=True).items()
-            }
-        )
-
-
 def trainable_params(
-    src: Union[OrderedDict[str, torch.Tensor], torch.nn.Module], requires_name=False
+    src: Union[OrderedDict[str, torch.Tensor], torch.nn.Module],
+    requires_name=False,
+    detach=False,
 ) -> Union[List[torch.Tensor], Tuple[List[str], List[torch.Tensor]]]:
+    func = (lambda x: x.detach().clone()) if detach else (lambda x: x)
     parameters = []
     keys = []
     if isinstance(src, OrderedDict):
         for name, param in src.items():
             if param.requires_grad:
-                parameters.append(param)
+                parameters.append(func(param))
                 keys.append(name)
     elif isinstance(src, torch.nn.Module):
         for name, param in src.state_dict(keep_vars=True).items():
             if param.requires_grad:
-                parameters.append(param)
+                parameters.append(func(param))
                 keys.append(name)
 
     if requires_name:
         return keys, parameters
     else:
         return parameters
+
+
+def vectorize(src, detach=True) -> torch.Tensor:
+    func = (lambda x: x.detach().clone()) if detach else (lambda x: x)
+    if isinstance(src, torch.nn.Module):
+        return torch.cat([func(param).flatten() for param in trainable_params(src)])
+    elif isinstance(src, list):
+        return torch.cat([func(param).flatten() for param in src])
+    elif isinstance(src, OrderedDict):
+        return torch.cat([func(param).flatten() for param in src.values()])
 
 
 @torch.no_grad()

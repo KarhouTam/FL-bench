@@ -6,7 +6,7 @@ import torch
 from torch.utils.data import DataLoader
 
 from fedavg import FedAvgClient
-from src.config.utils import clone_params, trainable_params
+from src.config.utils import trainable_params
 
 
 class PerFedAvgClient(FedAvgClient):
@@ -42,7 +42,7 @@ class PerFedAvgClient(FedAvgClient):
         for _ in range(self.args.local_epoch):
             for _ in range(len(self.trainloader) // (2 + (self.args.version == "hf"))):
                 x0, y0 = self.get_data_batch()
-                frz_params = clone_params(self.model)
+                frz_params = deepcopy(self.model.state_dict())
                 logit = self.model(x0)
                 loss = self.criterion(logit, y0)
                 self.optimizer.zero_grad()

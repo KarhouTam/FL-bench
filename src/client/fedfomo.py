@@ -6,7 +6,7 @@ import torch
 from torch.utils.data import DataLoader, Subset
 
 from fedavg import FedAvgClient
-from src.config.utils import trainable_params, evaluate
+from src.config.utils import trainable_params, evaluate, vectorize
 
 
 class FedFomoClient(FedAvgClient):
@@ -31,7 +31,7 @@ class FedFomoClient(FedAvgClient):
         stats = self.train_and_log(verbose=verbose)
         return (
             deepcopy(trainable_params(self.model)),
-            deepcopy(self.weight_vector),
+            self.weight_vector.clone(),
             stats,
         )
 
@@ -43,10 +43,6 @@ class FedFomoClient(FedAvgClient):
         self.valloader = DataLoader(self.valset, 32, shuffle=True)
 
     def set_parameters(self, received_params: Dict[int, List[torch.Tensor]]):
-        received_params = {
-            i: [p.to(self.device) for p in params]
-            for i, params in received_params.items()
-        }
         local_params_dict = OrderedDict(
             zip(self.trainable_params_name, received_params[self.client_id])
         )
@@ -64,10 +60,11 @@ class FedFomoClient(FedAvgClient):
             device=self.device,
         )[0]
         LOSS /= len(self.valset)
-        W = []
+        W = torch.zeros(len(received_params), device=self.device)
         self.weight_vector.zero_()
         with torch.no_grad():
-            for i, params_i in received_params.items():
+            vectorized_self_params = vectorize(received_params[self.client_id])
+            for i, (client_id, params_i) in enumerate(received_params.items()):
                 self.eval_model.load_state_dict(
                     OrderedDict(zip(self.trainable_params_name, params_i)), strict=False
                 )
@@ -78,16 +75,13 @@ class FedFomoClient(FedAvgClient):
                     device=self.device,
                 )[0]
                 loss /= len(self.valset)
-                params_diff = []
-                for p_new, p_old in zip(params_i, received_params[self.client_id]):
-                    params_diff.append((p_new - p_old).flatten())
-                params_diff = torch.cat(params_diff)
+                params_diff = vectorize(params_i) - vectorized_self_params
                 w = (LOSS - loss) / (torch.norm(params_diff) + 1e-5)
-                W.append(w)
-                self.weight_vector[i] = w
+                W[i] = w
+                self.weight_vector[client_id] = w
 
         # compute the weight for params aggregation
-        W = torch.maximum(torch.tensor(W), torch.tensor(0)).to(self.device)
+        W.clip_(min=0)
         weight_sum = W.sum()
         if weight_sum > 0:
             W /= weight_sum
