@@ -1,14 +1,28 @@
 # Federated Learning Benchmark
 
-This is a benchmark for evaluating well-known federated learning (FL) and personalized federated learning (pFL) methods. 
+</h1>
+  <p align="center">
+    <a href="https://github.com/KarhouTam/FL-bench/blob/master/LICENSE">
+      <img alt="GitHub License" src="https://img.shields.io/github/license/KarhouTam/FL-bench?style=for-the-badge&logo=github&color=002FA7"/>
+    </a>
+    <a href="https://github.com/KarhouTam/FL-bench/issues?q=is%3Aissue+is%3Aclosed">
+      <img alt="GitHub closed issues" src="https://img.shields.io/github/issues-closed-raw/KarhouTam/FL-bench?style=for-the-badge&logo=github&color=002FA7">
+    </a>
+    <a href="https://github.com/KarhouTam/FL-bench/discussions?discussions_q=">
+      <img alt="GitHub Discussions" src="https://img.shields.io/github/discussions/KarhouTam/FL-bench?style=for-the-badge&logo=github&color=002FA7" />
+    </a>
+    <a href="https://github.com/KarhouTam/FL-bench/stargazers">
+      <img alt="GitHub Repo stars" src="https://img.shields.io/github/stars/KarhouTam/FL-bench?style=for-the-badge&logo=github&color=002FA7">
+    </a>
+    <a href="https://github.com/KarhouTam/FL-bench/forks">
+      <img alt="GitHub Repo forks" src="https://img.shields.io/github/forks/KarhouTam/FL-bench?style=for-the-badge&logo=github&color=002FA7">
+    </a>
+  </p>
+<h4 align="center"><i>This is a benchmark for evaluating well-known federated learning (FL) and personalized federated learning (pFL) methods. This benchmark is not complicated and easy to extend.</i></h4>
 
-This benchmark is not complicated and easy to modify.
+## Environment Preparation 🚀
 
-ALL classes of methods are inherited from `FedAvgServer` and `FedAvgClient`. If you wanna figure out the entire workflow and detail of variable settings, go check [`./src/server/fedavg.py`](https://github.com/KarhouTam/FL-bench/blob/master/src/server/fedavg.py) and [`./src/client/fedavg.py`](https://github.com/KarhouTam/FL-bench/blob/master/src/client/fedavg.py).
-
-## Environment Preparation
-
-I offer three approaches to install all required packages. 🎐
+I offer three approaches to install all required packages.
 
 1. `pip install -r requirements.txt`
 2. `conda env create -f environment.yml`
@@ -18,14 +32,14 @@ I offer three approaches to install all required packages. 🎐
      1. `pip install poetry`
      2. `cd` to the root directory of FL-bench and run `poetry install`
      3. Run `poetry shell` to enter the virtual environement or `poetry run ${your_command}`.
-     4. Have fun. 😏
+     4. Have fun. 🤗
    - If you are not at **China mainland**:
      1. Comment mirror related configs in [`pyproject.toml`](https://github.com/KarhouTam/FL-bench/blob/master/pyproject.toml).
      2. Run `poetry lock --no-update` to update the `poetry.lock`. 
 
 ## Method 🧬
 
-### Regular FL Methods
+### Traditional FL Methods
 
 - ***FedAvg*** -- [Communication-Efficient Learning of Deep Networks from Decentralized Data](https://arxiv.org/abs/1602.05629) (AISTATS'17)
 
@@ -87,6 +101,10 @@ I offer three approaches to install all required packages. 🎐
 More reproductions/features would come soon or later (depends on my mood 🤣).
 
 ## Easy Run 🏃‍♂️
+
+ALL classes of methods are inherited from `FedAvgServer` and `FedAvgClient`. If you wanna figure out the entire workflow and detail of variable settings, go check [`./src/server/fedavg.py`](https://github.com/KarhouTam/FL-bench/blob/master/src/server/fedavg.py) and [`./src/client/fedavg.py`](https://github.com/KarhouTam/FL-bench/blob/master/src/client/fedavg.py).
+
+
 ```shell
 # partition the CIFAR-10 according to Dir(0.1) for 100 clients
 cd data/utils
