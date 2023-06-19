@@ -15,7 +15,7 @@ class FedFomoClient(FedAvgClient):
         self.received_params = {}
         self.eval_model = deepcopy(self.model)
         self.weight_vector = torch.zeros(client_num, device=self.device)
-        self.trainable_params_name = trainable_params(self.model, requires_name=True)[0]
+        self.trainable_params_name = trainable_params(self.model, requires_name=True)[1]
         self.valset = Subset(self.dataset, indices=[])
         self.valloader: DataLoader = None
 
@@ -30,7 +30,7 @@ class FedFomoClient(FedAvgClient):
         self.set_parameters(received_params)
         stats = self.train_and_log(verbose=verbose)
         return (
-            deepcopy(trainable_params(self.model)),
+            trainable_params(self.model, detach=True),
             self.weight_vector.clone(),
             stats,
         )

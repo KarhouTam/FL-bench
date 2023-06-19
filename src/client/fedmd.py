@@ -55,7 +55,7 @@ class FedMDClient(FedAvgClient):
         self.set_parameters(new_parameters)
         self.digest()
         res = self.train_and_log(verbose=verbose)
-        return deepcopy(trainable_params(self.model)), res
+        return trainable_params(self.model, detach=True), res
 
     @torch.no_grad()
     def get_scores(self, client_id, new_parameters):

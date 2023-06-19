@@ -18,7 +18,13 @@ PROJECT_DIR = Path(__file__).parent.parent.parent.absolute()
 sys.path.append(PROJECT_DIR.as_posix())
 sys.path.append(PROJECT_DIR.joinpath("src").as_posix())
 
-from src.config.utils import OUT_DIR, Logger, fix_random_seed, trainable_params
+from src.config.utils import (
+    OUT_DIR,
+    Logger,
+    fix_random_seed,
+    trainable_params,
+    get_best_device,
+)
 from src.config.models import MODEL_DICT
 from src.client.fedavg import FedAvgClient
 
@@ -110,13 +116,11 @@ class FedAvgServer:
         self.client_num = partition["separation"]["total"]
 
         # init model(s) parameters
-        self.device = torch.device(
-            "cuda" if self.args.use_cuda and torch.cuda.is_available() else "cpu"
-        )
+        self.device = get_best_device(self.args)
         self.model = MODEL_DICT[self.args.model](self.args.dataset).to(self.device)
         self.model.check_avaliability()
-        self.trainable_params_name, init_trainable_params = trainable_params(
-            self.model, requires_name=True, detach=True
+        init_trainable_params, self.trainable_params_name = trainable_params(
+            self.model, detach=True, requires_name=True
         )
         # client_trainable_params is for pFL, which outputs exclusive model per client
         # global_params_dict is for regular FL, which outputs a single global model

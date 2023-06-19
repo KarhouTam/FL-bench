@@ -58,7 +58,7 @@ class pFedSimServer(FedAvgServer):
             [name for name in self.model.state_dict() if "classifier" in name]
         )
         self.client_trainable_params = [
-            deepcopy(trainable_params(self.global_params_dict))
+            trainable_params(self.global_params_dict, detach=True)
             for _ in self.train_clients
         ]
 

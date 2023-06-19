@@ -37,7 +37,7 @@ class FedDynClient(FedAvgClient):
                 x, y = x.to(self.device), y.to(self.device)
                 logit = self.model(x)
                 loss_ce = self.criterion(logit, y)
-                self.vectorized_curr_params = vectorize(self.model)
+                self.vectorized_curr_params = vectorize(trainable_params(self.model))
                 loss_algo = self.args.alpha * torch.sum(
                     self.vectorized_curr_params
                     * (-self.vectorized_global_params + self.nabla)

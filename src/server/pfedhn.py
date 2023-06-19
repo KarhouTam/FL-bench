@@ -137,7 +137,7 @@ class HyperNetwork(nn.Module):
             mlp_layers.append(nn.Linear(args.hidden_dim, args.hidden_dim))
         self.mlp = nn.Sequential(*mlp_layers)
 
-        self.params_name, parameters = trainable_params(backbone, requires_name=True)
+        parameters, self.params_name = trainable_params(backbone, requires_name=True)
         self.params_shape = {
             name: backbone.state_dict()[name].shape for name in self.params_name
         }

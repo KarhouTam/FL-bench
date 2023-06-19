@@ -28,13 +28,12 @@ class FedDynServer(FedAvgServer):
             args = get_feddyn_argparser().parse_args()
         super().__init__(algo, args, unique_model, default_trainer)
         self.trainer = FedDynClient(deepcopy(self.model), self.args, self.logger)
-        param_numel = vectorize(self.model).numel()
+        param_numel = vectorize(trainable_params(self.model)).numel()
         self.nabla = [
             torch.zeros(param_numel, device=self.device) for _ in range(self.client_num)
         ]
 
     def train_one_round(self):
-        """The function of indicating specific things FL method need to do (at server side) in each communication round."""
         delta_cache = []
         for client_id in self.selected_clients:
             client_local_params = self.generate_client_params(client_id)

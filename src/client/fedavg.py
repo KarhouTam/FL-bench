@@ -1,6 +1,6 @@
 import pickle
 from argparse import Namespace
-from collections import OrderedDict, defaultdict
+from collections import OrderedDict
 from copy import deepcopy
 from typing import Dict, List, Tuple, Union
 from pathlib import Path
@@ -11,7 +11,7 @@ from torchvision.transforms import Compose, Normalize
 
 PROJECT_DIR = Path(__file__).parent.parent.parent.absolute()
 
-from src.config.utils import trainable_params, evaluate, Logger
+from src.config.utils import trainable_params, get_best_device, evaluate, Logger
 from src.config.models import DecoupledModel
 from data.utils.constants import MEAN, STD
 from data.utils.datasets import DATASETS
@@ -20,9 +20,7 @@ from data.utils.datasets import DATASETS
 class FedAvgClient:
     def __init__(self, model: DecoupledModel, args: Namespace, logger: Logger):
         self.args = args
-        self.device = torch.device(
-            "cuda" if self.args.use_cuda and torch.cuda.is_available() else "cpu"
-        )
+        self.device = get_best_device(self.args)
         self.client_id: int = None
 
         # load dataset and clients' data indices
