@@ -41,21 +41,21 @@ The command above splits the *CIFAR-10* dataset into 100 subsets (for 100 client
 2. `cd` to `data/domain` and run `python preprocess.py` (an interactive wizard).
    - Note that `python run.py -d domain` *without* additional arguments would build feature non-IID scenario already.
    - Command `python run.py -d domain` is at the end of [`data/domain/preprocess.py`](https://github.com/KarhouTam/FL-bench/tree/master/data/domain/preprocess.py) already.
-   - (Optional) You can run `python run.py -d domain {$args}` with additional arguments showed below to further split DomainNet to build label Non-IID scenario deliberately.
+   - (Optional) You can run `python run.py -d domain ${args}` with additional arguments showed below to further split DomainNet to build label Non-IID scenario deliberately.
 
 ## Arguments 🔧
 📢 All arguments have default value.
-| Arguments for general datasets | Description                                                                                                                                             |
-| ------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `--dataset`, `-d`              | The name of dataset you wanna partition.                                                                                                                |
-| `--iid`                        | Non-zero value for randomly partitioning data and disabling all other Non-IID partition methods.                                                        |
-| `--client_num`, `-cn`          | The number of clients.                                                                                                                                  |
-| `--split`                      | Chooses from `[sample, user]`.  `user`: partition clients into train-test groups; `sample`: partition each client's data samples into train-test groups |
-| `--fraction`                   | Propotion of train data/clients (depends on `--split`).                                                                                                 |
-| `--classes`, `-c`              | Number of classes that one client's data belong to.                                                                                                     |
-| `--alpha`, `-a`                | Controls data heterogeneity degree while performing Dirichlet partition.                                                                                |
-| `--least_samples`              | Specifies the minimum number of data samples that each client should hold, specifically for Dirichlet partitioning.                                     |
-| `--shards`, `-s`               | Number of data shards that each client holds. The same partition method as in *FedAvg.*                                                                 |
+| Arguments for general datasets | Description                                                                                                                                                                                                   |
+| ------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `--dataset`, `-d`              | The name of dataset you wanna partition.                                                                                                                                                                      |
+| `--iid`                        | Non-zero value for randomly partitioning data and disabling all other Non-IID partition methods.                                                                                                              |
+| `--client_num`, `-cn`          | The number of clients.                                                                                                                                                                                        |
+| `--split`                      | Chooses from `[sample, user]`.  `user`: partition clients into train-test groups; `sample`: partition each client's data samples into train-test groups                                                       |
+| `--fraction`                   | Propotion of train data/clients that depends on `--split`. *Note that this argument is unused for FEMNIST and CelebA, which already split the dataset when you run their `preprocess.sh` by argument `--tf`.* |
+| `--classes`, `-c`              | Number of classes that one client's data belong to.                                                                                                                                                           |
+| `--alpha`, `-a`                | Controls data heterogeneity degree while performing Dirichlet partition.                                                                                                                                      |
+| `--least_samples`              | Specifies the minimum number of data samples that each client should hold, specifically for Dirichlet partitioning.                                                                                           |
+| `--shards`, `-s`               | Number of data shards that each client holds. The same partition method as in *FedAvg.*                                                                                                                       |
 
 🤖 This benchmark also supports *synthetic datasets* from [(Li et al., 2020)](https://arxiv.org/abs/1812.06127). The  matched arguments are `[--gamma, --beta, --dimension]`.
 
