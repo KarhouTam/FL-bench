@@ -228,6 +228,7 @@ dependencies:
       - ptyprocess==0.7.0
       - pure-eval==0.2.2
       - pygments==2.15.1
+      - pynvml==11.5.0
       - pyparsing==3.0.9
       - pyproject-hooks==1.0.0
       - pyrsistent==0.19.3

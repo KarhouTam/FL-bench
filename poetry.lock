@@ -925,6 +925,23 @@ url = "https://mirrors.sustech.edu.cn/pypi/simple"
 reference = "mirrors"
 
 [[package]]
+name = "pynvml"
+version = "11.5.0"
+description = "Python Bindings for the NVIDIA Management Library"
+category = "main"
+optional = false
+python-versions = ">=3.6"
+files = [
+    {file = "pynvml-11.5.0-py3-none-any.whl", hash = "sha256:5cce014ac01b098d08f06178f86c37be409b80b2e903a5a03ce15eed60f55e25"},
+    {file = "pynvml-11.5.0.tar.gz", hash = "sha256:d027b21b95b1088b9fc278117f9f61b7c67f8e33a787e9f83f735f0f71ac32d0"},
+]
+
+[package.source]
+type = "legacy"
+url = "https://mirrors.sustech.edu.cn/pypi/simple"
+reference = "mirrors"
+
+[[package]]
 name = "pyparsing"
 version = "3.0.9"
 description = "pyparsing module - Classes and methods to define and execute parsing grammars"
@@ -1462,4 +1479,4 @@ reference = "mirrors"
 [metadata]
 lock-version = "2.0"
 python-versions = "3.10.10"
-content-hash = "01977a33443b25db5e4a5308ca1743cbad0f38e685d77ccd1984b679a540cd3f"
+content-hash = "7bdc0d863eca5b47a04bfff5107c8b6817cc574298e9f4a0d66f6e88b1ebf773"
