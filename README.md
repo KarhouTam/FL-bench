@@ -107,9 +107,9 @@ ALL classes of methods are inherited from `FedAvgServer` and `FedAvgClient`. If 
 
 ```shell
 # partition the CIFAR-10 according to Dir(0.1) for 100 clients
-cd data/utils
-python run.py -d cifar10 -a 0.1 -cn 100
-cd ../../
+cd data
+python generate_data.py -d cifar10 -a 0.1 -cn 100
+cd ../
 
 # run FedAvg under default setting.
 cd src/server

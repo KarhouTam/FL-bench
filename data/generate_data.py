@@ -8,15 +8,25 @@ from pathlib import Path
 import torch
 import numpy as np
 
-from datasets import DATASETS
-from partition import dirichlet, iid_partition, randomly_assign_classes, allocate_shards
-from process import prune_args, generate_synthetic_data, process_celeba, process_femnist
+from utils.datasets import DATASETS
+from utils.partition import (
+    dirichlet,
+    iid_partition,
+    randomly_assign_classes,
+    allocate_shards,
+)
+from utils.process import (
+    prune_args,
+    generate_synthetic_data,
+    process_celeba,
+    process_femnist,
+)
 
 CURRENT_DIR = Path(__file__).parent.absolute()
 
 
 def main(args):
-    dataset_root = CURRENT_DIR.parent / args.dataset
+    dataset_root = CURRENT_DIR / args.dataset
 
     np.random.seed(args.seed)
     random.seed(args.seed)
@@ -149,7 +159,7 @@ if __name__ == "__main__":
     parser.add_argument(
         "--split", type=str, choices=["sample", "user"], default="sample"
     )
-    parser.add_argument("--fraction", type=float, default=0.5)
+    parser.add_argument("-f", "--fraction", type=float, default=0.5)
     # For random assigning classes only
     parser.add_argument("-c", "--classes", type=int, default=0)
     # For allocate shards only
