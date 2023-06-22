@@ -36,7 +36,7 @@ class APFLClient(FedAvgClient):
         }
 
         self.optimizer.add_param_group(
-            {"params": trainable_params(self.local_model), "lr": self.local_lr}
+            {"params": trainable_params(self.local_model), "lr": self.args.local_lr}
         )
         self.init_opt_state_dict = deepcopy(self.optimizer.state_dict())
 
@@ -90,7 +90,7 @@ class APFLClient(FedAvgClient):
             alpha_grad += diff @ grad
 
         alpha_grad += 0.02 * self.alpha
-        self.alpha.data -= self.local_lr * alpha_grad
+        self.alpha.data -= self.args.local_lr * alpha_grad
         self.alpha.clip_(0, 1.0)
 
     def evaluate(self):

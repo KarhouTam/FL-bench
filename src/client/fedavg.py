@@ -59,7 +59,6 @@ class FedAvgClient:
 
         self.model = model.to(self.device)
         self.local_epoch = self.args.local_epoch
-        self.local_lr = self.args.local_lr
         self.criterion = torch.nn.CrossEntropyLoss().to(self.device)
         self.logger = logger
         self.personal_params_dict: Dict[int, Dict[str, torch.Tensor]] = {}
@@ -73,7 +72,7 @@ class FedAvgClient:
 
         self.optimizer = torch.optim.SGD(
             trainable_params(self.model),
-            self.local_lr,
+            self.args.local_lr,
             self.args.momentum,
             self.args.weight_decay,
         )

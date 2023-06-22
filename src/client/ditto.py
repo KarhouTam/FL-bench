@@ -15,7 +15,7 @@ class DittoClient(FedAvgClient):
             cid: deepcopy(self.pers_model.state_dict()) for cid in range(client_num)
         }
         self.optimizer.add_param_group(
-            {"params": trainable_params(self.pers_model), "lr": self.local_lr}
+            {"params": trainable_params(self.pers_model), "lr": self.args.local_lr}
         )
         self.init_opt_state_dict = deepcopy(self.optimizer.state_dict())
 

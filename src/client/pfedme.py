@@ -60,8 +60,11 @@ class pFedMeClient(FedAvgClient):
                 for param_p, param_l in zip(
                     trainable_params(self.model), self.local_parameters
                 ):
-                    param_l.data = param_l.data - self.args.lamda * self.local_lr * (
-                        param_l.data - param_p.data
+                    param_l.data = (
+                        param_l.data
+                        - self.args.lamda
+                        * self.args.local_lr
+                        * (param_l.data - param_p.data)
                     )
 
     @torch.no_grad()
