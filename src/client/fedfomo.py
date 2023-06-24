@@ -22,10 +22,12 @@ class FedFomoClient(FedAvgClient):
     def train(
         self,
         client_id: int,
+        local_epoch: int,
         received_params: Dict[int, List[torch.Tensor]],
         verbose=False,
     ):
         self.client_id = client_id
+        self.local_epoch = local_epoch
         self.load_dataset()
         self.set_parameters(received_params)
         stats = self.train_and_log(verbose=verbose)

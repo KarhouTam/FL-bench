@@ -74,6 +74,7 @@ class MetaFedServer(FedAvgServer):
                 )
                 student_params, self.client_stats[client_id][E] = self.trainer.train(
                     client_id=client_id,
+                    local_epoch=self.clients_local_epoch[client_id],
                     student_parameters=student_params,
                     teacher_parameters=teacher_params,
                     verbose=((E + 1) % self.args.verbose_gap) == 0,

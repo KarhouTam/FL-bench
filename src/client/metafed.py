@@ -1,5 +1,7 @@
+from collections import OrderedDict
 from copy import deepcopy
 
+import torch
 import torch.nn.functional as F
 
 from fedavg import FedAvgClient
@@ -39,8 +41,16 @@ class MetaFedClient(FedAvgClient):
         val_acc = val_correct / val_sample_num
         self.client_flags[self.client_id] = val_acc > self.args.threshold_1
 
-    def train(self, client_id, student_parameters, teacher_parameters, verbose=False):
+    def train(
+        self,
+        client_id: int,
+        local_epoch: int,
+        student_parameters: OrderedDict[str, torch.Tensor],
+        teacher_parameters: OrderedDict[str, torch.Tensor],
+        verbose=False,
+    ):
         self.client_id = client_id
+        self.local_epoch = local_epoch
         if self.client_flags[self.client_id]:
             self.set_parameters(student_parameters)
         else:

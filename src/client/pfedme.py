@@ -24,16 +24,18 @@ class pFedMeClient(FedAvgClient):
     def train(
         self,
         client_id: int,
+        local_epoch: int,
         new_parameters: OrderedDict[str, torch.Tensor],
         verbose=False,
     ):
         self.client_id = client_id
+        self.local_epoch = local_epoch
         self.load_dataset()
         self.set_parameters(new_parameters)
         self.local_parameters = trainable_params(new_parameters, detach=True)
         # self.iter_trainloader = iter(self.trainloader)
         stats = self.train_and_log(verbose=verbose)
-        return (deepcopy(self.local_parameters), 1.0, stats)
+        return (deepcopy(self.local_parameters), len(self.trainset), stats)
 
     def save_state(self):
         super().save_state()

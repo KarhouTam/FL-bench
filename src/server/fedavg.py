@@ -78,6 +78,8 @@ def get_fedavg_argparser() -> ArgumentParser:
     parser.add_argument("-bs", "--batch_size", type=int, default=32)
     parser.add_argument("-v", "--visible", type=int, default=0)
     parser.add_argument("--global_testset", type=int, default=0)
+    parser.add_argument("--straggler_ratio", type=float, default=0)
+    parser.add_argument("--straggler_min_local_epoch", type=int, default=1)
     parser.add_argument("--use_cuda", type=int, default=1)
     parser.add_argument("--save_log", type=int, default=1)
     parser.add_argument("--save_model", type=int, default=0)
@@ -116,7 +118,7 @@ class FedAvgServer:
         self.client_num = partition["separation"]["total"]
 
         # init model(s) parameters
-        self.device = get_best_device(self.args)
+        self.device = get_best_device(self.args.use_cuda)
         self.model = MODEL_DICT[self.args.model](self.args.dataset).to(self.device)
         self.model.check_avaliability()
         init_trainable_params, self.trainable_params_name = trainable_params(
@@ -131,6 +133,23 @@ class FedAvgServer:
         self.global_params_dict: OrderedDict[str, torch.Tensor] = OrderedDict(
             zip(self.trainable_params_name, init_trainable_params)
         )
+
+        # system heterogeneity (straggler) setting
+        self.clients_local_epoch: List[int] = [self.args.local_epoch] * self.client_num
+        if self.args.straggler_ratio > 0:
+            straggler_num = int(self.client_num * self.args.straggler_ratio)
+            normal_num = self.client_num - straggler_num
+            self.clients_local_epoch = [self.args.local_epoch] * (
+                normal_num
+            ) + random.choices(
+                list(
+                    range(
+                        self.args.straggler_min_local_epoch, self.args.local_epoch + 1
+                    )
+                ),
+                k=straggler_num,
+            )
+            random.shuffle(self.clients_local_epoch)
 
         # To make sure all algorithms run through the same client sampling stream.
         # Some algorithms' implicit operations at client side may disturb the stream if sampling happens at each FL round's beginning.
@@ -214,6 +233,7 @@ class FedAvgServer:
                 self.client_stats[client_id][self.current_epoch],
             ) = self.trainer.train(
                 client_id=client_id,
+                local_epoch=self.clients_local_epoch[client_id],
                 new_parameters=client_local_params,
                 verbose=((self.current_epoch + 1) % self.args.verbose_gap) == 0,
             )

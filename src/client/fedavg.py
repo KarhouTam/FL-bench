@@ -20,7 +20,7 @@ from data.utils.datasets import DATASETS
 class FedAvgClient:
     def __init__(self, model: DecoupledModel, args: Namespace, logger: Logger):
         self.args = args
-        self.device = get_best_device(self.args)
+        self.device = get_best_device(self.args.use_cuda)
         self.client_id: int = None
 
         # load dataset and clients' data indices
@@ -164,6 +164,7 @@ class FedAvgClient:
     def train(
         self,
         client_id: int,
+        local_epoch: int,
         new_parameters: OrderedDict[str, torch.Tensor],
         return_diff=True,
         verbose=False,
@@ -171,8 +172,11 @@ class FedAvgClient:
         """
         The funtion for including all operations in client local training phase.
         If you wanna implement your method, consider to override this funciton.
+
         Args:
             client_id (int): The ID of client.
+
+            local_epoch (int): The number of epochs for performing local training.
 
             new_parameters (OrderedDict[str, torch.Tensor]): Parameters of FL model.
 
@@ -183,9 +187,11 @@ class FedAvgClient:
             verbose (bool, optional): Set to `True` for print logging info onto the stdout (Controled by the server by default). Defaults to False.
 
         Returns:
-            Tuple[Union[OrderedDict[str, torch.Tensor], List[torch.Tensor]], int, Dict]:  The difference / all trainable parameters, the weight of this client, the evaluation metric stats.
+            Tuple[Union[OrderedDict[str, torch.Tensor], List[torch.Tensor]], int, Dict]:
+            [The difference / all trainable parameters, the weight of this client, the evaluation metric stats].
         """
         self.client_id = client_id
+        self.local_epoch = local_epoch
         self.load_dataset()
         self.set_parameters(new_parameters)
         eval_stats = self.train_and_log(verbose=verbose)

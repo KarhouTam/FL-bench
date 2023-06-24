@@ -69,8 +69,9 @@ class FedGenServer(FedAvgServer):
                 self.client_stats[client_id][self.current_epoch],
             ) = self.trainer.train(
                 client_id=client_id,
+                local_epoch=self.clients_local_epoch[client_id],
+                current_global_epoch=self.current_epoch,
                 new_parameters=client_local_params,
-                global_epoch=self.current_epoch,
                 generator=self.generator,
                 regularization=self.current_epoch > 0,
                 verbose=((self.current_epoch + 1) % self.args.verbose_gap) == 0,

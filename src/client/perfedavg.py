@@ -23,12 +23,13 @@ class PerFedAvgClient(FedAvgClient):
     def train(
         self,
         client_id: int,
+        local_epoch: int,
         new_parameters: OrderedDict[str, torch.Tensor],
         return_diff=True,
         verbose=False,
     ):
         delta, _, stats = super().train(
-            client_id, new_parameters, return_diff=return_diff, verbose=verbose
+            client_id, local_epoch, new_parameters, return_diff, verbose
         )
         # Per-FedAvg's model aggregation doesn't need weight.
         return delta, 1.0, stats
@@ -39,7 +40,7 @@ class PerFedAvgClient(FedAvgClient):
 
     def fit(self):
         self.model.train()
-        for _ in range(self.args.local_epoch):
+        for _ in range(self.local_epoch):
             for _ in range(len(self.trainloader) // (2 + (self.args.version == "hf"))):
                 x0, y0 = self.get_data_batch()
                 frz_params = deepcopy(self.model.state_dict())

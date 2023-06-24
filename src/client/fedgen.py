@@ -24,14 +24,16 @@ class FedGenClient(FedAvgClient):
     def train(
         self,
         client_id: int,
+        local_epoch: int,
+        current_global_epoch: int,
         new_parameters: OrderedDict[str, torch.Tensor],
-        global_epoch,
         generator: torch.nn.Module,
         regularization: bool,
         verbose=False,
     ):
         self.client_id = client_id
-        self.global_epoch = global_epoch
+        self.local_epoch = local_epoch
+        self.current_global_epoch = current_global_epoch
         self.generator = generator
         self.regularization = regularization
         self.load_dataset()
@@ -101,6 +103,6 @@ class FedGenClient(FedAvgClient):
             init_coef
             * (
                 self.args.coef_decay
-                ** (self.global_epoch // self.args.coef_decay_epoch)
+                ** (self.current_global_epoch // self.args.coef_decay_epoch)
             ),
         )

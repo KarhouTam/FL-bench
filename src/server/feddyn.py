@@ -43,6 +43,7 @@ class FedDynServer(FedAvgServer):
                 self.client_stats[client_id][self.current_epoch],
             ) = self.trainer.train(
                 client_id=client_id,
+                local_epoch=self.clients_local_epoch[client_id],
                 new_parameters=client_local_params,
                 nabla=self.nabla[client_id],
                 return_diff=False,

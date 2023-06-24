@@ -18,11 +18,13 @@ class SCAFFOLDClient(FedAvgClient):
     def train(
         self,
         client_id: int,
+        local_epoch: int,
         new_parameters: OrderedDict[str, torch.Tensor],
         c_global: List[torch.Tensor],
         verbose=False,
     ):
         self.client_id = client_id
+        self.local_epoch = local_epoch
         self.load_dataset()
         self.iter_trainloader = iter(self.trainloader)
         self.set_parameters(new_parameters)

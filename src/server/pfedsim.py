@@ -81,6 +81,7 @@ class pFedSimServer(FedAvgServer):
                     self.client_stats[client_id][E],
                 ) = self.trainer.train(
                     client_id=client_id,
+                    local_epoch=self.clients_local_epoch[client_id],
                     new_parameters=client_pers_params,
                     return_diff=False,
                     verbose=((E + 1) % self.args.verbose_gap) == 0,

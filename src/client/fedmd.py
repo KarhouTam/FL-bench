@@ -1,5 +1,5 @@
 from copy import deepcopy
-from typing import List
+from typing import List, OrderedDict
 
 import torch
 from torchvision.transforms import Compose, Normalize
@@ -49,8 +49,15 @@ class FedMDClient(FedAvgClient):
             self.public_data.append(x.to(self.device))
             self.public_targets.append(y.to(self.device))
 
-    def train(self, client_id, new_parameters, verbose):
+    def train(
+        self,
+        client_id: int,
+        local_epoch: int,
+        new_parameters: OrderedDict[str, torch.Tensor],
+        verbose: bool,
+    ):
         self.client_id = client_id
+        self.local_epoch = local_epoch
         self.load_dataset()
         self.set_parameters(new_parameters)
         self.digest()

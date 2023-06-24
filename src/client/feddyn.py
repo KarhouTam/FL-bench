@@ -17,6 +17,7 @@ class FedDynClient(FedAvgClient):
     def train(
         self,
         client_id: int,
+        local_epoch: int,
         new_parameters: OrderedDict[str, torch.Tensor],
         nabla: torch.Tensor,
         return_diff=False,
@@ -24,7 +25,9 @@ class FedDynClient(FedAvgClient):
     ):
         self.vectorized_global_params = vectorize(new_parameters, detach=True)
         self.nabla = nabla
-        res = super().train(client_id, new_parameters, return_diff, verbose)
+        res = super().train(
+            client_id, local_epoch, new_parameters, return_diff, verbose
+        )
         return res
 
     def fit(self):

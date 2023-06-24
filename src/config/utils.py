@@ -35,18 +35,18 @@ def fix_random_seed(seed: int) -> None:
     torch.backends.cudnn.benchmark = False
 
 
-def get_best_device(args) -> torch.device:
+def get_best_device(use_cuda: bool) -> torch.device:
     """Dynamically select the vacant CUDA device for running FL experiment.
 
     Args:
-        args (Namespace): The FL experiment arguments. This function only check the `args.use_cuda` value.
+        use_cuda (bool): `True` for using CUDA; `False` for using CPU only.
 
     Returns:
         torch.device: The selected CUDA device.
     """
     # This function is modified by the `get_best_gpu()` in https://github.com/SMILELab-FL/FedLab/blob/master/fedlab/utils/functional.py
     # Shout out to FedLab, which is an incredible FL framework!
-    if not torch.cuda.is_available() or not args.use_cuda:
+    if not torch.cuda.is_available() or not use_cuda:
         return torch.device("cpu")
     pynvml.nvmlInit()
     gpu_memory = []

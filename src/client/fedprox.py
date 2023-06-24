@@ -6,13 +6,6 @@ class FedProxClient(FedAvgClient):
     def __init__(self, model, args, logger):
         super(FedProxClient, self).__init__(model, args, logger)
 
-    def train(self, client_id, new_parameters, verbose=False):
-        delta, _, stats = super().train(
-            client_id, new_parameters, return_diff=True, verbose=verbose
-        )
-        # FedProx's model aggregation doesn't need weight
-        return delta, 1.0, stats
-
     def fit(self):
         self.model.train()
         global_params = trainable_params(self.model, detach=True)

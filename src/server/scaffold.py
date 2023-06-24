@@ -42,6 +42,7 @@ class SCAFFOLDServer(FedAvgServer):
                 self.client_stats[client_id][self.current_epoch],
             ) = self.trainer.train(
                 client_id=client_id,
+                local_epoch=self.clients_local_epoch[client_id],
                 new_parameters=client_local_params,
                 c_global=self.c_global,
                 verbose=((self.current_epoch + 1) % self.args.verbose_gap) == 0,
