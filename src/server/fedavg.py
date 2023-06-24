@@ -142,11 +142,7 @@ class FedAvgServer:
             self.clients_local_epoch = [self.args.local_epoch] * (
                 normal_num
             ) + random.choices(
-                list(
-                    range(
-                        self.args.straggler_min_local_epoch, self.args.local_epoch + 1
-                    )
-                ),
+                range(self.args.straggler_min_local_epoch, self.args.local_epoch),
                 k=straggler_num,
             )
             random.shuffle(self.clients_local_epoch)
