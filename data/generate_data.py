@@ -1,12 +1,16 @@
 import json
 import os
 import pickle
-import random
+import sys
 from argparse import ArgumentParser
 from pathlib import Path
 
-import torch
 import numpy as np
+
+CURRENT_DIR = Path(__file__).parent.absolute()
+FL_BENCH_ROOT = CURRENT_DIR.parent
+
+sys.path.append(FL_BENCH_ROOT.as_posix())
 
 from utils.datasets import DATASETS
 from utils.partition import (
@@ -21,16 +25,13 @@ from utils.process import (
     process_celeba,
     process_femnist,
 )
-
-CURRENT_DIR = Path(__file__).parent.absolute()
+from src.config.utils import fix_random_seed
 
 
 def main(args):
     dataset_root = CURRENT_DIR / args.dataset
 
-    np.random.seed(args.seed)
-    random.seed(args.seed)
-    torch.manual_seed(args.seed)
+    fix_random_seed(args.seed)
 
     if not os.path.isdir(dataset_root):
         os.mkdir(dataset_root)
@@ -38,9 +39,9 @@ def main(args):
     partition = {"separation": None, "data_indices": None}
 
     if args.dataset == "femnist":
-        partition, stats = process_femnist(args)
+        partition, stats, args.client_num = process_femnist()
     elif args.dataset == "celeba":
-        partition, stats = process_celeba(args)
+        partition, stats, args.client_num = process_celeba()
     elif args.dataset == "synthetic":
         partition, stats = generate_synthetic_data(args)
     else:  # MEDMNIST, COVID, MNIST, CIFAR10, ...

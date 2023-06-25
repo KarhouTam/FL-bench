@@ -35,6 +35,17 @@ def prune_args(args: Namespace) -> Dict:
             args_dict["image_size"] = metadata["image_size"]
             args_dict["class_num"] = metadata["class_num"]
             args_dict["preprocess_seed"] = metadata["seed"]
+    elif args.dataset in ["femnist", "celeba"]:
+        with open(DATA_ROOT / args.dataset / "preprocess_args.json") as f:
+            preprocess_args = json.load(f)
+        args_dict.pop("seed")
+        args_dict["split"] = preprocess_args["t"]
+        args_dict["fraction"] = preprocess_args["tf"]
+        args_dict["sample_seed"] = preprocess_args["smplseed"]
+        args_dict["split_seed"] = preprocess_args["spltseed"]
+        args_dict["least_samples"] = preprocess_args["k"]
+        if preprocess_args["s"] == "iid":
+            args_dict["iid"] = True
     if args.iid == 1:
         args_dict["iid"] = True
     else:
@@ -52,7 +63,7 @@ def prune_args(args: Namespace) -> Dict:
     return args_dict
 
 
-def process_femnist(args):
+def process_femnist():
     train_dir = DATA_ROOT / "femnist" / "data" / "train"
     test_dir = DATA_ROOT / "femnist" / "data" / "test"
     stats = {}
@@ -62,9 +73,11 @@ def process_femnist(args):
     all_targets = []
     partition = {"separation": None, "data_indices": {}}
     clients_4_train, clients_4_test = None, None
+    with open(DATA_ROOT / "femnist" / "preprocess_args.json", "r") as f:
+        args = json.load(f)
 
     # load data of train clients
-    if args.split == "sample":
+    if args["t"] == "sample":
         train_filename_list = sorted(os.listdir(train_dir))
         test_filename_list = sorted(os.listdir(test_dir))
         for train_js_file, test_js_file in zip(train_filename_list, test_filename_list):
@@ -103,7 +116,6 @@ def process_femnist(args):
             "std": num_samples.mean(),
             "stddev": num_samples.std(),
         }
-
     else:
         stats["train"] = {}
         stats["test"] = {}
@@ -170,17 +182,16 @@ def process_femnist(args):
     np.save(DATA_ROOT / "femnist" / "data", np.concatenate(all_data))
     np.save(DATA_ROOT / "femnist" / "targets", np.concatenate(all_targets))
 
-    args.client_num = client_cnt
     partition["separation"] = {
         "train": clients_4_train,
         "test": clients_4_test,
         "total": client_cnt,
     }
 
-    return partition, stats
+    return partition, stats, client_cnt
 
 
-def process_celeba(args):
+def process_celeba():
     train_dir = DATA_ROOT / "celeba" / "data" / "train"
     test_dir = DATA_ROOT / "celeba" / "data" / "test"
     raw_data_dir = DATA_ROOT / "celeba" / "data" / "raw" / "img_align_celeba"
@@ -199,7 +210,10 @@ def process_celeba(args):
     client_cnt = 0
     clients_4_test, clients_4_train = None, None
 
-    if args.split == "sample":
+    with open(DATA_ROOT / "celeba" / "preprocess_args.json") as f:
+        args = json.load(f)
+
+    if args["t"] == "sample":
         for client_cnt, ori_id in enumerate(train["users"]):
             stats[client_cnt] = {"x": None, "y": None}
             train_data = np.stack(
@@ -333,14 +347,13 @@ def process_celeba(args):
     np.save(DATA_ROOT / "celeba" / "data", all_data)
     np.save(DATA_ROOT / "celeba" / "targets", all_targets)
 
-    args.client_num = client_cnt
     partition["separation"] = {
         "train": clients_4_train,
         "test": clients_4_test,
         "total": client_cnt,
     }
 
-    return partition, stats
+    return partition, stats, client_cnt
 
 
 def generate_synthetic_data(args):
@@ -389,7 +402,6 @@ def generate_synthetic_data(args):
         stats["train"] = {}
         stats["test"] = {}
     for client_id in range(args.client_num):
-
         W = np.random.normal(mean_W[client_id], 1, (args.dimension, NUM_CLASS))
         b = np.random.normal(mean_b[client_id], 1, NUM_CLASS)
 
