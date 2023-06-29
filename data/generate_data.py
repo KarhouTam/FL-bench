@@ -13,11 +13,12 @@ FL_BENCH_ROOT = CURRENT_DIR.parent
 sys.path.append(FL_BENCH_ROOT.as_posix())
 
 from utils.datasets import DATASETS
-from utils.partition import (
+from utils.schemes import (
     dirichlet,
     iid_partition,
     randomly_assign_classes,
     allocate_shards,
+    semantic_partition,
 )
 from utils.process import (
     prune_args,
@@ -45,28 +46,37 @@ def main(args):
     elif args.dataset == "synthetic":
         partition, stats = generate_synthetic_data(args)
     else:  # MEDMNIST, COVID, MNIST, CIFAR10, ...
-        ori_dataset = DATASETS[args.dataset](dataset_root, args)
+        dataset = DATASETS[args.dataset](dataset_root, args)
 
         if not args.iid:
             if args.alpha > 0:  # Dirichlet(alpha)
                 partition, stats = dirichlet(
-                    ori_dataset=ori_dataset,
-                    num_clients=args.client_num,
+                    dataset=dataset,
+                    client_num=args.client_num,
                     alpha=args.alpha,
                     least_samples=args.least_samples,
                 )
             elif args.classes != 0:  # randomly assign classes
-                args.classes = max(1, min(args.classes, len(ori_dataset.classes)))
+                args.classes = max(1, min(args.classes, len(dataset.classes)))
                 partition, stats = randomly_assign_classes(
-                    ori_dataset=ori_dataset,
-                    num_clients=args.client_num,
-                    num_classes=args.classes,
+                    dataset=dataset, client_num=args.client_num, class_num=args.classes
                 )
             elif args.shards > 0:  # allocate shards
                 partition, stats = allocate_shards(
-                    ori_dataset=ori_dataset,
-                    num_clients=args.client_num,
-                    num_shards=args.shards,
+                    ori_dataset=dataset,
+                    client_num=args.client_num,
+                    shard_num=args.shards,
+                )
+            elif args.semantic:
+                partition, stats = semantic_partition(
+                    dataset=dataset,
+                    efficient_net_type=args.efficient_net_type,
+                    client_num=args.client_num,
+                    pca_components=args.pca_components,
+                    gmm_max_iter=args.gmm_max_iter,
+                    gmm_init_params=args.gmm_init_params,
+                    seed=args.seed,
+                    use_cuda=args.use_cuda,
                 )
             elif args.dataset == "domain":
                 with open(dataset_root / "original_partition.pkl", "rb") as f:
@@ -83,7 +93,7 @@ def main(args):
 
         else:  # iid partition
             partition, stats = iid_partition(
-                ori_dataset=ori_dataset, num_clients=args.client_num
+                dataset=dataset, client_num=args.client_num
             )
 
     if partition["separation"] is None:
@@ -161,11 +171,8 @@ if __name__ == "__main__":
         "--split", type=str, choices=["sample", "user"], default="sample"
     )
     parser.add_argument("-f", "--fraction", type=float, default=0.5)
-    # For random assigning classes only
     parser.add_argument("-c", "--classes", type=int, default=0)
-    # For allocate shards only
     parser.add_argument("-s", "--shards", type=int, default=0)
-    # For dirichlet distribution only
     parser.add_argument("-a", "--alpha", type=float, default=0)
     parser.add_argument("-ls", "--least_samples", type=int, default=40)
 
@@ -184,5 +191,15 @@ if __name__ == "__main__":
         choices=["byclass", "bymerge", "letters", "balanced", "digits", "mnist"],
         default="byclass",
     )
+
+    # For semantic partition only
+    parser.add_argument("--semantic", type=int, default=0)
+    parser.add_argument("--efficient_net_type", type=int, default=0)
+    parser.add_argument("--gmm_max_iter", type=int, default=100)
+    parser.add_argument(
+        "--gmm_init_params", type=str, choices=["random", "kmeans"], default="kmeans"
+    )
+    parser.add_argument("--pca_components", type=int, default=256)
+    parser.add_argument("--use_cuda", type=int, default=1)
     args = parser.parse_args()
     main(args)

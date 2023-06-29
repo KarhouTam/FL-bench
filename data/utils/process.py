@@ -59,7 +59,9 @@ def prune_args(args: Namespace) -> Dict:
         # allocate shards
         elif args.shards > 0:
             args_dict["shards_per_client"] = args.shards
-
+        elif args.semantic:
+            args_dict["pca_components"] = args.pca_components
+            args_dict["efficient_net_type"] = args.efficient_net_type
     return args_dict
 
 
@@ -363,17 +365,17 @@ def generate_synthetic_data(args):
         return ex / sum_ex
 
     # All codes below are modified from https://github.com/litian96/FedProx/tree/master/data
-    NUM_CLASS = 10 if args.classes <= 0 else args.classes
+    class_num = 10 if args.classes <= 0 else args.classes
 
     samples_per_user = (
         np.random.lognormal(4, 2, args.client_num).astype(int) + 50
     ).tolist()
     # samples_per_user = [10 for _ in range(args.client_num)]
-    W_global = np.zeros((args.dimension, NUM_CLASS))
-    b_global = np.zeros(NUM_CLASS)
+    w_global = np.zeros((args.dimension, class_num))
+    b_global = np.zeros(class_num)
 
-    mean_W = np.random.normal(0, args.gamma, args.client_num)
-    mean_b = mean_W
+    mean_w = np.random.normal(0, args.gamma, args.client_num)
+    mean_b = mean_w
     B = np.random.normal(0, args.beta, args.client_num)
     mean_x = np.zeros((args.client_num, args.dimension))
 
@@ -389,8 +391,8 @@ def generate_synthetic_data(args):
             mean_x[client_id] = np.random.normal(B[client_id], 1, args.dimension)
 
     if args.iid:
-        W_global = np.random.normal(0, 1, (args.dimension, NUM_CLASS))
-        b_global = np.random.normal(0, 1, NUM_CLASS)
+        w_global = np.random.normal(0, 1, (args.dimension, class_num))
+        b_global = np.random.normal(0, 1, class_num)
 
     all_data = []
     all_targets = []
@@ -402,11 +404,11 @@ def generate_synthetic_data(args):
         stats["train"] = {}
         stats["test"] = {}
     for client_id in range(args.client_num):
-        W = np.random.normal(mean_W[client_id], 1, (args.dimension, NUM_CLASS))
-        b = np.random.normal(mean_b[client_id], 1, NUM_CLASS)
+        w = np.random.normal(mean_w[client_id], 1, (args.dimension, class_num))
+        b = np.random.normal(mean_b[client_id], 1, class_num)
 
         if args.iid != 0:
-            W = W_global
+            w = w_global
             b = b_global
 
         data = np.random.multivariate_normal(
@@ -415,7 +417,7 @@ def generate_synthetic_data(args):
         targets = np.zeros(samples_per_user[client_id])
 
         for j in range(samples_per_user[client_id]):
-            true_logit = np.dot(data[j], W) + b
+            true_logit = np.dot(data[j], w) + b
             targets[j] = np.argmax(softmax(true_logit))
 
         all_data.append(data)

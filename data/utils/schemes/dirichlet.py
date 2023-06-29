@@ -6,36 +6,42 @@ from torch.utils.data import Dataset
 
 
 def dirichlet(
-    ori_dataset: Dataset, num_clients: int, alpha: float, least_samples: int
+    dataset: Dataset, client_num: int, alpha: float, least_samples: int
 ) -> Tuple[List[List[int]], Dict]:
-    num_classes = len(ori_dataset.classes)
+    label_num = len(dataset.classes)
     min_size = 0
     stats = {}
     partition = {"separation": None, "data_indices": None}
 
-    targets_numpy = np.array(ori_dataset.targets, dtype=np.int32)
-    idx = [np.where(targets_numpy == i)[0] for i in range(num_classes)]
+    targets_numpy = np.array(dataset.targets, dtype=np.int32)
+    data_idx_for_each_label = [
+        np.where(targets_numpy == i)[0] for i in range(label_num)
+    ]
 
     while min_size < least_samples:
-        data_indices = [[] for _ in range(num_clients)]
-        for k in range(num_classes):
-            np.random.shuffle(idx[k])
-            distrib = np.random.dirichlet(np.repeat(alpha, num_clients))
+        data_indices = [[] for _ in range(client_num)]
+        for k in range(label_num):
+            np.random.shuffle(data_idx_for_each_label[k])
+            distrib = np.random.dirichlet(np.repeat(alpha, client_num))
             distrib = np.array(
                 [
-                    p * (len(idx_j) < len(targets_numpy) / num_clients)
+                    p * (len(idx_j) < len(targets_numpy) / client_num)
                     for p, idx_j in zip(distrib, data_indices)
                 ]
             )
             distrib = distrib / distrib.sum()
-            distrib = (np.cumsum(distrib) * len(idx[k])).astype(int)[:-1]
+            distrib = (np.cumsum(distrib) * len(data_idx_for_each_label[k])).astype(
+                int
+            )[:-1]
             data_indices = [
                 np.concatenate((idx_j, idx.tolist())).astype(np.int64)
-                for idx_j, idx in zip(data_indices, np.split(idx[k], distrib))
+                for idx_j, idx in zip(
+                    data_indices, np.split(data_idx_for_each_label[k], distrib)
+                )
             ]
             min_size = min([len(idx_j) for idx_j in data_indices])
 
-    for i in range(num_clients):
+    for i in range(client_num):
         stats[i] = {"x": None, "y": None}
         stats[i]["x"] = len(targets_numpy[data_indices[i]])
         stats[i]["y"] = Counter(targets_numpy[data_indices[i]].tolist())

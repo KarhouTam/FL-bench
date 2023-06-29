@@ -119,4 +119,4 @@ if __name__ == "__main__":
     with open("original_stats.json", "w") as f:
         json.dump(original_stats, f)
 
-    os.system(f"cd ../utils; python run.py -d domain")
+    os.system(f"cd ..; python generate_data.py -d domain")
