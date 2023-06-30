@@ -34,7 +34,7 @@ class CFLServer(FedAvgServer):
         ), "CFL doesn't support `User` type split."
 
         self.test_flag = True
-        self.delta_list = [None] * len(self.train_clients)
+        self.delta_list = [None for _ in self.train_clients]
         self.similarity_matrix = np.eye(len(self.train_clients))
         self.client_clusters = [list(range(len(self.train_clients)))]
 
@@ -93,7 +93,7 @@ class CFLServer(FedAvgServer):
 
     def cluster_clients(self, similarities):
         clustering = AgglomerativeClustering(
-            affinity="precomputed", linkage="complete"
+            metric="precomputed", linkage="complete"
         ).fit(-similarities)
 
         cluster_1 = np.argwhere(clustering.labels_ == 0).flatten()
@@ -115,22 +115,42 @@ class CFLServer(FedAvgServer):
                 ):
                     param.data += diff
 
+        self.delta_list = [None for _ in self.train_clients]
+        if self.current_epoch % 5 == 0:
+            print(self.client_clusters)
+
 
 @torch.no_grad()
 def compute_max_delta_norm(delta_list: List[List[torch.Tensor]]):
-    return max(
-        [vectorize(delta).norm().item() for delta in delta_list if delta is not None]
-    )
+    flag = False
+    for delta in delta_list:
+        if delta is not None:
+            flag = True
+    if flag:
+        return max(
+            [
+                vectorize(delta).norm().item()
+                for delta in delta_list
+                if delta is not None
+            ]
+        )
+    return 0
 
 
 @torch.no_grad()
 def compute_mean_delta_norm(delta_list: List[List[torch.Tensor]]):
-    return (
-        torch.stack([vectorize(delta) for delta in delta_list if delta is not None])
-        .mean(dim=0)
-        .norm()
-        .item()
-    )
+    flag = False
+    for delta in delta_list:
+        if delta is not None:
+            flag = True
+    if flag:
+        return (
+            torch.stack([vectorize(delta) for delta in delta_list if delta is not None])
+            .mean(dim=0)
+            .norm()
+            .item()
+        )
+    return 0
 
 
 if __name__ == "__main__":
