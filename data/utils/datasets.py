@@ -3,7 +3,7 @@ import os
 import pickle
 from argparse import Namespace
 from pathlib import Path
-from typing import List, Type, Dict
+from typing import List, Type, Dict, Callable, Optional
 
 import torch
 import numpy as np
@@ -17,26 +17,41 @@ from torch.utils.data import Dataset
 
 class BaseDataset(Dataset):
     def __init__(self) -> None:
+        self.classes: List = None
         self.data: torch.Tensor = None
         self.targets: torch.Tensor = None
-        self.transform = None
-        self.target_transform = None
-        self.classes: List = None
+        self.train_data_transform = None
+        self.train_target_transform = None
+        self.general_data_transform = None
+        self.general_target_transform = None
+        self.enable_transform = True
 
     def __getitem__(self, index):
-        data, target = self.data[index], self.targets[index]
-        if self.transform is not None:
-            data = self.transform(data)
-        if self.target_transform is not None:
-            target = self.target_transform(target)
-        return data, target
+        data, targets = self.data[index], self.targets[index]
+        if self.general_data_transform is not None:
+            data = self.general_data_transform(data)
+        if self.general_target_transform is not None:
+            targets = self.general_target_transform(targets)
+        if self.enable_transform and self.train_data_transform is not None:
+            data = self.train_data_transform(data)
+        if self.enable_transform and self.train_target_transform is not None:
+            targets = self.train_target_transform(targets)
+        return data, targets
 
     def __len__(self):
         return len(self.targets)
 
 
 class FEMNIST(BaseDataset):
-    def __init__(self, root, args=None, transform=None, target_transform=None) -> None:
+    def __init__(
+        self,
+        root,
+        args=None,
+        general_data_transform=None,
+        general_target_transform=None,
+        train_data_transform=None,
+        train_target_transform=None,
+    ) -> None:
         super().__init__()
         if not isinstance(root, Path):
             root = Path(root)
@@ -53,12 +68,22 @@ class FEMNIST(BaseDataset):
         self.data = torch.from_numpy(data).float().reshape(-1, 1, 28, 28)
         self.targets = torch.from_numpy(targets).long()
         self.classes = list(range(62))
-        self.transform = transform
-        self.target_transform = target_transform
+        self.general_data_transform = general_data_transform
+        self.general_target_transform = general_target_transform
+        self.train_data_transform = train_data_transform
+        self.train_target_transform = train_target_transform
 
 
 class Synthetic(BaseDataset):
-    def __init__(self, root, args=None, transform=None, target_transform=None) -> None:
+    def __init__(
+        self,
+        root,
+        args=None,
+        general_data_transform=None,
+        general_target_transform=None,
+        train_data_transform=None,
+        train_target_transform=None,
+    ) -> None:
         super().__init__()
         if not isinstance(root, Path):
             root = Path(root)
@@ -75,12 +100,22 @@ class Synthetic(BaseDataset):
         self.data = torch.from_numpy(data).float()
         self.targets = torch.from_numpy(targets).long()
         self.classes = list(range(len(self.targets.unique())))
-        self.transform = transform
-        self.target_transform = target_transform
+        self.general_data_transform = general_data_transform
+        self.general_target_transform = general_target_transform
+        self.train_data_transform = train_data_transform
+        self.train_target_transform = train_target_transform
 
 
 class CelebA(BaseDataset):
-    def __init__(self, root, args=None, transform=None, target_transform=None) -> None:
+    def __init__(
+        self,
+        root,
+        args=None,
+        general_data_transform=None,
+        general_target_transform=None,
+        train_data_transform=None,
+        train_target_transform=None,
+    ) -> None:
         super().__init__()
         if not isinstance(root, Path):
             root = Path(root)
@@ -96,29 +131,49 @@ class CelebA(BaseDataset):
 
         self.data = torch.from_numpy(data).permute([0, -1, 1, 2]).float()
         self.targets = torch.from_numpy(targets).long()
-        self.transform = transform
-        self.target_transform = target_transform
+        self.general_data_transform = general_data_transform
+        self.general_target_transform = general_target_transform
+        self.train_data_transform = train_data_transform
+        self.train_target_transform = train_target_transform
         self.classes = [0, 1]
 
 
 class MedMNIST(BaseDataset):
-    def __init__(self, root, args=None, transform=None, target_transform=None):
+    def __init__(
+        self,
+        root,
+        args=None,
+        general_data_transform=None,
+        general_target_transform=None,
+        train_data_transform=None,
+        train_target_transform=None,
+    ):
         super().__init__()
         if not isinstance(root, Path):
             root = Path(root)
+        self.classes = list(range(11))
         self.data = (
             torch.Tensor(np.load(root / "raw" / "xdata.npy")).float().unsqueeze(1)
         )
         self.targets = (
             torch.Tensor(np.load(root / "raw" / "ydata.npy")).long().squeeze()
         )
-        self.transform = transform
-        self.target_transform = target_transform
-        self.classes = list(range(11))
+        self.general_data_transform = general_data_transform
+        self.general_target_transform = general_target_transform
+        self.train_data_transform = train_data_transform
+        self.train_target_transform = train_target_transform
 
 
 class COVID19(BaseDataset):
-    def __init__(self, root, args=None, transform=None, target_transform=None):
+    def __init__(
+        self,
+        root,
+        args=None,
+        general_data_transform=None,
+        general_target_transform=None,
+        train_data_transform=None,
+        train_target_transform=None,
+    ):
         super().__init__()
         if not isinstance(root, Path):
             root = Path(root)
@@ -130,13 +185,23 @@ class COVID19(BaseDataset):
         self.targets = (
             torch.Tensor(np.load(root / "raw" / "ydata.npy")).long().squeeze()
         )
-        self.transform = transform
-        self.target_transform = target_transform
         self.classes = [0, 1, 2, 3]
+        self.general_data_transform = general_data_transform
+        self.general_target_transform = general_target_transform
+        self.train_data_transform = train_data_transform
+        self.train_target_transform = train_target_transform
 
 
 class USPS(BaseDataset):
-    def __init__(self, root, args=None, transform=None, target_transform=None):
+    def __init__(
+        self,
+        root,
+        args=None,
+        general_data_transform=None,
+        general_target_transform=None,
+        train_data_transform=None,
+        train_target_transform=None,
+    ):
         super().__init__()
         if not isinstance(root, Path):
             root = Path(root)
@@ -150,12 +215,22 @@ class USPS(BaseDataset):
         self.data = torch.cat([train_data, test_data])
         self.targets = torch.cat([train_targets, test_targets])
         self.classes = list(range(10))
-        self.transform = transform
-        self.target_transform = target_transform
+        self.general_data_transform = general_data_transform
+        self.general_target_transform = general_target_transform
+        self.train_data_transform = train_data_transform
+        self.train_target_transform = train_target_transform
 
 
 class SVHN(BaseDataset):
-    def __init__(self, root, args=None, transform=None, target_transform=None):
+    def __init__(
+        self,
+        root,
+        args=None,
+        general_data_transform=None,
+        general_target_transform=None,
+        train_data_transform=None,
+        train_target_transform=None,
+    ):
         super().__init__()
         if not isinstance(root, Path):
             root = Path(root)
@@ -169,17 +244,25 @@ class SVHN(BaseDataset):
         self.data = torch.cat([train_data, test_data])
         self.targets = torch.cat([train_targets, test_targets])
         self.classes = list(range(10))
-        self.transform = transform
-        self.target_transform = target_transform
+        self.general_data_transform = general_data_transform
+        self.general_target_transform = general_target_transform
+        self.train_data_transform = train_data_transform
+        self.train_target_transform = train_target_transform
 
 
 class MNIST(BaseDataset):
-    def __init__(self, root, args=None, transform=None, target_transform=None):
+    def __init__(
+        self,
+        root,
+        args=None,
+        general_data_transform=None,
+        general_target_transform=None,
+        train_data_transform=None,
+        train_target_transform=None,
+    ):
         super().__init__()
-        train_part = torchvision.datasets.MNIST(
-            root, True, transform, target_transform, download=True
-        )
-        test_part = torchvision.datasets.MNIST(root, False, transform, target_transform)
+        train_part = torchvision.datasets.MNIST(root, True, download=True)
+        test_part = torchvision.datasets.MNIST(root, False)
         train_data = torch.Tensor(train_part.data).float().unsqueeze(1)
         test_data = torch.Tensor(test_part.data).float().unsqueeze(1)
         train_targets = torch.Tensor(train_part.targets).long().squeeze()
@@ -187,12 +270,22 @@ class MNIST(BaseDataset):
         self.data = torch.cat([train_data, test_data])
         self.targets = torch.cat([train_targets, test_targets])
         self.classes = train_part.classes
-        self.transform = transform
-        self.target_transform = target_transform
+        self.general_data_transform = general_data_transform
+        self.general_target_transform = general_target_transform
+        self.train_data_transform = train_data_transform
+        self.train_target_transform = train_target_transform
 
 
 class FashionMNIST(BaseDataset):
-    def __init__(self, root, args=None, transform=None, target_transform=None):
+    def __init__(
+        self,
+        root,
+        args=None,
+        general_data_transform=None,
+        general_target_transform=None,
+        train_data_transform=None,
+        train_target_transform=None,
+    ):
         super().__init__()
         train_part = torchvision.datasets.FashionMNIST(root, True, download=True)
         test_part = torchvision.datasets.FashionMNIST(root, False, download=True)
@@ -203,12 +296,22 @@ class FashionMNIST(BaseDataset):
         self.data = torch.cat([train_data, test_data])
         self.targets = torch.cat([train_targets, test_targets])
         self.classes = train_part.classes
-        self.transform = transform
-        self.target_transform = target_transform
+        self.general_data_transform = general_data_transform
+        self.general_target_transform = general_target_transform
+        self.train_data_transform = train_data_transform
+        self.train_target_transform = train_target_transform
 
 
 class EMNIST(BaseDataset):
-    def __init__(self, root, args, transform=None, target_transform=None):
+    def __init__(
+        self,
+        root,
+        args,
+        general_data_transform=None,
+        general_target_transform=None,
+        train_data_transform=None,
+        train_target_transform=None,
+    ):
         super().__init__()
         split = None
         if isinstance(args, Namespace):
@@ -228,12 +331,22 @@ class EMNIST(BaseDataset):
         self.data = torch.cat([train_data, test_data])
         self.targets = torch.cat([train_targets, test_targets])
         self.classes = train_part.classes
-        self.transform = transform
-        self.target_transform = target_transform
+        self.general_data_transform = general_data_transform
+        self.general_target_transform = general_target_transform
+        self.train_data_transform = train_data_transform
+        self.train_target_transform = train_target_transform
 
 
 class CIFAR10(BaseDataset):
-    def __init__(self, root, args=None, transform=None, target_transform=None):
+    def __init__(
+        self,
+        root,
+        args=None,
+        general_data_transform=None,
+        general_target_transform=None,
+        train_data_transform=None,
+        train_target_transform=None,
+    ):
         super().__init__()
         train_part = torchvision.datasets.CIFAR10(root, True, download=True)
         test_part = torchvision.datasets.CIFAR10(root, False, download=True)
@@ -244,12 +357,22 @@ class CIFAR10(BaseDataset):
         self.data = torch.cat([train_data, test_data])
         self.targets = torch.cat([train_targets, test_targets])
         self.classes = train_part.classes
-        self.transform = transform
-        self.target_transform = target_transform
+        self.general_data_transform = general_data_transform
+        self.general_target_transform = general_target_transform
+        self.train_data_transform = train_data_transform
+        self.train_target_transform = train_target_transform
 
 
 class CIFAR100(BaseDataset):
-    def __init__(self, root, args, transform=None, target_transform=None):
+    def __init__(
+        self,
+        root,
+        args,
+        general_data_transform=None,
+        general_target_transform=None,
+        train_data_transform=None,
+        train_target_transform=None,
+    ):
         super().__init__()
         train_part = torchvision.datasets.CIFAR100(root, True, download=True)
         test_part = torchvision.datasets.CIFAR100(root, False, download=True)
@@ -260,8 +383,10 @@ class CIFAR100(BaseDataset):
         self.data = torch.cat([train_data, test_data])
         self.targets = torch.cat([train_targets, test_targets])
         self.classes = train_part.classes
-        self.transform = transform
-        self.target_transform = target_transform
+        self.general_data_transform = general_data_transform
+        self.general_target_transform = general_target_transform
+        self.train_data_transform = train_data_transform
+        self.train_target_transform = train_target_transform
         super_class = None
         if isinstance(args, Namespace):
             super_class = args.super_class
@@ -303,7 +428,15 @@ class CIFAR100(BaseDataset):
 
 
 class TinyImagenet(BaseDataset):
-    def __init__(self, root, args=None, transform=None, target_transform=None):
+    def __init__(
+        self,
+        root,
+        args=None,
+        general_data_transform=None,
+        general_target_transform=None,
+        train_data_transform=None,
+        train_target_transform=None,
+    ):
         super().__init__()
         if not isinstance(root, Path):
             root = Path(root)
@@ -351,12 +484,22 @@ class TinyImagenet(BaseDataset):
 
         self.data = torch.load(root / "data.pt")
         self.targets = torch.load(root / "targets.pt")
-        self.transform = transform
-        self.target_transform = target_transform
+        self.general_data_transform = general_data_transform
+        self.general_target_transform = general_target_transform
+        self.train_data_transform = train_data_transform
+        self.train_target_transform = train_target_transform
 
 
 class CINIC10(BaseDataset):
-    def __init__(self, root, args=None, transform=None, target_transform=None):
+    def __init__(
+        self,
+        root,
+        args=None,
+        general_data_transform=None,
+        general_target_transform=None,
+        train_data_transform=None,
+        train_target_transform=None,
+    ):
         super().__init__()
         if not isinstance(root, Path):
             root = Path(root)
@@ -397,12 +540,22 @@ class CINIC10(BaseDataset):
 
         self.data = torch.load(root / "data.pt")
         self.targets = torch.load(root / "targets.pt")
-        self.transform = transform
-        self.target_transform = target_transform
+        self.general_data_transform = general_data_transform
+        self.general_target_transform = general_target_transform
+        self.train_data_transform = train_data_transform
+        self.train_target_transform = train_target_transform
 
 
 class DomainNet(BaseDataset):
-    def __init__(self, root, args=None, transform=None, target_transform=None) -> None:
+    def __init__(
+        self,
+        root,
+        args=None,
+        general_data_transform=None,
+        general_target_transform=None,
+        train_data_transform=None,
+        train_target_transform=None,
+    ) -> None:
         super().__init__()
         if not isinstance(root, Path):
             root = Path(root)
@@ -435,17 +588,22 @@ class DomainNet(BaseDataset):
                 transforms.ToTensor(),
             ]
         )
-        self.transform = transform
-
-        self.target_transform = target_transform
+        self.general_data_transform = general_data_transform
+        self.general_target_transform = general_target_transform
+        self.train_data_transform = train_data_transform
+        self.train_target_transform = train_target_transform
 
     def __getitem__(self, index):
         data = self.pre_transform(Image.open(self.filename_list[index]).convert("RGB"))
         targets = self.targets[index]
-        if self.transform:
-            data = self.transform(data)
-        if self.target_transform:
-            targets = self.target_transform(targets)
+        if self.general_data_transform is not None:
+            data = self.general_data_transform(data)
+        if self.general_target_transform is not None:
+            targets = self.general_target_transform(targets)
+        if self.enable_transform and self.train_data_transform is not None:
+            data = self.train_data_transform(data)
+        if self.enable_transform and self.train_target_transform is not None:
+            targets = self.train_target_transform(targets)
         return data, targets
 
 

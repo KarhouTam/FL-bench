@@ -7,7 +7,7 @@ from pathlib import Path
 
 import torch
 from torch.utils.data import DataLoader, Subset
-from torchvision.transforms import Compose, Normalize
+from torchvision import transforms
 
 PROJECT_DIR = Path(__file__).parent.parent.parent.absolute()
 
@@ -33,17 +33,22 @@ class FedAvgClient:
 
         self.data_indices: List[List[int]] = partition["data_indices"]
 
-        # you can add more data transformation operations there manually
-        transform = Compose(
-            [Normalize(MEAN[self.args.dataset], STD[self.args.dataset])]
+        # --------- you can define your own data transformation strategy here ------------
+        general_data_transform = transforms.Compose(
+            [transforms.Normalize(MEAN[self.args.dataset], STD[self.args.dataset])]
         )
-        target_transform = None
+        general_target_transform = transforms.Compose([])
+        train_data_transform = transforms.Compose([])
+        train_target_transform = transforms.Compose([])
+        # ------------------------------------------------------------------------------
 
         self.dataset = DATASETS[self.args.dataset](
             root=PROJECT_DIR / "data" / args.dataset,
             args=args.dataset_args,
-            transform=transform,
-            target_transform=target_transform,
+            general_data_transform=general_data_transform,
+            general_target_transform=general_target_transform,
+            train_data_transform=train_data_transform,
+            train_target_transform=train_target_transform,
         )
 
         self.trainloader: DataLoader = None
@@ -241,6 +246,9 @@ class FedAvgClient:
         Returns:
             Dict[str, float]: The evaluation metric stats.
         """
+        # disable train data transform while evaluating
+        self.dataset.enable_transform = False
+
         eval_model = self.model if model is None else model
         eval_model.eval()
         train_loss, test_loss = 0, 0
@@ -263,6 +271,8 @@ class FedAvgClient:
                 criterion=criterion,
                 device=self.device,
             )
+
+        self.dataset.enable_transform = True
 
         return {
             "train_loss": train_loss,
