@@ -3,7 +3,7 @@ import os
 import pickle
 from argparse import Namespace
 from pathlib import Path
-from typing import List, Type, Dict, Callable, Optional
+from typing import List, Type, Dict
 
 import torch
 import numpy as np
@@ -28,14 +28,14 @@ class BaseDataset(Dataset):
 
     def __getitem__(self, index):
         data, targets = self.data[index], self.targets[index]
-        if self.general_data_transform is not None:
-            data = self.general_data_transform(data)
-        if self.general_target_transform is not None:
-            targets = self.general_target_transform(targets)
         if self.enable_transform and self.train_data_transform is not None:
             data = self.train_data_transform(data)
         if self.enable_transform and self.train_target_transform is not None:
             targets = self.train_target_transform(targets)
+        if self.general_data_transform is not None:
+            data = self.general_data_transform(data)
+        if self.general_target_transform is not None:
+            targets = self.general_target_transform(targets)
         return data, targets
 
     def __len__(self):
@@ -596,14 +596,14 @@ class DomainNet(BaseDataset):
     def __getitem__(self, index):
         data = self.pre_transform(Image.open(self.filename_list[index]).convert("RGB"))
         targets = self.targets[index]
-        if self.general_data_transform is not None:
-            data = self.general_data_transform(data)
-        if self.general_target_transform is not None:
-            targets = self.general_target_transform(targets)
         if self.enable_transform and self.train_data_transform is not None:
             data = self.train_data_transform(data)
         if self.enable_transform and self.train_target_transform is not None:
             targets = self.train_target_transform(targets)
+        if self.general_data_transform is not None:
+            data = self.general_data_transform(data)
+        if self.general_target_transform is not None:
+            targets = self.general_target_transform(targets)
         return data, targets
 
 
