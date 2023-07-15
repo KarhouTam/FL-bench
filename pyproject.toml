@@ -23,13 +23,10 @@ scikit-learn = "1.2.2"
 faiss-cpu = "1.7.4"
 pynvml = "11.5.0"
 
-
-#### comment these configs if you are not at China mainland ####
 [[tool.poetry.source]]
 name = "mirrors"
 url = "https://mirrors.sustech.edu.cn/pypi/simple"
 priority = "default"
-##################################################################
 
 [build-system]
 requires = ["poetry-core"]
