@@ -22,20 +22,37 @@
 
 ## Environment Preparation 🚀
 
-I offer three approaches to install all required packages.
+### Pypi 🐍
+```
+pip install -r requirements.txt
+```
+### Miniconda3 💻
+```
+conda env create -n fl-bench -f environment.yml
+```
+### Poetry 🧾
+```
+########## Not at China mainland ##########
+  
+sed -i "26,30d" pyproject.toml
+poetry lock --no-update
+  
+###########################################
 
-1. `pip install -r requirements.txt`
-2. `conda env create -f environment.yml`
-3. `poetry` (Recommended 👍. To keep all dependencies you install are identical to mine.)
+poetry install
+```
+### Docker 🐳
+```
+# At China mainland
+docker build -t fl-bench .
 
-   - If you are new to `poetry` 👀:
-     1. `pip install poetry`
-     2. `cd` to the root directory of FL-bench and run `poetry install`
-     3. Run `poetry shell` to enter the virtual environement or `poetry run ${your_command}`.
-     4. Have fun. 🤗
-   - If you are not at **China mainland**:
-     1. Comment mirror related configs in [`pyproject.toml`](https://github.com/KarhouTam/FL-bench/blob/master/pyproject.toml).
-     2. Run `poetry lock --no-update` to update the `poetry.lock`. 
+# Not at China mainland
+docker build \
+-t fl-bench \
+--build-arg IMAGE_SOURCE=karhou/ubuntu:basic \
+--build-arg CHINA_MAINLAND=false \
+.
+```
 
 ## Method 🧬
 
