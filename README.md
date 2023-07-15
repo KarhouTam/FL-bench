@@ -26,7 +26,7 @@
 ```
 pip install -r requirements.txt
 ```
-### Miniconda3 💻
+### Conda 💻
 ```
 conda env create -n fl-bench -f environment.yml
 ```
@@ -136,7 +136,7 @@ python fedavg.py
 About methods of generating federated dastaset, go check [`data/README.md`](https://github.com/KarhouTam/FL-bench/tree/master/data/#readme) for full details.
 
 
-### Monitor 📈 (optional and recommended 👍)
+### Monitor 📈 (recommended 👍)
 1. Run `python -m visdom.server` on terminal.
 2. Run `src/server/${algo}.py --visible 1`
 3. Go check `localhost:8097` on your browser.
