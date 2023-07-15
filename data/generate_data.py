@@ -193,7 +193,7 @@ if __name__ == "__main__":
     )
 
     # For semantic partition only
-    parser.add_argument("--semantic", type=int, default=0)
+    parser.add_argument("-sm", "--semantic", type=int, default=0)
     parser.add_argument("--efficient_net_type", type=int, default=0)
     parser.add_argument("--gmm_max_iter", type=int, default=100)
     parser.add_argument(
