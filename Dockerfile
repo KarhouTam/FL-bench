@@ -8,7 +8,7 @@ ARG FL_BENCH_ROOT=../
 WORKDIR /etc/apt
 
 RUN if [ "${CHINA_MAINLAND}" = "false" ]; then \
-    rm sources.list ; \
+    rm sources.list && \
     mv sources.list.bak sources.list ; \
     fi
 
@@ -18,10 +18,9 @@ RUN apt update && \
     python3-pip
 
 RUN if [ "${CHINA_MAINLAND}" = "true" ]; then \
-    pip config set global.index-url https://mirrors.sustech.edu.cn/pypi/simple ; \
+    pip config set global.index-url https://mirrors.sustech.edu.cn/pypi/simple && \
     pip install --upgrade pip ; \
     fi 
-
 
 RUN pip install poetry
 
