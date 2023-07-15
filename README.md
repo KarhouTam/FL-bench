@@ -23,6 +23,7 @@
 ## Environment Preparation 🚀
 
 ### Pypi 🐍
+📢 Note that FL-bench needs `3.10 <= python < 3.12`. I suggest you to checkout your python version before installing packages by using pip.
 ```
 pip install -r requirements.txt
 ```
