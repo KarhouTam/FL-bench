@@ -18,11 +18,11 @@ RUN apt update && \
     python3-pip
 
 RUN if [ "${CHINA_MAINLAND}" = "true" ]; then \
-    pip config set global.index-url https://mirrors.sustech.edu.cn/pypi/simple && \
-    pip install --upgrade pip ; \
+    pip config set global.index-url https://mirrors.sustech.edu.cn/pypi/simple ; \
     fi 
 
-RUN pip install poetry
+RUN pip install --upgrade pip && \
+    pip install poetry
 
 COPY ${FL_BENCH_ROOT} /root/FL-bench
 
