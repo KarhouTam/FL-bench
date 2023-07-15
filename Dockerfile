@@ -1,16 +1,14 @@
 ARG IMAGE_SOURCE=registry.cn-hangzhou.aliyuncs.com/karhou/linux:ubuntu-basic
-ARG CHINA_MAINLAND=true
-ARG FL_BENCH_ROOT=../../
 
 FROM ${IMAGE_SOURCE}
 
-ENV MINICONDA_ROOT=/opt/miniconda3
-ENV PATH=${MINICONDA_ROOT}/bin:$PATH
+ARG CHINA_MAINLAND=true
+ARG FL_BENCH_ROOT=../
 
 WORKDIR /etc/apt
 
-RUN if [ ${CHINA_MAINLAND} = false ]; then \
-    rm sources.list && \
+RUN if [ "${CHINA_MAINLAND}" = "false" ]; then \
+    rm sources.list ; \
     mv sources.list.bak sources.list ; \
     fi
 
@@ -19,18 +17,19 @@ RUN apt update && \
     python3.10 \
     python3-pip
 
-RUN if [ ${CHINA_MAINLAND} = true ]; then \
-    pip install --upgrade pip --index-url https://mirrors.sustech.edu.cn/pypi/simple && \
+RUN if [ "${CHINA_MAINLAND}" = "true" ]; then \
     pip config set global.index-url https://mirrors.sustech.edu.cn/pypi/simple ; \
+    pip install --upgrade pip ; \
     fi 
+
 
 RUN pip install poetry
 
-COPY ${FL_BENCH_ROOT} /root/
+COPY ${FL_BENCH_ROOT} /root/FL-bench
 
 WORKDIR /root/FL-bench
 
-RUN if [ $CHINA_MAINLAND = false ]; then \
+RUN if [ ${CHINA_MAINLAND} = "false" ]; then \
     sed -i "26,30d" pyproject.toml && \
     poetry lock --no-update ; \
     fi
