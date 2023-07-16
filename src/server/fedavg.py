@@ -136,7 +136,10 @@ class FedAvgServer:
 
         # system heterogeneity (straggler) setting
         self.clients_local_epoch: List[int] = [self.args.local_epoch] * self.client_num
-        if self.args.straggler_ratio > 0:
+        if (
+            self.args.straggler_ratio > 0
+            and self.args.local_epoch > self.args.straggler_min_local_epoch
+        ):
             straggler_num = int(self.client_num * self.args.straggler_ratio)
             normal_num = self.client_num - straggler_num
             self.clients_local_epoch = [self.args.local_epoch] * (
