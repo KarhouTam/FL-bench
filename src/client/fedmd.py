@@ -15,17 +15,22 @@ class FedMDClient(FedAvgClient):
     def __init__(self, model, args, logger):
         super(FedMDClient, self).__init__(model, args, logger)
 
-        transform = Compose(
+        # --------- you can define your own data transformation strategy here ------------
+        general_data_transform = Compose(
             [Normalize(MEAN[self.args.public_dataset], STD[self.args.public_dataset])]
         )
-        # transform = None
-        target_transform = None
+        general_target_transform = None
+        train_data_transform = None
+        train_target_transform = None
+        # --------------------------------------------------------------------------------
 
         self.public_dataset = DATASETS[self.args.public_dataset](
             root=PROJECT_DIR / "data" / args.public_dataset,
             args=None,
-            transform=transform,
-            target_transform=target_transform,
+            train_data_transform=train_data_transform,
+            train_target_transform=train_target_transform,
+            general_data_transform=general_data_transform,
+            general_target_transform=general_target_transform,
         )
         self.public_dataset_loader = DataLoader(
             self.public_dataset, self.args.public_batch_size, shuffle=True
