@@ -40,7 +40,7 @@ class FedAvgClient:
         general_target_transform = transforms.Compose([])
         train_data_transform = transforms.Compose([])
         train_target_transform = transforms.Compose([])
-        # ------------------------------------------------------------------------------
+        # --------------------------------------------------------------------------------
 
         self.dataset = DATASETS[self.args.dataset](
             root=PROJECT_DIR / "data" / args.dataset,
@@ -76,10 +76,10 @@ class FedAvgClient:
         self.opt_state_dict = {}
 
         self.optimizer = torch.optim.SGD(
-            trainable_params(self.model),
-            self.args.local_lr,
-            self.args.momentum,
-            self.args.weight_decay,
+            params=trainable_params(self.model),
+            lr=self.args.local_lr,
+            momentum=self.args.momentum,
+            weight_decay=self.args.weight_decay,
         )
         self.init_opt_state_dict = deepcopy(self.optimizer.state_dict())
 
