@@ -20,7 +20,7 @@ class pFedSimServer(FedAvgServer):
         self,
         algo: str = "pFedSim",
         args: Namespace = None,
-        unique_model=True,
+        unique_model=False,
         default_trainer=True,
     ):
         if args is None:

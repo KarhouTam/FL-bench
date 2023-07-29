@@ -80,6 +80,7 @@ def get_fedavg_argparser() -> ArgumentParser:
     parser.add_argument("--global_testset", type=int, default=0)
     parser.add_argument("--straggler_ratio", type=float, default=0)
     parser.add_argument("--straggler_min_local_epoch", type=int, default=1)
+    parser.add_argument("--external_model_params_file", type=str, default="")
     parser.add_argument("--use_cuda", type=int, default=1)
     parser.add_argument("--save_log", type=int, default=1)
     parser.add_argument("--save_model", type=int, default=0)
@@ -104,35 +105,45 @@ class FedAvgServer:
             self.args.dataset_args = json.load(f)
 
         # get client party info
-        self.train_clients: List[int] = None
-        self.test_clients: List[int] = None
-        self.client_num: int = None
         try:
             partition_path = PROJECT_DIR / "data" / self.args.dataset / "partition.pkl"
             with open(partition_path, "rb") as f:
                 partition = pickle.load(f)
         except:
             raise FileNotFoundError(f"Please partition {args.dataset} first.")
-        self.train_clients = partition["separation"]["train"]
-        self.test_clients = partition["separation"]["test"]
-        self.client_num = partition["separation"]["total"]
+        self.train_clients: List[int] = partition["separation"]["train"]
+        self.test_clients: List[int] = partition["separation"]["test"]
+        self.client_num: int = partition["separation"]["total"]
 
         # init model(s) parameters
         self.device = get_best_device(self.args.use_cuda)
         self.model = MODEL_DICT[self.args.model](self.args.dataset).to(self.device)
         self.model.check_avaliability()
-        init_trainable_params, self.trainable_params_name = trainable_params(
+
+        # client_trainable_params is for pFL, which outputs exclusive model per client
+        # global_params_dict is for traditional FL, which outputs a single global model
+        self.client_trainable_params: List[List[torch.Tensor]] = None
+        self.global_params_dict: OrderedDict[str, torch.Tensor] = None
+
+        random_init_params, self.trainable_params_name = trainable_params(
             self.model, detach=True, requires_name=True
         )
-        # client_trainable_params is for pFL, which outputs exclusive model per client
-        # global_params_dict is for regular FL, which outputs a single global model
-        if self.unique_model:
-            self.client_trainable_params: List[List[torch.Tensor]] = [
-                deepcopy(init_trainable_params) for _ in self.train_clients
-            ]
-        self.global_params_dict: OrderedDict[str, torch.Tensor] = OrderedDict(
-            zip(self.trainable_params_name, init_trainable_params)
+        self.global_params_dict = OrderedDict(
+            zip(self.trainable_params_name, random_init_params)
         )
+        if (
+            not self.unique_model
+            and self.args.external_model_params_file
+            and os.path.isfile(self.args.external_model_params_file)
+        ):
+            # load pretrained params
+            self.global_params_dict = torch.load(
+                self.args.external_model_params_file, map_location=self.device
+            )
+        else:
+            self.client_trainable_params = [
+                trainable_params(self.model, detach=True) for _ in self.train_clients
+            ]
 
         # system heterogeneity (straggler) setting
         self.clients_local_epoch: List[int] = [self.args.local_epoch] * self.client_num
@@ -505,7 +516,7 @@ class FedAvgServer:
                     self.client_trainable_params, OUT_DIR / self.algo / model_name
                 )
             else:
-                torch.save(self.model.state_dict(), OUT_DIR / self.algo / model_name)
+                torch.save(self.global_params_dict, OUT_DIR / self.algo / model_name)
 
 
 if __name__ == "__main__":
