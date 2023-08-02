@@ -49,6 +49,7 @@ class pFedSimServer(FedAvgServer):
         super().train()
 
         # Personalization Phase
+        self.unique_model = True
         pfedsim_progress_bar = track(
             range(self.warmup_round, self.args.global_epoch),
             "[bold green]Personalizing...",
