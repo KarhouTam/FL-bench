@@ -247,7 +247,7 @@ class FedAvgClient:
             Dict[str, float]: The evaluation metric stats.
         """
         # disable train data transform while evaluating
-        self.dataset.enable_transform = False
+        self.dataset.enable_train_transform = False
 
         eval_model = self.model if model is None else model
         eval_model.eval()
@@ -272,7 +272,7 @@ class FedAvgClient:
                 device=self.device,
             )
 
-        self.dataset.enable_transform = True
+        self.dataset.enable_train_transform = True
 
         return {
             "train_loss": train_loss,

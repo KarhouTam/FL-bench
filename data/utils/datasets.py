@@ -24,13 +24,13 @@ class BaseDataset(Dataset):
         self.train_target_transform = None
         self.general_data_transform = None
         self.general_target_transform = None
-        self.enable_transform = True
+        self.enable_train_transform = True
 
     def __getitem__(self, index):
         data, targets = self.data[index], self.targets[index]
-        if self.enable_transform and self.train_data_transform is not None:
+        if self.enable_train_transform and self.train_data_transform is not None:
             data = self.train_data_transform(data)
-        if self.enable_transform and self.train_target_transform is not None:
+        if self.enable_train_transform and self.train_target_transform is not None:
             targets = self.train_target_transform(targets)
         if self.general_data_transform is not None:
             data = self.general_data_transform(data)
@@ -596,9 +596,9 @@ class DomainNet(BaseDataset):
     def __getitem__(self, index):
         data = self.pre_transform(Image.open(self.filename_list[index]).convert("RGB"))
         targets = self.targets[index]
-        if self.enable_transform and self.train_data_transform is not None:
+        if self.enable_train_transform and self.train_data_transform is not None:
             data = self.train_data_transform(data)
-        if self.enable_transform and self.train_target_transform is not None:
+        if self.enable_train_transform and self.train_target_transform is not None:
             targets = self.train_target_transform(targets)
         if self.general_data_transform is not None:
             data = self.general_data_transform(data)

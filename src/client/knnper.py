@@ -23,7 +23,7 @@ class kNNPerClient(FedAvgClient):
     @torch.no_grad()
     def evaluate(self) -> Dict[str, float]:
         if self.test_flag:
-            self.dataset.enable_transform = False
+            self.dataset.enable_train_transform = False
             self.model.eval()
             criterion = torch.nn.CrossEntropyLoss(reduction="sum")
             model_logits = []
@@ -62,7 +62,7 @@ class kNNPerClient(FedAvgClient):
             loss = criterion(logits, test_targets).item()
             correct = (pred == test_targets).sum().item()
 
-            self.dataset.enable_transform = True
+            self.dataset.enable_train_transform = True
             # kNN-Per only do kNN trick in the test phase. So stats about evaluation on train data are not offered.
             return {
                 "train_loss": 0,
