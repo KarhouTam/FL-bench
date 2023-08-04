@@ -23,7 +23,7 @@
 ## Environment Preparation 🚀
 
 ### Pypi 🐍
-📢 Note that FL-bench needs `3.10 <= python < 3.12`. I suggest you to checkout your python version before installing packages by using pip.
+📢 Note that FL-bench needs `3.10 <= python < 3.12`. I suggest you to checkout your python version before installing packages by pip.
 ```
 pip install -r requirements.txt
 ```
@@ -143,7 +143,7 @@ About methods of generating federated dastaset, go check [`data/README.md`](http
 3. Go check `localhost:8097` on your browser.
 ## Generic Arguments 🔧
 
-📢 All generic arguments have their default value. Go check `get_fedavg_argparser()` in [`FL-bench/src/server/fedavg.py`](https://github.com/KarhouTam/FL-bench/tree/master/src/server/fedavg.py) for full details about generic arguments. 
+📢 All generic arguments have their default value. Go check `get_fedavg_argparser()` in [`FL-bench/src/server/fedavg.py`](https://github.com/KarhouTam/FL-bench/tree/master/src/server/fedavg.py) for full details of generic arguments. 
 
 About the default values and hyperparameters of advanced FL methods, go check corresponding `FL-bench/src/server/${algo}.py` for full details.
 | Argument                       | Description                                                                                                                                                                                                                                                                                                                               |
@@ -213,13 +213,10 @@ Medical Image Datasets
 - [*Organ-S/A/CMNIST*](https://medmnist.com/) (1 x 28 x 28, 11 classes)
 
 
-## Acknowledgement 🤗
+## Sponsor ❤
 
-This benchmark does not contain the feature/method you interested? Describe them in [here](https://github.com/KarhouTam/FL-bench/discussions/11). I can't guarantee your request will be accomplised in time or even considered. So feel free to do it! 💡
+If you think this project is helpful and willing to buy me a coffee ☕, that would be AWESOME 🥳!
 
-Some reproductions in this benchmark are referred to <https://github.com/TsingZ0/PFL-Non-IID>, which is a great FL benchmark. 👍
+You can sponsor me by WeChat or PayPal.
 
-This benchmark is still young, which means I will update it frequently and unpredictably. Therefore, periodically fetching the latest code is recommended. 🤖
-
-If this benchmark is helpful to your research, it's my pleasure. 😏
-
+<img src=".github/wechat_payment_code.jpg" width="30%">
