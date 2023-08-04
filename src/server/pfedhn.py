@@ -40,7 +40,9 @@ class pFedHNServer(FedAvgServer):
         default_trainer = True if args.version == "pfedhn" else False
         super().__init__(algo, args, unique_model, default_trainer)
         if args.version == "pfedhn_pc":
-            self.trainer = FedPerClient(deepcopy(self.model), self.args, self.logger)
+            self.trainer = FedPerClient(
+                deepcopy(self.model), self.args, self.logger, self.device
+            )
 
         self.hn = HyperNetwork(self.model, self.args, self.client_num).to(self.device)
         embed_lr = (

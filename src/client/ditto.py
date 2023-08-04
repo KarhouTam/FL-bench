@@ -8,8 +8,8 @@ from src.config.utils import trainable_params
 
 
 class DittoClient(FedAvgClient):
-    def __init__(self, model, args, logger, client_num):
-        super().__init__(model, args, logger)
+    def __init__(self, model, args, logger, device, client_num):
+        super().__init__(model, args, logger, device)
         self.pers_model = deepcopy(model)
         self.pers_model_params_dict = {
             cid: deepcopy(self.pers_model.state_dict()) for cid in range(client_num)

@@ -39,7 +39,9 @@ class FedAPServer(FedAvgServer):
         algo = algo_name[args.version]
         super().__init__(algo, args, unique_model, default_trainer)
 
-        self.trainer = FedAPClient(deepcopy(self.model), self.args, self.logger)
+        self.trainer = FedAPClient(
+            deepcopy(self.model), self.args, self.logger, self.device
+        )
         self.weight_matrix = torch.eye(self.client_num, device=self.device)
         self.warmup_round = 0
         if 0 < self.args.warmup_round < 1:

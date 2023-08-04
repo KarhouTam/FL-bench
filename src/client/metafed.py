@@ -10,8 +10,8 @@ from src.config.utils import trainable_params, evaluate
 
 
 class MetaFedClient(FedAvgClient):
-    def __init__(self, model, args, logger, client_num):
-        super().__init__(model, args, logger)
+    def __init__(self, model, args, logger, device, client_num):
+        super().__init__(model, args, logger, device)
         self.client_flags = [False for _ in range(client_num)]
         self.valset = Subset(self.dataset, indices=[])
         self.valloader: DataLoader = None

@@ -26,7 +26,9 @@ class PerFedAvgServer(FedAvgServer):
         algo = "Per-FedAvg(FO)" if args.version == "fo" else "Per-FedAvg(HF)"
         args.finetune_epoch = max(1, args.finetune_epoch)
         super().__init__(algo, args, unique_model, default_trainer)
-        self.trainer = PerFedAvgClient(deepcopy(self.model), self.args, self.logger)
+        self.trainer = PerFedAvgClient(
+            deepcopy(self.model), self.args, self.logger, self.device
+        )
 
 
 if __name__ == "__main__":

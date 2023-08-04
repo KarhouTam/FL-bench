@@ -9,8 +9,8 @@ from src.config.utils import trainable_params
 
 
 class SCAFFOLDClient(FedAvgClient):
-    def __init__(self, model, args, logger):
-        super().__init__(model, args, logger)
+    def __init__(self, model, args, logger, device):
+        super().__init__(model, args, logger, device)
         self.c_local: Dict[List[torch.Tensor]] = {}
         self.c_global: List[torch.Tensor] = []
         self.iter_trainloader: Iterator[DataLoader] = None

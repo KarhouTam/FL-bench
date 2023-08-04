@@ -22,7 +22,9 @@ class FedRepServer(FedAvgServer):
         if args is None:
             args = get_fedrep_argparser().parse_args()
         super().__init__(algo, args, unique_model, default_trainer)
-        self.trainer = FedRepClient(deepcopy(self.model), self.args, self.logger)
+        self.trainer = FedRepClient(
+            deepcopy(self.model), self.args, self.logger, self.device
+        )
 
 
 if __name__ == "__main__":

@@ -12,8 +12,8 @@ from src.config.utils import trainable_params
 
 
 class FedMDClient(FedAvgClient):
-    def __init__(self, model, args, logger):
-        super(FedMDClient, self).__init__(model, args, logger)
+    def __init__(self, model, args, logger, device):
+        super(FedMDClient, self).__init__(model, args, logger, device)
 
         # --------- you can define your own data transformation strategy here ------------
         general_data_transform = Compose(

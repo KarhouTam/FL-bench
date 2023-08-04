@@ -2,8 +2,8 @@ from fedavg import FedAvgClient
 
 
 class FedBabuClient(FedAvgClient):
-    def __init__(self, model, args, logger):
-        super().__init__(model, args, logger)
+    def __init__(self, model, args, logger, device):
+        super().__init__(model, args, logger, device)
 
     def fit(self):
         self.model.train()

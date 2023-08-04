@@ -6,8 +6,8 @@ from fedbn import FedBNClient
 
 
 class FedAPClient(FedBNClient):
-    def __init__(self, model, args, logger):
-        super(FedAPClient, self).__init__(model, args, logger)
+    def __init__(self, model, args, logger, device):
+        super(FedAPClient, self).__init__(model, args, logger, device)
         self.model.need_all_features()
         self.pretrain = False
 
@@ -30,7 +30,6 @@ class FedAPClient(FedBNClient):
         features_list = []
         batch_size_list = []
         for x, _ in self.trainloader:
-
             features_list.append(
                 [
                     feature.cpu()

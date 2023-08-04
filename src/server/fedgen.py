@@ -44,7 +44,7 @@ class FedGenServer(FedAvgServer):
         if args is None:
             args = get_fedgen_argparser().parse_args()
         super().__init__(algo, args, unique_model, default_trainer)
-        self.trainer = FedGenClient(deepcopy(self.model), self.args, self.logger)
+        self.trainer = FedGenClient(deepcopy(self.model), self.args, self.logger, self.device)
         self.generator = Generator(args, self).to(self.device)
         self.generator_optimizer = torch.optim.Adam(
             trainable_params(self.generator), args.ensemble_lr

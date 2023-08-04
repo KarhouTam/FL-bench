@@ -2,8 +2,8 @@ from fedavg import FedAvgClient
 
 
 class FedPerClient(FedAvgClient):
-    def __init__(self, model, args, logger):
-        super().__init__(model, args, logger)
+    def __init__(self, model, args, logger, device):
+        super().__init__(model, args, logger, device)
         self.personal_params_name = [
             name for name in self.model.state_dict().keys() if "classifier" in name
         ]

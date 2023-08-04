@@ -10,8 +10,8 @@ from src.config.utils import trainable_params
 
 
 class PerFedAvgClient(FedAvgClient):
-    def __init__(self, model, args, logger):
-        super(PerFedAvgClient, self).__init__(model, args, logger)
+    def __init__(self, model, args, logger, device):
+        super(PerFedAvgClient, self).__init__(model, args, logger, device)
         self.iter_trainloader: Iterator[DataLoader] = None
         self.meta_optimizer = torch.optim.SGD(
             trainable_params(self.model), lr=self.args.beta

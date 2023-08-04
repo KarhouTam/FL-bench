@@ -16,7 +16,7 @@ class FedBabuServer(FedAvgServer):
         super().__init__(algo, args, unique_model, default_trainer)
         # Fine-tuning is indispensable to FedBabu.
         self.args.finetune_epoch = max(1, self.args.finetune_epoch)
-        self.trainer = FedBabuClient(deepcopy(self.model), self.args, self.logger)
+        self.trainer = FedBabuClient(deepcopy(self.model), self.args, self.logger, self.device)
 
 
 if __name__ == "__main__":

@@ -6,8 +6,8 @@ from fedavg import FedAvgClient
 
 
 class FedLCClient(FedAvgClient):
-    def __init__(self, model, args, logger):
-        super().__init__(model, args, logger)
+    def __init__(self, model, args, logger, device):
+        super().__init__(model, args, logger, device)
         self.label_distrib = torch.zeros(len(self.dataset.classes), device=self.device)
 
         def logit_calibrated_loss(logit, y):

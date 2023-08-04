@@ -24,7 +24,7 @@ class APFLServer(FedAvgServer):
             args = get_apfl_argparser().parse_args()
         super().__init__(algo, args, unique_model, default_trainer)
         self.trainer = APFLClient(
-            deepcopy(self.model), self.args, self.logger, self.client_num
+            deepcopy(self.model), self.args, self.logger, self.device, self.client_num
         )
 
 

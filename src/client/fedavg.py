@@ -18,9 +18,15 @@ from data.utils.datasets import DATASETS
 
 
 class FedAvgClient:
-    def __init__(self, model: DecoupledModel, args: Namespace, logger: Logger):
+    def __init__(
+        self,
+        model: DecoupledModel,
+        args: Namespace,
+        logger: Logger,
+        device: torch.device,
+    ):
         self.args = args
-        self.device = get_best_device(self.args.use_cuda)
+        self.device = device
         self.client_id: int = None
 
         # load dataset and clients' data indices

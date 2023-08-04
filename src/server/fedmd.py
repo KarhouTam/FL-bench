@@ -51,7 +51,10 @@ class FedMDServer(FedAvgServer):
 
         super().__init__(algo, args, unique_model, default_trainer)
         self.trainer = FedMDClient(
-            model=deepcopy(self.model), args=self.args, logger=self.logger
+            model=deepcopy(self.model),
+            args=self.args,
+            logger=self.logger,
+            device=self.device,
         )
 
     def train_one_round(self):

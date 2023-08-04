@@ -9,8 +9,8 @@ from fedavg import FedAvgClient
 
 
 class MOONClient(FedAvgClient):
-    def __init__(self, model, args, logger):
-        super().__init__(model, args, logger)
+    def __init__(self, model, args, logger, device):
+        super().__init__(model, args, logger, device)
         self.prev_params_dict: Dict[int, OrderedDict[str, torch.Tensor]] = {}
         self.prev_model = deepcopy(self.model)
         self.global_model = deepcopy(self.model)

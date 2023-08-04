@@ -7,8 +7,8 @@ from src.config.utils import trainable_params, vectorize
 
 
 class FedDynClient(FedAvgClient):
-    def __init__(self, model, args, logger):
-        super().__init__(model, args, logger)
+    def __init__(self, model, args, logger, device):
+        super().__init__(model, args, logger, device)
 
         self.nabla: torch.Tensor = None
         self.vectorized_global_params: torch.Tensor = None

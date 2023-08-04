@@ -22,7 +22,9 @@ class LGFedAvgServer(FedAvgServer):
         if args is None:
             args = get_lgfedavg_argparser().parse_args()
         super().__init__(algo, args, unique_model, default_trainer)
-        self.trainer = LGFedAvgClient(deepcopy(self.model), self.args, self.logger)
+        self.trainer = LGFedAvgClient(
+            deepcopy(self.model), self.args, self.logger, self.device
+        )
 
 
 if __name__ == "__main__":

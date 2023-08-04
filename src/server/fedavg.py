@@ -214,7 +214,9 @@ class FedAvgServer:
         # init trainer
         self.trainer = None
         if default_trainer:
-            self.trainer = FedAvgClient(deepcopy(self.model), self.args, self.logger)
+            self.trainer = FedAvgClient(
+                deepcopy(self.model), self.args, self.logger, self.device
+            )
 
     def train(self):
         """The Generic FL training process"""

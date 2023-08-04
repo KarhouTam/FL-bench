@@ -10,8 +10,8 @@ from src.config.utils import trainable_params, evaluate, vectorize
 
 
 class FedFomoClient(FedAvgClient):
-    def __init__(self, model, args, logger, client_num):
-        super().__init__(model, args, logger)
+    def __init__(self, model, args, logger, device, client_num):
+        super().__init__(model, args, logger, device)
         self.received_params = {}
         self.eval_model = deepcopy(self.model)
         self.weight_vector = torch.zeros(client_num, device=self.device)

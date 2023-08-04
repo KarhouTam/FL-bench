@@ -9,8 +9,8 @@ from fedavg import FedAvgClient
 
 
 class kNNPerClient(FedAvgClient):
-    def __init__(self, model, args, logger):
-        super().__init__(model, args, logger)
+    def __init__(self, model, args, logger, device):
+        super().__init__(model, args, logger, device)
         self.datastore = DataStore(args, self.model.classifier.in_features)
         self.test_flag = False
 

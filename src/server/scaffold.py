@@ -26,7 +26,9 @@ class SCAFFOLDServer(FedAvgServer):
         if args is None:
             args = get_scaffold_argparser().parse_args()
         super().__init__(algo, args, unique_model, default_trainer)
-        self.trainer = SCAFFOLDClient(deepcopy(self.model), self.args, self.logger)
+        self.trainer = SCAFFOLDClient(
+            deepcopy(self.model), self.args, self.logger, self.device
+        )
         self.c_global = [
             torch.zeros_like(param) for param in trainable_params(self.model)
         ]

@@ -14,7 +14,7 @@ class FedBNServer(FedAvgServer):
         default_trainer=False,
     ):
         super().__init__(algo, args, unique_model, default_trainer)
-        self.trainer = FedBNClient(deepcopy(self.model), self.args, self.logger)
+        self.trainer = FedBNClient(deepcopy(self.model), self.args, self.logger, self.device)
 
 
 if __name__ == "__main__":

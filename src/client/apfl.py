@@ -8,8 +8,8 @@ from src.config.utils import trainable_params
 
 
 class APFLClient(FedAvgClient):
-    def __init__(self, model, args, logger, client_num):
-        super().__init__(model, args, logger)
+    def __init__(self, model, args, logger, device, client_num):
+        super().__init__(model, args, logger, device)
 
         self.alpha_list = [
             torch.tensor(self.args.alpha, device=self.device) for _ in range(client_num)

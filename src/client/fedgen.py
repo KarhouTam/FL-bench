@@ -11,8 +11,8 @@ from fedavg import FedAvgClient
 
 
 class FedGenClient(FedAvgClient):
-    def __init__(self, model, args, logger):
-        super().__init__(model, args, logger)
+    def __init__(self, model, args, logger, device):
+        super().__init__(model, args, logger, device)
         self.label_counts: List[List[int]] = [
             count_labels(self.dataset, indices["train"], min_value=1)
             for indices in self.data_indices

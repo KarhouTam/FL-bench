@@ -4,8 +4,8 @@ from fedavg import FedAvgClient
 
 
 class FedBNClient(FedAvgClient):
-    def __init__(self, model, args, logger):
-        super().__init__(model, args, logger)
+    def __init__(self, model, args, logger, device):
+        super().__init__(model, args, logger, device)
         self.personal_params_name = []
         for module_name, module in self.model.named_modules():
             if isinstance(module, BatchNorm2d):

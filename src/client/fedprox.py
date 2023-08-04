@@ -3,8 +3,8 @@ from src.config.utils import trainable_params
 
 
 class FedProxClient(FedAvgClient):
-    def __init__(self, model, args, logger):
-        super(FedProxClient, self).__init__(model, args, logger)
+    def __init__(self, model, args, logger, device):
+        super(FedProxClient, self).__init__(model, args, logger, device)
 
     def fit(self):
         self.model.train()

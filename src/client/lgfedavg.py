@@ -4,8 +4,8 @@ from fedavg import FedAvgClient
 
 
 class LGFedAvgClient(FedAvgClient):
-    def __init__(self, model, args, logger):
-        super().__init__(model, args, logger)
+    def __init__(self, model, args, logger, device):
+        super().__init__(model, args, logger, device)
         self.personal_params_name = []
         trainable_layers = [
             (name, module)

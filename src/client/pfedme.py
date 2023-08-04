@@ -10,8 +10,8 @@ from src.config.utils import trainable_params
 
 
 class pFedMeClient(FedAvgClient):
-    def __init__(self, model, args, logger):
-        super(pFedMeClient, self).__init__(model, args, logger)
+    def __init__(self, model, args, logger, device):
+        super(pFedMeClient, self).__init__(model, args, logger, device)
         self.local_parameters: List[torch.Tensor] = None
         self.personalized_params_dict: Dict[str, OrderedDict[str, torch.Tensor]] = {}
         self.optimzier = pFedMeOptimizer(
