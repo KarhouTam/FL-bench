@@ -31,7 +31,7 @@ class FedRepClient(FedPerClient):
 
     def finetune(self):
         self.model.train()
-        full_model = True
+        full_model = False
         if full_model:
             # fine-tune the full model
             for E in range(self.args.finetune_epoch):
