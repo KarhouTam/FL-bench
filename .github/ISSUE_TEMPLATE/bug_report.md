@@ -2,12 +2,12 @@
 name: Bug report
 about: Create a report to help us improve
 title: "[BUG]"
-labels: ''
+labels: bug
 assignees: ''
 
 ---
 
-👀 Please consider using English to report due to your question may also useful for others.
+<!-- 👀 Please consider using English to report because your question may also be useful to others. -->
 
 **Describe the bug**
 A clear and concise description of what the bug is.
