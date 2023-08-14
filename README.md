@@ -3,59 +3,21 @@
 </h1>
   <p align="center">
     <a href="https://github.com/KarhouTam/FL-bench/blob/master/LICENSE">
-      <img alt="GitHub License" src="https://img.shields.io/github/license/KarhouTam/FL-bench?style=for-the-badge&logo=github&color=002FA7"/>
+      <img alt="GitHub License" src="https://img.shields.io/github/license/KarhouTam/FL-bench?style=for-the-badge&logo=github&color=8386e0"/>
     </a>
     <a href="https://github.com/KarhouTam/FL-bench/issues?q=is%3Aissue+is%3Aclosed">
-      <img alt="GitHub closed issues" src="https://img.shields.io/github/issues-closed-raw/KarhouTam/FL-bench?style=for-the-badge&logo=github&color=002FA7">
-    </a>
-    <a href="https://github.com/KarhouTam/FL-bench/discussions?discussions_q=">
-      <img alt="GitHub Discussions" src="https://img.shields.io/github/discussions/KarhouTam/FL-bench?style=for-the-badge&logo=github&color=002FA7" />
+      <img alt="GitHub closed issues" src="https://img.shields.io/github/issues-closed-raw/KarhouTam/FL-bench?style=for-the-badge&logo=github&color=8386e0">
     </a>
     <a href="https://github.com/KarhouTam/FL-bench/stargazers">
-      <img alt="GitHub Repo stars" src="https://img.shields.io/github/stars/KarhouTam/FL-bench?style=for-the-badge&logo=github&color=002FA7">
+      <img alt="GitHub Repo stars" src="https://img.shields.io/github/stars/KarhouTam/FL-bench?style=for-the-badge&logo=github&color=8386e0">
     </a>
     <a href="https://github.com/KarhouTam/FL-bench/forks">
-      <img alt="GitHub Repo forks" src="https://img.shields.io/github/forks/KarhouTam/FL-bench?style=for-the-badge&logo=github&color=002FA7">
+      <img alt="GitHub Repo forks" src="https://img.shields.io/github/forks/KarhouTam/FL-bench?style=for-the-badge&logo=github&color=8386e0">
     </a>
   </p>
 <h4 align="center"><i>This is a benchmark for evaluating well-known federated learning (FL) and personalized federated learning (pFL) methods. This benchmark is not complicated and easy to extend.</i></h4>
 
-## Environment Preparation 🚀
-
-### Pypi 🐍
-📢 Note that FL-bench needs `3.10 <= python < 3.12`. I suggest you to checkout your python version before installing packages by pip.
-```
-pip install -r requirements.txt
-```
-### Conda 💻
-```
-conda env create -n fl-bench -f environment.yml
-```
-### Poetry 🧾
-```
-########## Not at China mainland ##########
-  
-sed -i "26,30d" pyproject.toml
-poetry lock --no-update
-  
-###########################################
-
-poetry install
-```
-### Docker 🐳
-```
-# At China mainland
-docker build -t fl-bench .
-
-# Not at China mainland
-docker build \
--t fl-bench \
---build-arg IMAGE_SOURCE=karhou/ubuntu:basic \
---build-arg CHINA_MAINLAND=false \
-.
-```
-
-## Method 🧬
+## Methods 🧬
 
 ### Traditional FL Methods
 
@@ -116,7 +78,48 @@ docker build \
 - ***MetaFed*** -- [MetaFed: Federated Learning among Federations with Cyclic Knowledge Distillation for Personalized Healthcare](http://arxiv.org/abs/2206.08516) (IJCAI'22)
 
 
-More reproductions/features would come soon or later (depends on my mood 🤣).
+## Environment Preparation 🚀
+
+### PyPI 🐍
+📢 Note that FL-bench needs `3.10 <= python < 3.12`. I suggest you to checkout your python version before installing packages by pip.
+```
+pip install -r requirements.txt
+```
+
+### Conda 💻
+```
+conda env create -n fl-bench -f environment.yml
+```
+
+### Poetry 🎶
+
+**At China mainland**
+```
+poetry install
+```
+
+**Not at China mainland**
+```
+sed -i "26,30d" pyproject.toml && poetry lock --no-update && poetry install
+```
+
+### Docker 🐳
+
+**At China mainland**
+```
+docker build -t fl-bench .
+```
+
+**Not at China mainland**
+```
+docker build \
+-t fl-bench \
+--build-arg IMAGE_SOURCE=karhou/ubuntu:basic \
+--build-arg CHINA_MAINLAND=false \
+.
+```
+
+
 
 ## Easy Run 🏃‍♂️
 
@@ -129,9 +132,9 @@ cd data
 python generate_data.py -d cifar10 -a 0.1 -cn 100
 cd ../
 
-# run FedAvg under default setting.
+# run FedAvg on CIFAR-10 with default settings.
 cd src/server
-python fedavg.py
+python fedavg.py -d cifar10
 ```
 
 About methods of generating federated dastaset, go check [`data/README.md`](https://github.com/KarhouTam/FL-bench/tree/master/data/#readme) for full details.
