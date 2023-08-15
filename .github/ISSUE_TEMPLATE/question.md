@@ -1,7 +1,7 @@
 ---
-name: Question
-about: Ask question (codes are work fine)
-title: "[Question]"
+name: Ask question
+about: Ask a question for further understanding
+title: ""
 labels: question
 assignees: ''
 
@@ -9,7 +9,7 @@ assignees: ''
 
 <!-- 👀 Please consider using English to report because your question may also be useful to others. -->
 
-<!-- ☝ Please make sure that your question is related to the repo. -->
+<!-- ☝ Please ensure that your question is about the repo. -->
 
 **Index**
 Which part of the code is confusing you?
