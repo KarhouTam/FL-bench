@@ -88,7 +88,7 @@ pip install -r requirements.txt
 
 ### Conda 💻
 ```
-conda env create -n fl-bench -f environment.yml
+conda env create -f environment.yml
 ```
 
 ### Poetry 🎶
