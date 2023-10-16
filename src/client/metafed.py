@@ -6,7 +6,7 @@ import torch.nn.functional as F
 
 from fedavg import FedAvgClient
 from torch.utils.data import Subset, DataLoader
-from src.config.utils import trainable_params, evaluate
+from src.config.utils import trainable_params, evalutate_model
 
 
 class MetaFedClient(FedAvgClient):
@@ -35,7 +35,7 @@ class MetaFedClient(FedAvgClient):
         return trainable_params(self.model, detach=True)
 
     def update_flag(self):
-        _, val_correct, val_sample_num = evaluate(
+        _, val_correct, val_sample_num = evalutate_model(
             self.model, self.valloader, device=self.device
         )
         val_acc = val_correct / val_sample_num
@@ -84,10 +84,10 @@ class MetaFedClient(FedAvgClient):
         self.load_dataset()
         self.teacher.load_state_dict(teacher_parameters, strict=False)
 
-        _, student_correct, val_sample_num = evaluate(
+        _, student_correct, val_sample_num = evalutate_model(
             self.model, self.valloader, device=self.device
         )
-        _, teacher_correct, _ = evaluate(
+        _, teacher_correct, _ = evalutate_model(
             self.teacher, self.valloader, device=self.device
         )
         teacher_acc = teacher_correct / val_sample_num

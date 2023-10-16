@@ -11,7 +11,7 @@ from torchvision import transforms
 
 PROJECT_DIR = Path(__file__).parent.parent.parent.absolute()
 
-from src.config.utils import trainable_params, get_best_device, evaluate, Logger
+from src.config.utils import trainable_params, evalutate_model, Logger
 from src.config.models import DecoupledModel
 from data.utils.constants import MEAN, STD
 from data.utils.datasets import DATASETS
@@ -263,7 +263,7 @@ class FedAvgClient:
         criterion = torch.nn.CrossEntropyLoss(reduction="sum")
 
         if len(self.testset) > 0 and self.args.eval_test:
-            test_loss, test_correct, test_sample_num = evaluate(
+            test_loss, test_correct, test_sample_num = evalutate_model(
                 model=eval_model,
                 dataloader=self.testloader,
                 criterion=criterion,
@@ -271,7 +271,7 @@ class FedAvgClient:
             )
 
         if len(self.trainset) > 0 and self.args.eval_train:
-            train_loss, train_correct, train_sample_num = evaluate(
+            train_loss, train_correct, train_sample_num = evalutate_model(
                 model=eval_model,
                 dataloader=self.trainloader,
                 criterion=criterion,

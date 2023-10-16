@@ -6,7 +6,7 @@ import torch
 from torch.utils.data import DataLoader, Subset
 
 from fedavg import FedAvgClient
-from src.config.utils import trainable_params, evaluate, vectorize
+from src.config.utils import trainable_params, evalutate_model, vectorize
 
 
 class FedFomoClient(FedAvgClient):
@@ -55,7 +55,7 @@ class FedFomoClient(FedAvgClient):
         )
         self.eval_model.load_state_dict(local_params_dict, strict=False)
         self.eval_model.load_state_dict(personal_params_dict, strict=False)
-        LOSS = evaluate(
+        LOSS = evalutate_model(
             model=self.eval_model,
             dataloader=self.valloader,
             criterion=self.criterion,
@@ -70,7 +70,7 @@ class FedFomoClient(FedAvgClient):
                 self.eval_model.load_state_dict(
                     OrderedDict(zip(self.trainable_params_name, params_i)), strict=False
                 )
-                loss = evaluate(
+                loss = evalutate_model(
                     model=self.eval_model,
                     dataloader=self.valloader,
                     criterion=self.criterion,
