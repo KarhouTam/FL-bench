@@ -7,7 +7,7 @@ from pathlib import Path
 from argparse import ArgumentParser, Namespace
 from collections import OrderedDict
 from copy import deepcopy
-from typing import Dict, List
+from typing import Dict, List, OrderedDict
 
 import torch
 from rich.console import Console
@@ -329,7 +329,7 @@ class FedAvgServer:
     @torch.no_grad()
     def aggregate(
         self,
-        delta_cache: List[List[torch.Tensor]],
+        delta_cache: List[OrderedDict[str, torch.Tensor]],
         weight_cache: List[int],
         return_diff=True,
     ):
