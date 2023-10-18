@@ -100,10 +100,6 @@ class Synthetic(BaseDataset):
         self.data = torch.from_numpy(data).float()
         self.targets = torch.from_numpy(targets).long()
         self.classes = list(range(len(self.targets.unique())))
-        self.general_data_transform = general_data_transform
-        self.general_target_transform = general_target_transform
-        self.train_data_transform = train_data_transform
-        self.train_target_transform = train_target_transform
 
 
 class CelebA(BaseDataset):
