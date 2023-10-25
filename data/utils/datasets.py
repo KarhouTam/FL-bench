@@ -3,7 +3,7 @@ import os
 import pickle
 from argparse import Namespace
 from pathlib import Path
-from typing import List, Type, Dict
+from typing import List
 
 import torch
 import numpy as np
@@ -603,7 +603,7 @@ class DomainNet(BaseDataset):
         return data, targets
 
 
-DATASETS: Dict[str, Type[BaseDataset]] = {
+DATASETS = {
     "cifar10": CIFAR10,
     "cifar100": CIFAR100,
     "mnist": MNIST,

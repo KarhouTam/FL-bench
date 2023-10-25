@@ -1,6 +1,6 @@
 import json
 from collections import OrderedDict
-from typing import Dict, List, Optional, Type
+from typing import List, Optional
 from copy import deepcopy
 
 import torch
@@ -369,7 +369,7 @@ def infer(dataset, model_type):
         return (3, int(coef[model_type] * img_size), class_num)
 
 
-MODEL_DICT: Dict[str, Type[DecoupledModel]] = {
+MODEL_DICT = {
     "lenet5": LeNet5,
     "avgcnn": FedAvgCNN,
     "2nn": TwoNN,

@@ -2,7 +2,7 @@ import os
 import random
 from copy import deepcopy
 from collections import Counter, OrderedDict
-from typing import List, Optional, Tuple, Union
+from typing import List, Tuple, Union
 from pathlib import Path
 
 import torch
@@ -78,7 +78,7 @@ def trainable_params(
         detach (bool, optional): If set to `True`, the list would contain `param.detach().clone()` rather than `param`. Defaults to False.
 
     Returns:
-        Union[List[torch.Tensor], Tuple[List[torch.Tensor], List[str]]]: List of parameters, [List of names of parameters].
+        List of parameters [, names of parameters].
     """
     func = (lambda x: x.detach().clone()) if detach else (lambda x: x)
     parameters = []
@@ -135,7 +135,7 @@ def evalutate_model(
         device (torch.device, optional): The device that holds the computation. Defaults to torch.device("cpu").
 
     Returns:
-        Tuple[float, float, int]: [metric, correct, sample num]
+        Tuple[float, float, int]: [loss, correct num, sample num]
     """
     model.eval()
     correct = 0
