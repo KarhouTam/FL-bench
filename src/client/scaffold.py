@@ -46,13 +46,10 @@ class SCAFFOLDClient(FedAvgClient):
 
             # compute c_plus
             coef = 1 / (self.local_epoch * self.args.local_lr)
-            for c, c_i, x, y_i in zip(
-                self.c_global,
-                self.c_local[self.client_id],
-                new_parameters.values(),
-                trainable_params(self.model),
+            for c, c_i, y_del in zip(
+                self.c_global, self.c_local[self.client_id], y_delta
             ):
-                c_plus.append(c_i - c + coef * (x - y_i))
+                c_plus.append(c_i - c - coef * y_del)
 
             # compute c_delta
             for c_p, c_l in zip(c_plus, self.c_local[self.client_id]):

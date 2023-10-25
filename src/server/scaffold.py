@@ -62,15 +62,17 @@ class SCAFFOLDServer(FedAvgServer):
         c_delta_cache: List[List[torch.Tensor]],
     ):
         for param, y_delta in zip(
-            trainable_params(self.global_params_dict), zip(*y_delta_cache)
+            self.global_params_dict.values(), zip(*y_delta_cache)
         ):
-            x_delta = torch.stack(y_delta, dim=-1).mean(dim=-1)
-            param.data += self.args.global_lr * x_delta
+            param.data.add_(
+                self.args.global_lr * torch.stack(y_delta, dim=-1).mean(dim=-1)
+            )
 
         # update global control
         for c_global, c_delta in zip(self.c_global, zip(*c_delta_cache)):
-            c_delta = torch.stack(c_delta, dim=-1).sum(dim=-1)
-            c_global.data += (1 / self.client_num) * c_delta.data
+            c_global.data.add_(
+                torch.stack(c_delta, dim=-1).sum(dim=-1) / self.client_num
+            )
 
 
 if __name__ == "__main__":
