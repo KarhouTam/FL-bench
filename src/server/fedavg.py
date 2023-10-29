@@ -86,6 +86,7 @@ def get_fedavg_argparser() -> ArgumentParser:
     parser.add_argument("--save_model", type=int, default=0)
     parser.add_argument("--save_fig", type=int, default=1)
     parser.add_argument("--save_metrics", type=int, default=1)
+    parser.add_argument("--viz_win_name", type=str, required=False)
     return parser
 
 
@@ -184,12 +185,15 @@ class FedAvgServer:
             from visdom import Visdom
 
             self.viz = Visdom()
-            self.viz_win_name = (
-                f"{self.algo}"
-                + f"_{self.args.dataset}"
-                + f"_{self.args.global_epoch}"
-                + f"_{self.args.local_epoch}"
-            )
+            if self.args.viz_win_name is not None:
+                self.viz_win_name = self.args.viz_win_name
+            else:
+                self.viz_win_name = (
+                    f"{self.algo}"
+                    + f"_{self.args.dataset}"
+                    + f"_{self.args.global_epoch}"
+                    + f"_{self.args.local_epoch}"
+                )
         self.client_stats = {i: {} for i in self.train_clients}
         self.metrics = {
             "train_before": [],
