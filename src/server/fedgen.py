@@ -11,6 +11,7 @@ import torch.nn.functional as F
 from fedavg import FedAvgServer, get_fedavg_argparser
 from src.client.fedgen import FedGenClient
 from src.config.utils import trainable_params
+from src.config.models import MODEL_DICT
 
 
 def get_fedgen_argparser() -> ArgumentParser:
@@ -163,15 +164,10 @@ class FedGenServer(FedAvgServer):
 class Generator(nn.Module):
     def __init__(self, args, server: FedGenServer) -> None:
         super().__init__()
-        from src.config.models import MODEL_DICT
-
-        self.device = torch.device(
-            "cuda" if args.use_cuda and torch.cuda.is_available() else "cpu"
-        )
         # obtain the latent dim
         dummy_model = MODEL_DICT[args.model](args.dataset)
         x = torch.zeros(1, *server.trainer.dataset[0][0].shape)
-
+        self.device = server.device
         self.use_embedding = args.embedding
         self.latent_dim = dummy_model.base(x).shape[-1]
         self.hidden_dim = args.hidden_dim
