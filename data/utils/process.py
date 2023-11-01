@@ -189,6 +189,7 @@ def process_femnist():
         "test": clients_4_test,
         "total": client_cnt,
     }
+    partition["data_indices"] = [indices for indices in partition["data_indices"].values()]
 
     return partition, stats, client_cnt
 
@@ -354,6 +355,7 @@ def process_celeba():
         "test": clients_4_test,
         "total": client_cnt,
     }
+    partition["data_indices"] = [indices for indices in partition["data_indices"].values()]
 
     return partition, stats, client_cnt
 
