@@ -166,6 +166,7 @@ class Generator(nn.Module):
         super().__init__()
         # obtain the latent dim
         dummy_model = MODEL_DICT[args.model](args.dataset)
+        dummy_model.eval()
         x = torch.zeros(1, *server.trainer.dataset[0][0].shape)
         self.device = server.device
         self.use_embedding = args.embedding
