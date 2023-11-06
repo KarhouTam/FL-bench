@@ -28,6 +28,7 @@ def prune_args(args: Namespace) -> Dict:
         args_dict["beta"] = args.beta
         args_dict["gamma"] = args.gamma
         args_dict["dimension"] = args.dimension
+        args_dict["class_num"] = 10 if args.classes <= 0 else args.classes
     elif args.dataset == "domain":
         with open(DATA_ROOT / "domain" / "metadata.json", "r") as f:
             metadata = json.load(f)
