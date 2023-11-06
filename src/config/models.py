@@ -1,14 +1,99 @@
 import json
+import functools
 from collections import OrderedDict
 from typing import List, Optional
-from copy import deepcopy
 
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
 import torchvision.models as models
+from torch import Tensor
 
 from .utils import PROJECT_DIR
+
+
+def get_model_arch(model_name):
+    # static means the model arch is fixed.
+    static = {
+        "lenet5": LeNet5,
+        "avgcnn": FedAvgCNN,
+        "alex": AlexNet,
+        "sqz": SqueezeNet,
+        "2nn": TwoNN,
+        "custom": CustomModel,
+    }
+    if model_name in static:
+        return static[model_name]
+    else:
+        if "res" in model_name:
+            return functools.partial(ResNet, version=model_name[3:])
+        if "dense" in model_name:
+            return functools.partial(DenseNet, version=model_name[5:])
+        if "mobile" in model_name:
+            return functools.partial(MobileNet, version=model_name[6:])
+        if "efficient" in model_name:
+            return functools.partial(EfficientNet, version=model_name[9:])
+        if "squeeze" in model_name:
+            return functools.partial(SqueezeNet, version=model_name[-1])
+        raise ValueError(f"Unsupported model: {model_name}")
+
+
+def get_domain_classes_num():
+    try:
+        with open(PROJECT_DIR / "data" / "domain" / "metadata.json", "r") as f:
+            metadata = json.load(f)
+        return metadata["class_num"]
+    except:
+        return 0
+
+
+def get_synthetic_classes_num():
+    try:
+        with open(PROJECT_DIR / "data" / "synthetic" / "args.json", "r") as f:
+            metadata = json.load(f)
+        return metadata["class_num"]
+    except:
+        return 0
+
+
+INPUT_CHANNELS = {
+    "mnist": 1,
+    "medmnistS": 1,
+    "medmnistC": 1,
+    "medmnistA": 1,
+    "covid19": 3,
+    "fmnist": 1,
+    "emnist": 1,
+    "femnist": 1,
+    "cifar10": 3,
+    "cinic10": 3,
+    "svhn": 3,
+    "cifar100": 3,
+    "celeba": 3,
+    "usps": 1,
+    "tiny_imagenet": 3,
+    "domain": 3,
+}
+
+NUM_CLASSES = {
+    "mnist": 10,
+    "medmnistS": 11,
+    "medmnistC": 11,
+    "medmnistA": 11,
+    "fmnist": 10,
+    "svhn": 10,
+    "emnist": 62,
+    "femnist": 62,
+    "cifar10": 10,
+    "cinic10": 10,
+    "cifar100": 100,
+    "covid19": 4,
+    "usps": 10,
+    "celeba": 2,
+    "tiny_imagenet": 200,
+    "synthetic": get_synthetic_classes_num(),
+    "domain": get_domain_classes_num(),
+}
 
 
 class DecoupledModel(nn.Module):
@@ -45,10 +130,10 @@ class DecoupledModel(nn.Module):
             if isinstance(module, nn.Dropout)
         ]
 
-    def forward(self, x: torch.Tensor):
-        return self.classifier(F.relu(self.base(x)))
+    def forward(self, x: Tensor) -> Tensor:
+        return self.classifier(self.base(x))
 
-    def get_final_features(self, x: torch.Tensor, detach=True) -> torch.Tensor:
+    def get_final_features(self, x: Tensor, detach=True) -> Tensor:
         if len(self.dropout) > 0:
             for dropout in self.dropout:
                 dropout.eval()
@@ -62,7 +147,7 @@ class DecoupledModel(nn.Module):
 
         return func(out)
 
-    def get_all_features(self, x: torch.Tensor) -> Optional[List[torch.Tensor]]:
+    def get_all_features(self, x: Tensor) -> Optional[List[Tensor]]:
         feature_list = None
         if len(self.dropout) > 0:
             for dropout in self.dropout:
@@ -87,63 +172,64 @@ class DecoupledModel(nn.Module):
 class FedAvgCNN(DecoupledModel):
     def __init__(self, dataset: str):
         super(FedAvgCNN, self).__init__()
-        config = {
-            "mnist": (1, 1024, 10),
-            "medmnistS": (1, 1024, 11),
-            "medmnistC": (1, 1024, 11),
-            "medmnistA": (1, 1024, 11),
-            "covid19": (3, 196736, 4),
-            "fmnist": (1, 1024, 10),
-            "emnist": (1, 1024, 62),
-            "femnist": (1, 1, 62),
-            "cifar10": (3, 1600, 10),
-            "cinic10": (3, 1600, 10),
-            "cifar100": (3, 1600, 100),
-            "tiny_imagenet": (3, 3200, 200),
-            "celeba": (3, 133824, 2),
-            "svhn": (3, 1600, 10),
-            "usps": (1, 800, 10),
-            "domain": infer(dataset, "avgcnn"),
+        features_length = {
+            "mnist": 1024,
+            "medmnistS": 1024,
+            "medmnistC": 1024,
+            "medmnistA": 1024,
+            "covid19": 196736,
+            "fmnist": 1024,
+            "emnist": 1024,
+            "femnist": 1,
+            "cifar10": 1600,
+            "cinic10": 1600,
+            "cifar100": 1600,
+            "tiny_imagenet": 3200,
+            "celeba": 133824,
+            "svhn": 1600,
+            "usps": 800,
         }
         self.base = nn.Sequential(
             OrderedDict(
-                conv1=nn.Conv2d(config[dataset][0], 32, 5),
+                conv1=nn.Conv2d(INPUT_CHANNELS[dataset], 32, 5),
                 activation1=nn.ReLU(),
                 pool1=nn.MaxPool2d(2),
                 conv2=nn.Conv2d(32, 64, 5),
                 activation2=nn.ReLU(),
                 pool2=nn.MaxPool2d(2),
                 flatten=nn.Flatten(),
-                fc1=nn.Linear(config[dataset][1], 512),
+                fc1=nn.Linear(features_length[dataset], 512),
             )
         )
-        self.classifier = nn.Linear(512, config[dataset][2])
+        self.classifier = nn.Linear(512, NUM_CLASSES[dataset])
+
+    def forward(self, x):
+        return self.classifier(F.relu(self.base(x)))
 
 
 class LeNet5(DecoupledModel):
     def __init__(self, dataset: str) -> None:
         super(LeNet5, self).__init__()
-        config = {
-            "mnist": (1, 256, 10),
-            "medmnistS": (1, 256, 11),
-            "medmnistC": (1, 256, 11),
-            "medmnistA": (1, 256, 11),
-            "covid19": (3, 49184, 4),
-            "fmnist": (1, 256, 10),
-            "emnist": (1, 256, 62),
-            "femnist": (1, 256, 62),
-            "cifar10": (3, 400, 10),
-            "cinic10": (3, 400, 10),
-            "svhn": (3, 400, 10),
-            "cifar100": (3, 400, 100),
-            "celeba": (3, 33456, 2),
-            "usps": (1, 200, 10),
-            "tiny_imagenet": (3, 2704, 200),
-            "domain": infer(dataset, "lenet5"),
+        feature_length = {
+            "mnist": 256,
+            "medmnistS": 256,
+            "medmnistC": 256,
+            "medmnistA": 256,
+            "covid19": 49184,
+            "fmnist": 256,
+            "emnist": 256,
+            "femnist": 256,
+            "cifar10": 400,
+            "cinic10": 400,
+            "svhn": 400,
+            "cifar100": 400,
+            "celeba": 33456,
+            "usps": 200,
+            "tiny_imagenet": 2704,
         }
         self.base = nn.Sequential(
             OrderedDict(
-                conv1=nn.Conv2d(config[dataset][0], 6, 5),
+                conv1=nn.Conv2d(INPUT_CHANNELS[dataset], 6, 5),
                 bn1=nn.BatchNorm2d(6),
                 activation1=nn.ReLU(),
                 pool1=nn.MaxPool2d(2),
@@ -152,36 +238,48 @@ class LeNet5(DecoupledModel):
                 activation2=nn.ReLU(),
                 pool2=nn.MaxPool2d(2),
                 flatten=nn.Flatten(),
-                fc1=nn.Linear(config[dataset][1], 120),
+                fc1=nn.Linear(feature_length[dataset], 120),
                 activation3=nn.ReLU(),
                 fc2=nn.Linear(120, 84),
             )
         )
 
-        self.classifier = nn.Linear(84, config[dataset][2])
+        self.classifier = nn.Linear(84, NUM_CLASSES[dataset])
+
+    def forward(self, x):
+        return self.classifier(F.relu(self.base(x)))
 
 
 class TwoNN(DecoupledModel):
     def __init__(self, dataset):
         super(TwoNN, self).__init__()
-        config = {
-            "mnist": (784, 10),
-            "medmnistS": (784, 11),
-            "medmnistC": (784, 11),
-            "medmnistA": (784, 11),
-            "fmnist": (784, 10),
-            "emnist": (784, 62),
-            "femnist": (784, 62),
-            "cifar10": (3072, 10),
-            "cinic10": (3072, 10),
-            "svhn": (3072, 10),
-            "cifar100": (3072, 100),
-            "usps": (1536, 10),
-            "synthetic": (60, 10),  # default dimension and classes
+
+        def get_synthetic_dimension():
+            try:
+                with open(PROJECT_DIR / "data" / "synthetic" / "args.json", "r") as f:
+                    metadata = json.load(f)
+                return metadata["dimension"]
+            except:
+                return 0
+
+        features_length = {
+            "mnist": 784,
+            "medmnistS": 784,
+            "medmnistC": 784,
+            "medmnistA": 784,
+            "fmnist": 784,
+            "emnist": 784,
+            "femnist": 784,
+            "cifar10": 3072,
+            "cinic10": 3072,
+            "svhn": 3072,
+            "cifar100": 3072,
+            "usps": 1536,
+            "synthetic": get_synthetic_dimension(),
         }
 
-        self.base = nn.Linear(config[dataset][0], 200)
-        self.classifier = nn.Linear(200, config[dataset][1])
+        self.base = nn.Linear(features_length[dataset], 200)
+        self.classifier = nn.Linear(200, NUM_CLASSES[dataset])
         self.activation = nn.ReLU()
 
     def need_all_features(self):
@@ -203,178 +301,149 @@ class TwoNN(DecoupledModel):
         raise RuntimeError("2NN has 0 Conv layer, so is unable to get all features.")
 
 
-class MobileNetV2(DecoupledModel):
-    def __init__(self, dataset):
-        super(MobileNetV2, self).__init__()
-        config = {
-            "mnist": 10,
-            "medmnistS": 11,
-            "medmnistC": 11,
-            "medmnistA": 11,
-            "fmnist": 10,
-            "svhn": 10,
-            "emnist": 62,
-            "femnist": 62,
-            "cifar10": 10,
-            "cinic10": 10,
-            "cifar100": 100,
-            "covid19": 4,
-            "usps": 10,
-            "celeba": 2,
-            "tiny_imagenet": 200,
-            "domain": infer(dataset, "mobile"),
-        }
-        # NOTE: If you don't want parameters pretrained, set `pretrained` as False
-        pretrained = True
-        self.base = models.mobilenet_v2(
-            weights=models.MobileNet_V2_Weights.IMAGENET1K_V2 if pretrained else None
-        )
-        self.classifier = nn.Linear(
-            self.base.classifier[1].in_features, config[dataset]
-        )
-
-        self.base.classifier[1] = nn.Identity()
-
-
-class ResNet18(DecoupledModel):
-    def __init__(self, dataset):
-        super(ResNet18, self).__init__()
-        config = {
-            "mnist": 10,
-            "medmnistS": 11,
-            "medmnistC": 11,
-            "medmnistA": 11,
-            "fmnist": 10,
-            "svhn": 10,
-            "emnist": 62,
-            "femnist": 62,
-            "cifar10": 10,
-            "cinic10": 10,
-            "cifar100": 100,
-            "covid19": 4,
-            "usps": 10,
-            "celeba": 2,
-            "tiny_imagenet": 200,
-            "domain": infer(dataset, "res18"),
-        }
-        # NOTE: If you don't want parameters pretrained, set `pretrained` as False
-        pretrained = True
-        self.base = models.resnet18(
-            weights=models.ResNet18_Weights.DEFAULT if pretrained else None
-        )
-        self.classifier = nn.Linear(self.base.fc.in_features, config[dataset])
-        self.base.fc = nn.Identity()
-
-    def forward(self, x):
-        if x.shape[1] == 1:
-            x = torch.expand_copy(x, (x.shape[0], 3, *x.shape[2:]))
-        return super().forward(x)
-
-    def get_all_features(self, x):
-        if x.shape[1] == 1:
-            x = torch.expand_copy(x, (x.shape[0], 3, *x.shape[2:]))
-        return super().get_all_features(x)
-
-    def get_final_features(self, x, detach=True):
-        if x.shape[1] == 1:
-            x = torch.expand_copy(x, (x.shape[0], 3, *x.shape[2:]))
-        return super().get_final_features(x, detach)
-
-
 class AlexNet(DecoupledModel):
     def __init__(self, dataset):
         super().__init__()
-        config = {
-            "covid19": 4,
-            "celeba": 2,
-            "tiny_imagenet": 200,
-            "domain": infer(dataset, "alex"),
-        }
-        if dataset not in config.keys():
-            raise NotImplementedError(f"AlexNet does not support dataset {dataset}")
 
         # NOTE: If you don't want parameters pretrained, set `pretrained` as False
-        pretrained = True
-        self.base = models.alexnet(
+        pretrained = False
+        alexnet = models.alexnet(
             weights=models.AlexNet_Weights.DEFAULT if pretrained else None
         )
+        self.base = alexnet
         self.classifier = nn.Linear(
-            self.base.classifier[-1].in_features, config[dataset]
+            alexnet.classifier[-1].in_features, NUM_CLASSES[dataset]
         )
         self.base.classifier[-1] = nn.Identity()
 
 
 class SqueezeNet(DecoupledModel):
-    def __init__(self, dataset):
+    def __init__(self, version, dataset):
         super().__init__()
-        config = {
-            "mnist": 10,
-            "medmnistS": 11,
-            "medmnistC": 11,
-            "medmnistA": 11,
-            "fmnist": 10,
-            "svhn": 10,
-            "emnist": 62,
-            "femnist": 62,
-            "cifar10": 10,
-            "cinic10": 10,
-            "cifar100": 100,
-            "covid19": 4,
-            "usps": 10,
-            "celeba": 2,
-            "tiny_imagenet": 200,
-            "domain": infer(dataset, "sqz"),
-        }
 
         # NOTE: If you don't want parameters pretrained, set `pretrained` as False
-        pretrained = True
-        sqz = models.squeezenet1_1(
-            weights=models.SqueezeNet1_1_Weights.DEFAULT if pretrained else None
+        pretrained = False
+        archs = {
+            "0": (models.squeezenet1_0, models.SqueezeNet1_0_Weights.DEFAULT),
+            "1": (models.squeezenet1_1, models.SqueezeNet1_1_Weights.DEFAULT),
+        }
+        squeezenet: models.SqueezeNet = archs[version][0](
+            weights=archs[version][1] if pretrained else None
         )
-        self.base = sqz.features
+        self.base = squeezenet.features
         self.classifier = nn.Sequential(
             nn.Dropout(),
-            nn.Conv2d(sqz.classifier[1].in_channels, config[dataset], kernel_size=1),
+            nn.Conv2d(
+                squeezenet.classifier[1].in_channels,
+                NUM_CLASSES[dataset],
+                kernel_size=1,
+            ),
             nn.ReLU(True),
             nn.AdaptiveAvgPool2d((1, 1)),
             nn.Flatten(),
         )
 
-    def forward(self, x):
-        if x.shape[1] == 1:
-            x = torch.expand_copy(x, (x.shape[0], 3, *x.shape[2:]))
-        return self.classifier(self.base(x))
 
-    def get_all_features(self, x):
-        if x.shape[1] == 1:
-            x = torch.expand_copy(x, (x.shape[0], 3, *x.shape[2:]))
-        return super().get_all_features(x)
-
-    def get_final_features(self, x, detach=True):
-        if x.shape[1] == 1:
-            x = torch.expand_copy(x, (x.shape[0], 3, *x.shape[2:]))
-        return super().get_final_features(x, detach)
-
-
-# Some dirty codes for adapting DomainNet
-def infer(dataset, model_type):
-    if dataset == "domain":
-        with open(PROJECT_DIR / "data" / "domain" / "metadata.json", "r") as f:
-            metadata = json.load(f)
-        class_num = metadata["class_num"]
-        img_size = metadata["image_size"]
-        coef = {"avgcnn": 50, "lenet5": 42.25}
-        if model_type in ["alex", "res18", "sqz", "mobile"]:
-            return class_num
-        return (3, int(coef[model_type] * img_size), class_num)
+class DenseNet(DecoupledModel):
+    def __init__(self, version, dataset):
+        super().__init__()
+        archs = {
+            "121": (models.densenet121, models.DenseNet121_Weights.DEFAULT),
+            "161": (models.densenet161, models.DenseNet161_Weights.DEFAULT),
+            "169": (models.densenet169, models.DenseNet169_Weights.DEFAULT),
+            "201": (models.densenet201, models.DenseNet201_Weights.DEFAULT),
+        }
+        # NOTE: If you don't want parameters pretrained, set `pretrained` as False
+        pretrained = False
+        densenet: models.DenseNet = archs[version][0](
+            weights=archs[version][1] if pretrained else None
+        )
+        self.base = densenet
+        self.classifier = nn.Linear(
+            densenet.classifier.in_features, NUM_CLASSES[dataset]
+        )
+        self.base.classifier = nn.Identity()
 
 
-MODEL_DICT = {
-    "lenet5": LeNet5,
-    "avgcnn": FedAvgCNN,
-    "2nn": TwoNN,
-    "mobile": MobileNetV2,
-    "res18": ResNet18,
-    "alex": AlexNet,
-    "sqz": SqueezeNet,
-}
+class ResNet(DecoupledModel):
+    def __init__(self, version, dataset):
+        super().__init__()
+        archs = {
+            "18": (models.resnet18, models.ResNet18_Weights.DEFAULT),
+            "34": (models.resnet34, models.ResNet34_Weights.DEFAULT),
+            "50": (models.resnet50, models.ResNet50_Weights.DEFAULT),
+            "101": (models.resnet101, models.ResNet101_Weights.DEFAULT),
+            "152": (models.resnet152, models.ResNet152_Weights.DEFAULT),
+        }
+
+        # NOTE: If you don't want parameters pretrained, set `pretrained` as False
+        pretrained = False
+        resnet: models.ResNet = archs[version][0](
+            weights=archs[version][1] if pretrained else None
+        )
+        self.base = resnet
+        self.classifier = nn.Linear(self.base.fc.in_features, NUM_CLASSES[dataset])
+        self.base.fc = nn.Identity()
+
+
+class MobileNet(DecoupledModel):
+    def __init__(self, version, dataset):
+        super().__init__()
+        archs = {
+            "2": (models.mobilenet_v2, models.MobileNet_V2_Weights.DEFAULT),
+            "3s": (
+                models.mobilenet_v3_small,
+                models.MobileNet_V3_Small_Weights.DEFAULT,
+            ),
+            "3l": (
+                models.mobilenet_v3_large,
+                models.MobileNet_V3_Large_Weights.DEFAULT,
+            ),
+        }
+        # NOTE: If you don't want parameters pretrained, set `pretrained` as False
+        pretrained = False
+        mobilenet = archs[version][0](weights=archs[version][1] if pretrained else None)
+        self.base = mobilenet
+        self.classifier = nn.Linear(
+            mobilenet.classifier[-1].in_features, NUM_CLASSES[dataset]
+        )
+        self.base.classifier[-1] = nn.Identity()
+
+
+class EfficientNet(DecoupledModel):
+    def __init__(self, version, dataset):
+        super().__init__()
+        archs = {
+            "0": (models.efficientnet_b0, models.EfficientNet_B0_Weights.DEFAULT),
+            "1": (models.efficientnet_b1, models.EfficientNet_B1_Weights.DEFAULT),
+            "2": (models.efficientnet_b2, models.EfficientNet_B2_Weights.DEFAULT),
+            "3": (models.efficientnet_b3, models.EfficientNet_B3_Weights.DEFAULT),
+            "4": (models.efficientnet_b4, models.EfficientNet_B4_Weights.DEFAULT),
+            "5": (models.efficientnet_b5, models.EfficientNet_B5_Weights.DEFAULT),
+            "6": (models.efficientnet_b6, models.EfficientNet_B6_Weights.DEFAULT),
+            "7": (models.efficientnet_b7, models.EfficientNet_B7_Weights.DEFAULT),
+        }
+        # NOTE: If you don't want parameters pretrained, set `pretrained` as False
+        pretrained = False
+        efficientnet: models.EfficientNet = archs[version][0](
+            weights=archs[version][1] if pretrained else None
+        )
+        self.base = efficientnet
+        self.classifier = nn.Linear(
+            efficientnet.classifier[-1].in_features, NUM_CLASSES[dataset]
+        )
+        self.base.classifier[-1] = nn.Identity()
+
+
+# NOTE: You can build your custom model here.
+# What you only need to do is define the architecture in __init__().
+# Don't need to consider anything else, which are handled by DecoupledModel well already.
+# Run `python *.py -m custom` to use your custom model.
+class CustomModel(DecoupledModel):
+    def __init__(self, dataset):
+        super().__init__()
+        # You need to define:
+        # 1. self.base (the feature extractor part)
+        # 2. self.classifier (normally the final fully connected layer)
+        # The default forwarding process is: out = self.classifier(self.base(input))
+        pass

@@ -178,9 +178,22 @@ About the default values and hyperparameters of advanced FL methods, go check co
 | `--save_metrics`               | Non-zero value for saving metrics stats into a `.csv` file at `FL-bench/out/${algo}`.                                                                                                                                                                                                                                                     |
 | `--viz_win_name`               | Custom visdom window name (active when setting `--visible` as a non-zero value).                                                                                                                                                                                                                                                          |
 
+## Supported Models 🚀
+
+This benchmark supports bunch of models that common and integrated in Torchvision:
+
+- ResNet family
+- EfficientNet family
+- DenseNet family
+- MobileNet family
+- LeNet5
+...
+
+🤗 You can define your own custom model by filling the `CustomModel` class in [`src/config/models.py`](https://github.com/KarhouTam/FL-bench/tree/master/src/config/models.py) and use it by specifying `--model custom` when running.
+
 ## Supported Datasets 🎨
 
-This benchmark only support algorithms to solve image classification task for now.
+This benchmark only supports to solve image classification task for now.
 
 
 Regular Image Datasets

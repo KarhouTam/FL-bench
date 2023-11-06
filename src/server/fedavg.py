@@ -25,7 +25,7 @@ from src.config.utils import (
     trainable_params,
     get_best_device,
 )
-from src.config.models import MODEL_DICT
+from src.config.models import get_model_arch
 from src.client.fedavg import FedAvgClient
 
 
@@ -36,7 +36,35 @@ def get_fedavg_argparser() -> ArgumentParser:
         "--model",
         type=str,
         default="lenet5",
-        choices=["lenet5", "2nn", "avgcnn", "mobile", "res18", "alex", "sqz"],
+        choices=[
+            "lenet5",
+            "avgcnn",
+            "alex",
+            "2nn",
+            "squeeze0",
+            "squeeze1",
+            "res18",
+            "res34",
+            "res50",
+            "res101",
+            "res152",
+            "dense121",
+            "dense161",
+            "dense169",
+            "dense201",
+            "mobile2",
+            "mobile3s",
+            "mobile3l",
+            "efficient0",
+            "efficient1",
+            "efficient2",
+            "efficient3",
+            "efficient4",
+            "efficient5",
+            "efficient6",
+            "efficient7",
+            "custom"
+        ],
     )
     parser.add_argument(
         "-d",
@@ -118,7 +146,13 @@ class FedAvgServer:
 
         # init model(s) parameters
         self.device = get_best_device(self.args.use_cuda)
-        self.model = MODEL_DICT[self.args.model](self.args.dataset).to(self.device)
+
+        # get_model_arch() would return a class depends on model's name,
+        # then init the model object by indicating the dataset and calling the class.
+        # Finally transfer the model object to the target device.
+        self.model = get_model_arch(model_name=self.args.model)(
+            dataset=self.args.dataset
+        ).to(self.device)
         self.model.check_avaliability()
 
         # client_trainable_params is for pFL, which outputs exclusive model per client
