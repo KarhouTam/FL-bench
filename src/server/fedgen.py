@@ -11,7 +11,7 @@ import torch.nn.functional as F
 from fedavg import FedAvgServer, get_fedavg_argparser
 from src.client.fedgen import FedGenClient
 from src.config.utils import trainable_params
-from src.config.models import MODEL_DICT
+from src.config.models import get_model_arch
 
 
 def get_fedgen_argparser() -> ArgumentParser:
@@ -165,7 +165,7 @@ class Generator(nn.Module):
     def __init__(self, args, server: FedGenServer) -> None:
         super().__init__()
         # obtain the latent dim
-        dummy_model = MODEL_DICT[args.model](args.dataset)
+        dummy_model = get_model_arch(args.model)(dataset=args.dataset)
         dummy_model.eval()
         x = torch.zeros(1, *server.trainer.dataset[0][0].shape)
         self.device = server.device
