@@ -37,9 +37,11 @@
 
 - ***FedGen*** -- [Data-Free Knowledge Distillation for Heterogeneous Federated Learning](https://arxiv.org/abs/2105.10056) (ICML'21)
 
+- ***CCVR (New Reproduction 🌟)*** -- [No Fear of Heterogeneity: Classifier Calibration for Federated Learning with Non-IID Data](https://arxiv.org/abs/2105.10056) (NIPS'21)
+
 ### Personalized FL Methods
 
-- ***pFedSim (My Work⭐)*** -- [pFedSim: Similarity-Aware Model Aggregation Towards Personalized Federated Learning](https://arxiv.org/abs/2305.15706) (ArXiv'23)
+- ***pFedSim (My Work⭐)*** -- [pFedSim: Similarity-Aware Model Aggregation Towards Personalized Federated Learning](https://arxiv.org/abs/2106.05001) (ArXiv'23)
 
 - ***Local-Only*** -- Local training only (without communication).
 
@@ -78,7 +80,7 @@
 - ***MetaFed*** -- [MetaFed: Federated Learning among Federations with Cyclic Knowledge Distillation for Personalized Healthcare](http://arxiv.org/abs/2206.08516) (IJCAI'22)
 
 
-## Environment Preparation 🚀
+## Environment Preparation 🧩
 
 ### PyPI 🐍
 📢 Note that FL-bench needs `3.10 <= python < 3.12`. I suggest you to checkout your python version before installing packages by pip.
