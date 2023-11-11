@@ -243,12 +243,14 @@ class FedAvgClient:
                 self.optimizer.step()
 
     @torch.no_grad()
-    def evaluate(self, model: torch.nn.Module = None) -> Dict[str, float]:
+    def evaluate(
+        self, model: torch.nn.Module = None, test_flag=False
+    ) -> Dict[str, float]:
         """The evaluation function. Would be activated before and after local training if `eval_test = True` or `eval_train = True`.
 
         Args:
             model (torch.nn.Module, optional): The target model needed evaluation (set to `None` for using `self.model`). Defaults to None.
-
+            test_flag (bool, optional): Set as `True` when the server asking client to test model.
         Returns:
             Dict[str, float]: The evaluation metric stats.
         """
@@ -262,7 +264,7 @@ class FedAvgClient:
         train_sample_num, test_sample_num = 0, 0
         criterion = torch.nn.CrossEntropyLoss(reduction="sum")
 
-        if len(self.testset) > 0 and self.args.eval_test:
+        if len(self.testset) > 0 and (test_flag or self.args.eval_test):
             test_loss, test_correct, test_sample_num = evalutate_model(
                 model=eval_model,
                 dataloader=self.testloader,
@@ -315,10 +317,10 @@ class FedAvgClient:
         }
         after = deepcopy(before)
 
-        before = self.evaluate()
+        before = self.evaluate(test_flag=True)
         if self.args.finetune_epoch > 0:
             self.finetune()
-            after = self.evaluate()
+            after = self.evaluate(test_flag=True)
         return {"before": before, "after": after}
 
     def finetune(self):

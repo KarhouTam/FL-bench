@@ -63,7 +63,7 @@ def get_fedavg_argparser() -> ArgumentParser:
             "efficient5",
             "efficient6",
             "efficient7",
-            "custom"
+            "custom",
         ],
     )
     parser.add_argument(
@@ -426,65 +426,58 @@ class FedAvgServer:
         """This function is for logging each selected client's training info."""
         for label in ["train", "test"]:
             # In the `user` split, there is no test data held by train clients, so plotting is unnecessary.
-            if (label == "train" and self.args.eval_train) or (
-                label == "test"
-                and self.args.eval_test
-                and self.args.dataset_args["split"] != "user"
-            ):
-                correct_before = torch.tensor(
-                    [
-                        self.client_stats[c][self.current_epoch]["before"][
-                            f"{label}_correct"
-                        ]
-                        for c in self.selected_clients
+            correct_before = torch.tensor(
+                [
+                    self.client_stats[i][self.current_epoch]["before"][
+                        f"{label}_correct"
                     ]
-                )
-                correct_after = torch.tensor(
-                    [
-                        self.client_stats[c][self.current_epoch]["after"][
-                            f"{label}_correct"
-                        ]
-                        for c in self.selected_clients
+                    for i in self.selected_clients
+                ]
+            )
+            correct_after = torch.tensor(
+                [
+                    self.client_stats[i][self.current_epoch]["after"][
+                        f"{label}_correct"
                     ]
-                )
-                num_samples = torch.tensor(
-                    [
-                        self.client_stats[c][self.current_epoch]["before"][
-                            f"{label}_size"
-                        ]
-                        for c in self.selected_clients
-                    ]
-                )
+                    for i in self.selected_clients
+                ]
+            )
+            num_samples = torch.tensor(
+                [
+                    self.client_stats[i][self.current_epoch]["before"][f"{label}_size"]
+                    for i in self.selected_clients
+                ]
+            )
 
-                acc_before = (
-                    correct_before.sum(dim=-1, keepdim=True) / num_samples.sum() * 100.0
-                ).item()
-                acc_after = (
-                    correct_after.sum(dim=-1, keepdim=True) / num_samples.sum() * 100.0
-                ).item()
-                self.metrics[f"{label}_before"].append(acc_before)
-                self.metrics[f"{label}_after"].append(acc_after)
+            acc_before = (
+                correct_before.sum(dim=-1, keepdim=True) / num_samples.sum() * 100.0
+            ).item()
+            acc_after = (
+                correct_after.sum(dim=-1, keepdim=True) / num_samples.sum() * 100.0
+            ).item()
+            self.metrics[f"{label}_before"].append(acc_before)
+            self.metrics[f"{label}_after"].append(acc_after)
 
-                if self.args.visible:
-                    self.viz.line(
-                        [acc_before],
-                        [self.current_epoch],
-                        win=self.viz_win_name,
-                        update="append",
-                        name=f"{label}_acc(before)",
-                        opts=dict(
-                            title=self.viz_win_name,
-                            xlabel="Communication Rounds",
-                            ylabel="Accuracy",
-                        ),
-                    )
-                    self.viz.line(
-                        [acc_after],
-                        [self.current_epoch],
-                        win=self.viz_win_name,
-                        update="append",
-                        name=f"{label}_acc(after)",
-                    )
+            if self.args.visible:
+                self.viz.line(
+                    [acc_before],
+                    [self.current_epoch],
+                    win=self.viz_win_name,
+                    update="append",
+                    name=f"{label}_acc(before)",
+                    opts=dict(
+                        title=self.viz_win_name,
+                        xlabel="Communication Rounds",
+                        ylabel="Accuracy",
+                    ),
+                )
+                self.viz.line(
+                    [acc_after],
+                    [self.current_epoch],
+                    win=self.viz_win_name,
+                    update="append",
+                    name=f"{label}_acc(after)",
+                )
 
     def run(self):
         """The comprehensive FL process.
