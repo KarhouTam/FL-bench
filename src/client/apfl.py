@@ -93,9 +93,9 @@ class APFLClient(FedAvgClient):
         self.alpha.data -= self.args.local_lr * alpha_grad
         self.alpha.clip_(0, 1.0)
 
-    def evaluate(self):
+    def evaluate(self, model=None, test_flag=False):
         return super().evaluate(
-            MixedModel(self.local_model, self.model, alpha=self.alpha)
+            MixedModel(self.local_model, self.model, alpha=self.alpha), test_flag
         )
 
 

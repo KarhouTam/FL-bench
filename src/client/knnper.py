@@ -12,19 +12,13 @@ class kNNPerClient(FedAvgClient):
     def __init__(self, model, args, logger, device):
         super().__init__(model, args, logger, device)
         self.datastore = DataStore(args, self.model.classifier.in_features)
-        self.test_flag = False
-
-    def test(self, client_id, new_paramters):
-        self.test_flag = True
-        res = super().test(client_id, new_paramters)
-        self.test_flag = False
-        return res
 
     @torch.no_grad()
-    def evaluate(self) -> Dict[str, float]:
-        if self.test_flag:
+    def evaluate(self, model=None, test_flag=False) -> Dict[str, float]:
+        if test_flag:
+            eval_model = self.model if model is None else model
             self.dataset.enable_train_transform = False
-            self.model.eval()
+            eval_model.eval()
             criterion = torch.nn.CrossEntropyLoss(reduction="sum")
             model_logits = []
             train_features = []
@@ -35,15 +29,15 @@ class kNNPerClient(FedAvgClient):
             for x, y in self.trainloader:
                 x, y = x.to(self.device), y.to(self.device)
 
-                train_features.append(self.model.get_final_features(x))
+                train_features.append(eval_model.get_final_features(x))
                 train_targets.append(y)
 
             for x, y in self.testloader:
                 x, y = x.to(self.device), y.to(self.device)
 
-                feature = self.model.get_final_features(x)
+                feature = eval_model.get_final_features(x)
                 test_features.append(feature)
-                model_logits.append(self.model.classifier(torch.relu(feature)))
+                model_logits.append(eval_model.classifier(torch.relu(feature)))
                 test_targets.append(y)
 
             model_logits = torch.cat(model_logits, dim=0)
@@ -73,7 +67,7 @@ class kNNPerClient(FedAvgClient):
                 "test_size": float(max(1, len(test_targets))),
             }
         else:
-            return super().evaluate()
+            return super().evaluate(model, test_flag)
 
     def get_knn_logits(self, features: torch.Tensor):
         distances, indices = self.datastore.index.search(

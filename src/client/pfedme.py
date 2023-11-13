@@ -70,11 +70,11 @@ class pFedMeClient(FedAvgClient):
                     )
 
     @torch.no_grad()
-    def evaluate(self) -> Dict[str, Dict[str, float]]:
+    def evaluate(self, model=None, test_flag=False) -> Dict[str, Dict[str, float]]:
         frz_model_params = deepcopy(self.model.state_dict())
         if self.client_id in self.personalized_params_dict.keys():
             self.model.load_state_dict(self.personalized_params_dict[self.client_id])
-        res = super().evaluate()
+        res = super().evaluate(model, test_flag)
         self.model.load_state_dict(frz_model_params)
         return res
 
