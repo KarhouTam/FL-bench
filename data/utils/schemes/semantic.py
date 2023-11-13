@@ -19,7 +19,7 @@ FL_BENCH_ROOT = Path(__file__).parent.parent.parent.parent.absolute()
 sys.path.append(FL_BENCH_ROOT.as_posix())
 
 # from .gaussian_mixture import GaussianMixture
-from src.config.utils import get_best_device
+from src.utils.tools import get_best_device
 
 EFFICIENT_NETS = [
     (models.efficientnet_b0, models.EfficientNet_B0_Weights.DEFAULT),

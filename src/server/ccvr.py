@@ -8,7 +8,7 @@ import numpy as np
 from torch.utils.data import Dataset, DataLoader
 
 from fedavg import FedAvgServer, get_fedavg_argparser
-from config.utils import trainable_params
+from src.utils.tools import trainable_params
 
 
 def get_ccvr_argparser():

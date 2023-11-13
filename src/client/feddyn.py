@@ -3,7 +3,7 @@ from typing import OrderedDict
 import torch
 
 from fedavg import FedAvgClient
-from src.config.utils import trainable_params, vectorize
+from src.utils.tools import trainable_params, vectorize
 
 
 class FedDynClient(FedAvgClient):

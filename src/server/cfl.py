@@ -6,7 +6,7 @@ import numpy as np
 from sklearn.cluster import AgglomerativeClustering
 
 from fedavg import FedAvgServer, get_fedavg_argparser
-from src.config.utils import vectorize
+from src.utils.tools import vectorize
 
 
 def get_cfl_argparser() -> ArgumentParser:

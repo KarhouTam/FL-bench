@@ -6,7 +6,7 @@ import torch
 
 from fedavg import FedAvgServer, get_fedavg_argparser
 from src.client.scaffold import SCAFFOLDClient
-from src.config.utils import trainable_params
+from src.utils.tools import trainable_params
 
 
 def get_scaffold_argparser() -> ArgumentParser:

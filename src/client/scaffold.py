@@ -5,7 +5,7 @@ import torch
 from torch.utils.data import DataLoader
 
 from fedavg import FedAvgClient
-from src.config.utils import trainable_params
+from src.utils.tools import trainable_params
 
 
 class SCAFFOLDClient(FedAvgClient):

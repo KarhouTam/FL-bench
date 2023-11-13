@@ -8,7 +8,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 
 from fedavg import FedAvgServer, get_fedavg_argparser
-from src.config.utils import TEMP_DIR, trainable_params
+from src.utils.tools import TEMP_DIR, trainable_params
 
 
 def get_pfedla_argparser() -> ArgumentParser:

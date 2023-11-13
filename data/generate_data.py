@@ -26,7 +26,7 @@ from utils.process import (
     process_celeba,
     process_femnist,
 )
-from src.config.utils import fix_random_seed
+from src.utils.tools import fix_random_seed
 
 
 def main(args):

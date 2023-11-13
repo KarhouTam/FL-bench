@@ -10,8 +10,8 @@ import torch.nn.functional as F
 
 from fedavg import FedAvgServer, get_fedavg_argparser
 from src.client.fedgen import FedGenClient
-from src.config.utils import trainable_params
-from src.config.models import get_model_arch
+from src.utils.tools import trainable_params
+from src.utils.models import get_model_arch
 
 
 def get_fedgen_argparser() -> ArgumentParser:

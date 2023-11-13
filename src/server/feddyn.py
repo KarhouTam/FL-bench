@@ -6,7 +6,7 @@ import torch
 
 from fedavg import FedAvgServer, get_fedavg_argparser
 from src.client.feddyn import FedDynClient
-from src.config.utils import trainable_params, vectorize
+from src.utils.tools import trainable_params, vectorize
 
 
 def get_feddyn_argparser() -> ArgumentParser:

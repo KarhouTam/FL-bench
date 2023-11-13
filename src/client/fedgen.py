@@ -6,7 +6,7 @@ import numpy as np
 import torch
 import torch.nn.functional as F
 
-from src.config.utils import count_labels, trainable_params
+from src.utils.tools import count_labels, trainable_params
 from fedavg import FedAvgClient
 
 

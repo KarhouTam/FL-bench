@@ -8,7 +8,7 @@ from torch.utils.data import DataLoader
 from fedavg import FedAvgClient, PROJECT_DIR
 from data.utils.datasets import DATASETS
 from data.utils.constants import MEAN, STD
-from src.config.utils import trainable_params
+from src.utils.tools import trainable_params
 
 
 class FedMDClient(FedAvgClient):

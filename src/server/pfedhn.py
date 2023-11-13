@@ -7,7 +7,7 @@ import torch.nn as nn
 
 from fedavg import FedAvgServer, get_fedavg_argparser
 from src.client.fedper import FedPerClient
-from src.config.utils import trainable_params
+from src.utils.tools import trainable_params
 
 
 def get_pfedhn_argparser() -> ArgumentParser:

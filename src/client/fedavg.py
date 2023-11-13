@@ -11,8 +11,8 @@ from torchvision import transforms
 
 PROJECT_DIR = Path(__file__).parent.parent.parent.absolute()
 
-from src.config.utils import trainable_params, evalutate_model, Logger
-from src.config.models import DecoupledModel
+from src.utils.tools import trainable_params, evalutate_model, Logger
+from src.utils.models import DecoupledModel
 from data.utils.constants import MEAN, STD
 from data.utils.datasets import DATASETS
 

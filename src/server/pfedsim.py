@@ -6,7 +6,7 @@ import torch
 from rich.progress import track
 
 from fedavg import FedAvgServer, get_fedavg_argparser
-from src.config.utils import trainable_params
+from src.utils.tools import trainable_params
 
 
 def get_pfedsim_argparser() -> ArgumentParser:

@@ -9,7 +9,7 @@ import torch.nn.functional as F
 import torchvision.models as models
 from torch import Tensor
 
-from .utils import PROJECT_DIR
+from .tools import PROJECT_DIR
 
 
 def get_model_arch(model_name):

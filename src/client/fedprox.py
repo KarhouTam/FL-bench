@@ -1,5 +1,5 @@
 from fedavg import FedAvgClient
-from src.config.utils import trainable_params
+from src.utils.tools import trainable_params
 
 
 class FedProxClient(FedAvgClient):

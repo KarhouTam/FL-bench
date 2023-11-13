@@ -6,7 +6,7 @@ import torch
 from torch.utils.data import DataLoader, Subset
 
 from fedavg import FedAvgClient
-from src.config.utils import trainable_params, evalutate_model, vectorize
+from src.utils.tools import trainable_params, evalutate_model, vectorize
 
 
 class FedFomoClient(FedAvgClient):
