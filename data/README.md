@@ -17,12 +17,12 @@ sh tiny_imagenet.sh
 
 ## Generic Arguments 🔧
 📢 All arguments have their default value.
-| Arguments for general datasets | Description                                                                                                                                                                                                                      |
-| ------------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `--dataset`, `-d`              | The name of dataset.                                                                                                                                                                                                             |
-| `--iid`                        | Non-zero value for randomly partitioning data and disabling all other Non-IID partition methods.                                                                                                                                 |
-| `--client_num`, `-cn`          | The number of clients.                                                                                                                                                                                                           |
-| `--split`                      | Chooses from `[sample, user]`.  `user`: partition clients into train-test groups; `sample`: partition each client's data samples into train-test groups                                                                          |
+| Arguments for general datasets | Description     |
+| ------------------------------ | --|
+| `--dataset`, `-d`              | The name of dataset.   |
+| `--iid`                        | Non-zero value for randomly partitioning data and disabling all other Non-IID partition methods. |
+| `--client_num`, `-cn`          | The number of clients.   |
+| `--split`                      | Chooses from `[sample, user]`.  `user`: partition clients into train-test groups; `sample`: partition each client's data samples into train-test groups  |
 | `--fraction`, `-f`             | Propotion of train data/clients that depends on `--split`. *Note that this argument is unused for FEMNIST and CelebA, which already split clients' dataset when you run their `preprocess.sh` according to its argument `--tf`.* |
 
 
@@ -60,7 +60,6 @@ This benckmark offers 5 partitioning schemes.
 e.g.
 
 ```shell
-cd data
 python generate_data.py -d cifar10 -a 0.1 -cn 100
 ```
 
