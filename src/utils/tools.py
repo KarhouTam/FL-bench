@@ -1,5 +1,7 @@
 import os
 import random
+import yaml
+from argparse import Namespace
 from copy import deepcopy
 from collections import Counter, OrderedDict
 from typing import List, Tuple, Union
@@ -168,6 +170,24 @@ def count_labels(
         indices = list(range(len(dataset.targets)))
     counter = Counter(dataset.targets[indices].tolist())
     return [counter.get(i, min_value) for i in range(len(dataset.classes))]
+
+
+def parse_config_file(default_args: Namespace) -> Namespace:
+    """Merging default argument namespace with argument dict from custom config file.
+
+    Args:
+        default_args (Namespace): Default args set by CLI.
+
+    Returns:
+        Namespace: The merged arg namespace.
+    """
+    with open(Path(default_args.config_file).absolute()) as f:
+        custom = yaml.safe_load(f)
+
+    merged_args = deepcopy(vars(default_args))
+    merged_args.update(custom)
+
+    return Namespace(**merged_args)
 
 
 class Logger:

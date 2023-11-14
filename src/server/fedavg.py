@@ -21,6 +21,7 @@ from src.utils.tools import (
     OUT_DIR,
     Logger,
     fix_random_seed,
+    parse_config_file,
     trainable_params,
     get_best_device,
 )
@@ -114,6 +115,7 @@ def get_fedavg_argparser() -> ArgumentParser:
     parser.add_argument("--save_fig", type=int, default=1)
     parser.add_argument("--save_metrics", type=int, default=1)
     parser.add_argument("--viz_win_name", type=str, required=False)
+    parser.add_argument("-cfg", "--config_file", type=str, default="")
     return parser
 
 
@@ -128,6 +130,10 @@ class FedAvgServer:
         self.args = get_fedavg_argparser().parse_args() if args is None else args
         self.algo = algo
         self.unique_model = unique_model
+        if len(self.args.config_file) > 0 and os.path.exists(
+            Path(self.args.config_file).absolute()
+        ):
+            self.args = parse_config_file(self.args)
         fix_random_seed(self.args.seed)
         with open(PROJECT_DIR / "data" / self.args.dataset / "args.json", "r") as f:
             self.args.dataset_args = json.load(f)
@@ -427,17 +433,13 @@ class FedAvgServer:
         label = {"sample": "test", "user": "train"}[split]
         correct_before = torch.tensor(
             [
-                self.client_stats[i][self.current_epoch]["before"][
-                    f"{label}_correct"
-                ]
+                self.client_stats[i][self.current_epoch]["before"][f"{label}_correct"]
                 for i in self.selected_clients
             ]
         )
         correct_after = torch.tensor(
             [
-                self.client_stats[i][self.current_epoch]["after"][
-                    f"{label}_correct"
-                ]
+                self.client_stats[i][self.current_epoch]["after"][f"{label}_correct"]
                 for i in self.selected_clients
             ]
         )

@@ -1,0 +1,28 @@
+# Full explaination are listed on README.md
+# You can set advanced args used by other FL methods also (But be careful to name conflict).
+# Usage (example): python main.py fedavg -cfg config/template.yaml
+# NOTE: Values set in this config file would overlap values set in CLI and the defaults.
+seed: 42
+join_ratio: 0.01
+global_epoch: 100
+local_epoch: 10
+finetune_epoch: 0
+test_gap: 100
+eval_test: true
+eval_train: false
+local_lr: 0.01
+momentum: 0
+weight_decay: 0
+verbose_gap: 10
+batch_size: 32
+visible: true
+global_testset: false
+straggler_ratio: 0
+straggler_min_local_epoch: 0
+external_model_params_file: null
+use_cuda: true
+save_log: true
+save_model: false
+save_fig: true
+save_metrics: true
+viz_win_name: null
