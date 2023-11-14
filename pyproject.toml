@@ -22,6 +22,7 @@ matplotlib = "3.7.1"
 scikit-learn = "1.2.2"
 faiss-cpu = "1.7.4"
 pynvml = "11.5.0"
+PyYAML = "6.0"
 
 [[tool.poetry.source]]
 name = "mirrors"

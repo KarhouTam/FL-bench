@@ -11,3 +11,4 @@ matplotlib~=3.7.1
 faiss-cpu~=1.7.4
 scikit-learn~=1.2.2
 pynvml~=11.5.0
+PyYAML~=6.0
