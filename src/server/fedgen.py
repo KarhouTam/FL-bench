@@ -46,7 +46,7 @@ class FedGenServer(FedAvgServer):
             args = get_fedgen_argparser().parse_args()
         super().__init__(algo, args, unique_model, default_trainer)
         self.trainer = FedGenClient(deepcopy(self.model), self.args, self.logger, self.device)
-        self.generator = Generator(args, self).to(self.device)
+        self.generator = Generator(self).to(self.device)
         self.generator_optimizer = torch.optim.Adam(
             trainable_params(self.generator), args.ensemble_lr
         )
@@ -162,23 +162,23 @@ class FedGenServer(FedAvgServer):
 
 
 class Generator(nn.Module):
-    def __init__(self, args, server: FedGenServer) -> None:
+    def __init__(self, server: FedGenServer) -> None:
         super().__init__()
         # obtain the latent dim
-        dummy_model = get_model_arch(args.model)(dataset=args.dataset)
+        dummy_model = get_model_arch(server.args.model)(dataset=server.args.dataset)
         dummy_model.eval()
         x = torch.zeros(1, *server.trainer.dataset[0][0].shape)
         self.device = server.device
-        self.use_embedding = args.embedding
+        self.use_embedding = server.args.embedding
         self.latent_dim = dummy_model.base(x).shape[-1]
-        self.hidden_dim = args.hidden_dim
-        self.noise_dim = args.noise_dim
+        self.hidden_dim = server.args.hidden_dim
+        self.noise_dim = server.args.noise_dim
         self.class_num = len(server.trainer.dataset.classes)
 
-        if args.embedding:
-            self.embedding = nn.Embedding(self.class_num, args.noise_dim)
+        if server.args.embedding:
+            self.embedding = nn.Embedding(self.class_num, server.args.noise_dim)
         input_dim = (
-            self.noise_dim * 2 if args.embedding else self.noise_dim + self.class_num
+            self.noise_dim * 2 if server.args.embedding else self.noise_dim + self.class_num
         )
         self.mlp = nn.Sequential(
             nn.Linear(input_dim, self.hidden_dim),
