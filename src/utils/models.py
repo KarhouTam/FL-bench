@@ -277,8 +277,13 @@ class TwoNN(DecoupledModel):
             "usps": 1536,
             "synthetic": get_synthetic_dimension(),
         }
-
-        self.base = nn.Linear(features_length[dataset], 200)
+        self.base = nn.Sequential(
+            nn.Linear(features_length[dataset], 200),
+            nn.ReLU(inplace=True),
+            nn.Linear(200, 200),
+            nn.ReLU(inplace=True),
+        )
+        # self.base = nn.Linear(features_length[dataset], 200)
         self.classifier = nn.Linear(200, NUM_CLASSES[dataset])
         self.activation = nn.ReLU()
 
@@ -287,8 +292,7 @@ class TwoNN(DecoupledModel):
 
     def forward(self, x):
         x = torch.flatten(x, start_dim=1)
-        x = self.activation(self.base(x))
-        x = self.classifier(x)
+        x = self.classifier(self.base(x))
         return x
 
     def get_final_features(self, x, detach=True):
