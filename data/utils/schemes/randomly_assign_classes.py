@@ -19,18 +19,25 @@ def randomly_assign_classes(
     ]
     assigned_labels = []
     selected_times = [0 for _ in label_list]
-    for i in range(client_num):
-        sampled_labels = random.sample(label_list, class_num)
-        assigned_labels.append(sampled_labels)
-        for j in sampled_labels:
-            selected_times[j] += 1
+    # make sure that each 
+    while 0 in Counter(selected_times):
+        assigned_labels = []
+        selected_times = [0 for _ in label_list]
+        for i in range(client_num):
+            sampled_labels = random.sample(label_list, class_num)
+            assigned_labels.append(sampled_labels)
+            for j in sampled_labels:
+                selected_times[j] += 1
 
     labels_count = Counter(targets_numpy)
 
     batch_sizes = np.zeros_like(label_list)
     for i in label_list:
-        batch_sizes[i] = int(labels_count[i] / selected_times[i])
-
+        if selected_times[i] == 0:
+            batch_sizes[i] = 0
+        else:
+            batch_sizes[i] = int(labels_count[i] / selected_times[i])
+            
     for i in range(client_num):
         for cls in assigned_labels[i]:
             if len(data_idx_for_each_label[cls]) < 2 * batch_sizes[cls]:
