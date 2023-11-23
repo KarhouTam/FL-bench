@@ -19,15 +19,11 @@ def randomly_assign_classes(
     ]
     assigned_labels = []
     selected_times = [0 for _ in label_list]
-    # make sure that each 
-    while 0 in Counter(selected_times):
-        assigned_labels = []
-        selected_times = [0 for _ in label_list]
-        for i in range(client_num):
-            sampled_labels = random.sample(label_list, class_num)
-            assigned_labels.append(sampled_labels)
-            for j in sampled_labels:
-                selected_times[j] += 1
+    for i in range(client_num):
+        sampled_labels = random.sample(label_list, class_num)
+        assigned_labels.append(sampled_labels)
+        for j in sampled_labels:
+            selected_times[j] += 1
 
     labels_count = Counter(targets_numpy)
 
