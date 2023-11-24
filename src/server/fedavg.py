@@ -7,6 +7,7 @@ from pathlib import Path
 from argparse import ArgumentParser, Namespace
 from collections import OrderedDict
 from copy import deepcopy
+import time
 from typing import Dict, List, OrderedDict
 
 import torch
@@ -263,6 +264,7 @@ class FedAvgServer:
 
     def train(self):
         """The Generic FL training process"""
+        avg_round_time = 0
         for E in self.train_progress_bar:
             self.current_epoch = E
 
@@ -273,8 +275,17 @@ class FedAvgServer:
                 self.test()
 
             self.selected_clients = self.client_sample_stream[E]
+            begin = time.time()
             self.train_one_round()
+            end = time.time()
             self.log_info()
+            avg_round_time = (avg_round_time * (self.current_epoch) + (end - begin)) / (
+                self.current_epoch + 1
+            )
+
+        self.logger.log(
+            f"{self.algo}'s average time taken by each global epoch: {avg_round_time:.3f}s."
+        )
 
     def train_one_round(self):
         """The function of indicating specific things FL method need to do (at server side) in each communication round."""
@@ -486,6 +497,7 @@ class FedAvgServer:
         Raises:
             RuntimeError: If `trainer` is not set.
         """
+        begin = time.time()
         if self.trainer is None:
             raise RuntimeError(
                 "Specify your unique trainer or set `default_trainer` as True."
@@ -495,7 +507,8 @@ class FedAvgServer:
             self.viz.close(win=self.viz_win_name)
 
         self.train()
-
+        end = time.time()
+        self.logger.log(f"{self.algo}'s total running time: {(end - begin):.3f}s.")
         self.logger.log(
             "=" * 20, self.algo, "TEST RESULTS:", "=" * 20, self.test_results
         )
