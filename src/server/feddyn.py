@@ -27,11 +27,20 @@ class FedDynServer(FedAvgServer):
         if args is None:
             args = get_feddyn_argparser().parse_args()
         super().__init__(algo, args, unique_model, default_trainer)
-        self.trainer = FedDynClient(deepcopy(self.model), self.args, self.logger, self.device)
+        self.trainer = FedDynClient(
+            deepcopy(self.model), self.args, self.logger, self.device
+        )
         param_numel = vectorize(trainable_params(self.model)).numel()
         self.nabla = [
             torch.zeros(param_numel, device=self.device) for _ in range(self.client_num)
         ]
+        self.weight_list = torch.tensor(
+            [len(self.trainer.data_indices[i]["train"]) for i in self.train_clients],
+            device=self.device,
+        )
+        self.weight_list = (
+            self.weight_list / self.weight_list.sum() * len(self.train_clients)
+        )
 
     def train_one_round(self):
         delta_cache = []
@@ -46,6 +55,7 @@ class FedDynServer(FedAvgServer):
                 local_epoch=self.clients_local_epoch[client_id],
                 new_parameters=client_local_params,
                 nabla=self.nabla[client_id],
+                alpha=self.args.alpha / self.weight_list[client_id],
                 return_diff=False,
                 verbose=((self.current_epoch + 1) % self.args.verbose_gap) == 0,
             )
@@ -60,20 +70,18 @@ class FedDynServer(FedAvgServer):
             torch.stack(params).mean(dim=0) for params in zip(*client_params_cache)
         ]
         params_shape = [(param.numel(), param.shape) for param in avg_parameters]
-        flatten_avg_parameters = vectorize(avg_parameters)
+        flatten_global_params = vectorize(self.global_params_dict)
 
         for i, client_params in enumerate(client_params_cache):
-            self.nabla[i] += vectorize(client_params) - flatten_avg_parameters
+            self.nabla[i] += vectorize(client_params) - flatten_global_params
 
-        flatten_new_parameters = flatten_avg_parameters + torch.stack(self.nabla).mean(
-            dim=0
-        )
+        flatten_new_params =  vectorize(avg_parameters) + torch.stack(self.nabla).mean(dim=0)
 
         # reshape
         new_parameters = []
         i = 0
         for numel, shape in params_shape:
-            new_parameters.append(flatten_new_parameters[i : i + numel].reshape(shape))
+            new_parameters.append(flatten_new_params[i : i + numel].reshape(shape))
             i += numel
         self.global_params_dict = OrderedDict(
             zip(self.trainable_params_name, new_parameters)

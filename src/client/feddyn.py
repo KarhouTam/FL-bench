@@ -11,8 +11,8 @@ class FedDynClient(FedAvgClient):
         super().__init__(model, args, logger, device)
 
         self.nabla: torch.Tensor = None
-        self.vectorized_global_params: torch.Tensor = None
-        self.vectorized_curr_params: torch.Tensor = None
+        self.flatten_global_params: torch.Tensor = None
+        self.alpha: float = None
 
     def train(
         self,
@@ -20,11 +20,13 @@ class FedDynClient(FedAvgClient):
         local_epoch: int,
         new_parameters: OrderedDict[str, torch.Tensor],
         nabla: torch.Tensor,
+        alpha: float,
         return_diff=False,
         verbose=False,
     ):
-        self.vectorized_global_params = vectorize(new_parameters, detach=True)
+        self.flatten_global_params = vectorize(new_parameters, detach=True)
         self.nabla = nabla
+        self.alpha = alpha
         res = super().train(
             client_id, local_epoch, new_parameters, return_diff, verbose
         )
@@ -40,10 +42,11 @@ class FedDynClient(FedAvgClient):
                 x, y = x.to(self.device), y.to(self.device)
                 logit = self.model(x)
                 loss_ce = self.criterion(logit, y)
-                self.vectorized_curr_params = vectorize(trainable_params(self.model))
-                loss_algo = self.args.alpha * torch.sum(
-                    self.vectorized_curr_params
-                    * (-self.vectorized_global_params + self.nabla)
+                flatten_curr_params = vectorize(
+                    trainable_params(self.model), detach=False
+                )
+                loss_algo = self.alpha * torch.sum(
+                    flatten_curr_params * (-self.flatten_global_params + self.nabla)
                 )
                 loss = loss_ce + loss_algo
                 self.optimizer.zero_grad()
