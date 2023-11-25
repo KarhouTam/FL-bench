@@ -510,11 +510,13 @@ class FedAvgServer:
         self.train()
         end = time.time()
         total = end - begin
-        self.logger.log(f"{self.algo}'s total running time: {int(total // 3600)} h {int((total % 3600) // 60)} m {int(total % 216000)}s.")
+        self.logger.log(
+            f"{self.algo}'s total running time: {int(total // 3600)} h {int((total % 3600) // 60)} m {int(total % 60)} s."
+        )
         self.logger.log(
             "=" * 20, self.algo, "TEST RESULTS:", "=" * 20, self.test_results
         )
-        
+
         if self.args.check_convergence:
             self.check_convergence()
 
