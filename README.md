@@ -182,7 +182,8 @@ About the default values and hyperparameters of advanced FL methods, go check co
 | `--save_fig`                           | Non-zero value for saving the accuracy curves showed on Visdom into a `.jpeg` file at `FL-bench/out/<method>`.    |
 | `--save_metrics`                       | Non-zero value for saving metrics stats into a `.csv` file at `FL-bench/out/<method>`.                            |
 | `--viz_win_name`                       | Custom visdom window name (active when setting `--visible` as a non-zero value).  |
-| `--config_file` (*New Feature* 🌟) | Relative file path of custom config `.yaml` file.  |
+| `--config_file` | Relative file path of custom config `.yaml` file.  |
+| `--check_convergence` | Non-zero value for checking convergence after training.  |
 
 ## Supported Models 🚀
 

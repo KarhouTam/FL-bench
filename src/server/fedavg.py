@@ -117,6 +117,7 @@ def get_fedavg_argparser() -> ArgumentParser:
     parser.add_argument("--save_metrics", type=int, default=1)
     parser.add_argument("--viz_win_name", type=str, required=False)
     parser.add_argument("-cfg", "--config_file", type=str, default="")
+    parser.add_argument("--check_convergence", type=int, default=1)
     return parser
 
 
@@ -513,8 +514,9 @@ class FedAvgServer:
         self.logger.log(
             "=" * 20, self.algo, "TEST RESULTS:", "=" * 20, self.test_results
         )
-
-        self.check_convergence()
+        
+        if self.args.check_convergence:
+            self.check_convergence()
 
         self.logger.close()
 

@@ -28,3 +28,4 @@ save_model: false
 save_fig: true
 save_metrics: true
 viz_win_name: null
+check_convergence: true

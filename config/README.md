@@ -27,3 +27,4 @@
 | `save_fig`                           | `true` for saving the accuracy curves showed on Visdom into a `.jpeg` file at `FL-bench/out/${algo}`.    |
 | `save_metrics`                       | `true` for saving metrics stats into a `.csv` file at `FL-bench/out/${algo}`.                            |
 | `viz_win_name`                       | Custom visdom window name (active when setting `visible` as `true`).  |
+| `--check_convergence` | `true` for checking convergence after training.  |
