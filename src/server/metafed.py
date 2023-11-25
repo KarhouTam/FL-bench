@@ -1,5 +1,6 @@
 from argparse import ArgumentParser, Namespace
 from copy import deepcopy
+import time
 from fedavg import FedAvgServer, get_fedavg_argparser
 from rich.progress import track
 from src.client.metafed import MetaFedClient
@@ -55,10 +56,11 @@ class MetaFedServer(FedAvgServer):
         self.test()
 
         # client training phase
+        avg_round_time = 0
         self.trainer.local_epoch = self.args.local_epoch
         for E in self.train_progress_bar:
             self.current_epoch = E
-
+            begin = time.time()
             if (E + 1) % self.args.verbose_gap == 0:
                 self.logger.log("-" * 26, f"TRAINING EPOCH: {E + 1}", "-" * 26)
 
@@ -84,7 +86,15 @@ class MetaFedServer(FedAvgServer):
                 client_params_cache.append(student_params)
 
             self.update_client_params(client_params_cache)
+            end = time.time()
             self.log_info()
+            avg_round_time = (avg_round_time * (self.current_epoch) + (end - begin)) / (
+                self.current_epoch + 1
+            )
+            
+        self.logger.log(
+            f"{self.algo}'s average time taken by each global epoch: {int(avg_round_time // 60)} m {(avg_round_time % 60):.2f} s."
+        )
 
         # personalization phase
         self.current_epoch += 1

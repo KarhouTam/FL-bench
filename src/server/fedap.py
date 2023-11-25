@@ -2,6 +2,7 @@ import math
 from argparse import ArgumentParser, Namespace
 from collections import OrderedDict
 from copy import deepcopy
+import time
 from typing import List
 
 import torch
@@ -131,9 +132,10 @@ class FedAPServer(FedAvgServer):
             console=self.logger.stdout,
         )
         self.trainer.pretrain = False
+        avg_round_time = 0
         for E in self.train_progress_bar:
+            begin = time.time()
             self.current_epoch = E
-
             if (E + 1) % self.args.verbose_gap == 0:
                 self.logger.log(" " * 30, f"TRAINING EPOCH: {E + 1}", " " * 30)
 
@@ -156,7 +158,15 @@ class FedAPServer(FedAvgServer):
                 delta_cache.append(delta)
 
             self.update_client_params(delta_cache)
+            end = time.time()
             self.log_info()
+            avg_round_time = (avg_round_time * (self.current_epoch) + (end - begin)) / (
+                self.current_epoch + 1
+            )
+            
+        self.logger.log(
+            f"{self.algo}'s average time taken by each global epoch: {int(avg_round_time // 60)} m {(avg_round_time % 60):.2f} s."
+        )
 
     def get_form(self):
         tmp_mean = []

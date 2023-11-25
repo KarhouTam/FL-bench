@@ -284,7 +284,7 @@ class FedAvgServer:
             )
 
         self.logger.log(
-            f"{self.algo}'s average time taken by each global epoch: {avg_round_time:.3f}s."
+            f"{self.algo}'s average time taken by each global epoch: {int(avg_round_time // 60)} m {(avg_round_time % 60):.2f} s."
         )
 
     def train_one_round(self):
@@ -508,7 +508,8 @@ class FedAvgServer:
 
         self.train()
         end = time.time()
-        self.logger.log(f"{self.algo}'s total running time: {(end - begin):.3f}s.")
+        total = end - begin
+        self.logger.log(f"{self.algo}'s total running time: {int(total // 3600)} h {int((total % 3600) // 60)} m {int(total % 216000)}s.")
         self.logger.log(
             "=" * 20, self.algo, "TEST RESULTS:", "=" * 20, self.test_results
         )
