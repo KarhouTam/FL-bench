@@ -4,5 +4,5 @@ There are three steps to partition DomainNet
 3. Construct heterogeneous data partition
 
 # Select Test Clients
-If `--split='user' or 'sample'`, we split clients and data accrding.\
+If `--split='user' or 'sample'`, we split clients and data accrding [Generating Federated dataset](.README.md).\
 If `--split='domain'`, we choose Sketch as test domain and other styles as training domain.
