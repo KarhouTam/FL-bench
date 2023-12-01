@@ -1,3 +1,19 @@
+from src.utils.tools import fix_random_seed
+from data.utils.process import (
+    prune_args,
+    generate_synthetic_data,
+    process_celeba,
+    process_femnist,
+)
+from data.utils.schemes import (
+    dirichlet,
+    dirichlet_4_domainnet,
+    iid_partition,
+    randomly_assign_classes,
+    allocate_shards,
+    semantic_partition,
+)
+from data.utils.datasets import DATASETS
 import json
 import os
 import pickle
@@ -7,22 +23,6 @@ from pathlib import Path
 import numpy as np
 
 CURRENT_DIR = Path(__file__).parent.absolute()
-
-from data.utils.datasets import DATASETS
-from data.utils.schemes import (
-    dirichlet,
-    iid_partition,
-    randomly_assign_classes,
-    allocate_shards,
-    semantic_partition,
-)
-from data.utils.process import (
-    prune_args,
-    generate_synthetic_data,
-    process_celeba,
-    process_femnist,
-)
-from src.utils.tools import fix_random_seed
 
 
 def main(args):
@@ -45,7 +45,15 @@ def main(args):
         dataset = DATASETS[args.dataset](dataset_root, args)
 
         if not args.iid:
-            if args.alpha > 0:  # Dirichlet(alpha)
+            if args.dataset == "domain":
+                with open(dataset_root / "original_partition.pkl", "rb") as f:
+                    partition = {}
+                    partition["data_indices"] = pickle.load(f)
+                    partition["separation"] = None
+                    args.client_num = len(partition["data_indices"])
+                with open(dataset_root / "original_stats.json", "r") as f:
+                    stats = json.load(f)
+            elif args.alpha > 0:  # Dirichlet(alpha)
                 partition, stats = dirichlet(
                     dataset=dataset,
                     client_num=args.client_num,
@@ -74,14 +82,7 @@ def main(args):
                     seed=args.seed,
                     use_cuda=args.use_cuda,
                 )
-            elif args.dataset == "domain":
-                with open(dataset_root / "original_partition.pkl", "rb") as f:
-                    partition = {}
-                    partition["data_indices"] = pickle.load(f)
-                    partition["separation"] = None
-                    args.client_num = len(partition["data_indices"])
-                with open(dataset_root / "original_stats.json", "r") as f:
-                    stats = json.load(f)
+
             else:
                 raise RuntimeError(
                     "Please set arbitrary one arg from [--alpha, --classes, --shards] to split the dataset."
@@ -97,6 +98,12 @@ def main(args):
             train_clients_num = int(args.client_num * args.fraction)
             clients_4_train = list(range(train_clients_num))
             clients_4_test = list(range(train_clients_num, args.client_num))
+        elif args.split=="domain" and args.dataset=='domain':
+            # we choose sketch as test domain by default
+            clients_per_domain = int(args.client_num/6)
+            clients_4_train = list(range(0, 5*clients_per_domain))
+            clients_4_test = list(
+                set(range(0, clients_per_domain*6))-set(clients_4_train))
         else:
             clients_4_train = list(range(args.client_num))
             clients_4_test = list(range(args.client_num))
@@ -119,9 +126,18 @@ def main(args):
                 }
             else:
                 if client_id in clients_4_train:
-                    partition["data_indices"][client_id] = {"train": idx, "test": []}
+                    num_train_samples = int(len(idx) * args.fraction)
+                    partition["data_indices"][client_id] = {
+                        "train": idx[:num_train_samples], "test": idx[num_train_samples:]}
                 else:
-                    partition["data_indices"][client_id] = {"train": [], "test": idx}
+                    partition["data_indices"][client_id] = {
+                        "train": [], "test": idx}
+        # generate heterogeneous partition for DomainNet
+        if args.dataset =='domain' and args.alpha >0:
+            with open(dataset_root / "domain_indices_bound.pkl", "rb") as f:
+                domain_indices_bound=pickle.load(f)
+            targets_numpy = np.array(dataset.targets, dtype=np.int64)
+            partition, stats = dirichlet_4_domainnet(partition,args,clients_4_train,domain_indices_bound,targets_numpy)
 
     with open(dataset_root / "partition.pkl", "wb") as f:
         pickle.dump(partition, f)
@@ -164,7 +180,7 @@ if __name__ == "__main__":
     parser.add_argument("-cn", "--client_num", type=int, default=20)
     parser.add_argument("--seed", type=int, default=42)
     parser.add_argument(
-        "--split", type=str, choices=["sample", "user"], default="sample"
+        "--split", type=str, choices=["sample", "user","domain"], default="sample"
     )
     parser.add_argument("-f", "--fraction", type=float, default=0.5)
     parser.add_argument("-c", "--classes", type=int, default=0)
@@ -184,7 +200,8 @@ if __name__ == "__main__":
     parser.add_argument(
         "--emnist_split",
         type=str,
-        choices=["byclass", "bymerge", "letters", "balanced", "digits", "mnist"],
+        choices=["byclass", "bymerge", "letters",
+                 "balanced", "digits", "mnist"],
         default="byclass",
     )
 
