@@ -4,6 +4,7 @@ from .iid import iid_partition
 from .shards import allocate_shards
 from .semantic import semantic_partition
 from .dirichlet_4_domainnet import dirichlet_4_domainnet
+
 __all__ = [
     "dirichlet",
     "dirichlet_4_domainnet",

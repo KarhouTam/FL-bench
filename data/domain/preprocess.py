@@ -26,16 +26,18 @@ if __name__ == "__main__":
     client_num_foreach_domain = input(
         "How many client share one domain dataset (1 by default): "
     )
-    alpha=input("Set alpha for heterogeneous parition (0 by default): ")
-    least_samples=input("Set least samples for heterogeneous parition (800 by default): ")
+    alpha = input("Set alpha for heterogeneous parition (0 by default): ")
+    least_samples = input(
+        "Set least samples for heterogeneous parition (800 by default): "
+    )
     seed = 42 if not seed else int(seed)
     img_size = 64 if not img_size else int(img_size)
     ratio = 1 if not ratio else float(ratio) / 100
     client_num_foreach_domain = (
         1 if not client_num_foreach_domain else int(client_num_foreach_domain)
     )
-    alpha=0 if not alpha else float(alpha)
-    least_samples=800 if not least_samples else int(least_samples)
+    alpha = 0 if not alpha else float(alpha)
+    least_samples = 800 if not least_samples else int(least_samples)
     random.seed(seed)
     torch.manual_seed(seed)
     if not (1 <= class_num <= 345):
@@ -54,7 +56,7 @@ if __name__ == "__main__":
     filename_list = []
     old_count = 0
     new_count = 0
-    domain_indices_bound={}
+    domain_indices_bound = {}
     for i, domain in enumerate(domains):
         for c, cls in enumerate(selected_classes):
             folder = CURRENT_DIR / "raw" / domain / cls
@@ -65,7 +67,7 @@ if __name__ == "__main__":
                 filename_list.append(str(folder / name))
                 targets.append(target_mapping[cls])
                 new_count += 1
-        domain_indices_bound[domain]={"begin":old_count,"end":new_count}
+        domain_indices_bound[domain] = {"begin": old_count, "end": new_count}
 
         print(f"Indices of data from {domain} [{old_count}, {new_count})")
 
@@ -94,8 +96,8 @@ if __name__ == "__main__":
             range(0, client_num_foreach_domain * 6, client_num_foreach_domain)
         )
     }
-    with open("domain_indices_bound.pkl","wb") as f :
-        pickle.dump(domain_indices_bound,f)
+    with open("domain_indices_bound.pkl", "wb") as f:
+        pickle.dump(domain_indices_bound, f)
 
     with open("original_partition.pkl", "wb") as f:
         pickle.dump(original_partition, f)
@@ -125,4 +127,6 @@ if __name__ == "__main__":
     with open("original_stats.json", "w") as f:
         json.dump(original_stats, f)
 
-    os.system(f"cd ../..; python generate_data.py -d domain --alpha {alpha} --least_samples {least_samples} --split domain --fraction 0.9 ")
+    os.system(
+        f"cd ../..; python generate_data.py -d domain --alpha {alpha} --least_samples {least_samples} --split domain --fraction 0.9 "
+        f"cd ../..; python generate_data.py -d domain --alpha {alpha} --least_samples {least_samples} --split domain --fraction {fraction} "
