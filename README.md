@@ -228,7 +228,7 @@ Regular Image Datasets
 - [*CINIC-10*](https://datashare.ed.ac.uk/handle/10283/3192) (3 x 32 x 32, 10 classes)
 
 - [*DomainNet*](http://ai.bu.edu/DomainNet/) (3 x ? x ?, 345 classes) 
-  - Go check [`data/domain/README.md`](/data/domain/README.md) for the full process guideline 🧾.
+  - Go check [`data/domain/README.md`](https://github.com/KarhouTam/FL-bench/tree/master/data/domain#readme) for the full process guideline 🧾.
   
 Medical Image Datasets
 
