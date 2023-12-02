@@ -4,10 +4,10 @@ from data.utils.process import (
     generate_synthetic_data,
     process_celeba,
     process_femnist,
+    dirichlet_4_domainnet,
 )
 from data.utils.schemes import (
     dirichlet,
-    dirichlet_4_domainnet,
     iid_partition,
     randomly_assign_classes,
     allocate_shards,
