@@ -13,7 +13,7 @@ There are three steps to partition DomainNet:
 3. Construct heterogeneous data partition 
 
 ### Split Clients
-We split clients and data accrding to `--split`, more details in [Generating Federated dataset](/data/README.md).\
+We split clients and data accrding to `--split`, more details in [Generating Federated dataset](https://github.com/KarhouTam/FL-bench/tree/master/data#readme).\
 If `--split='domain'` we choose sketch as test domain by default. Users can easily choose their own test domain by modifying `generate_data.py`
 
 ### Split Samples on Training Clients
