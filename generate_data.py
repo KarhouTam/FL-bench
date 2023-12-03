@@ -1,3 +1,11 @@
+import json
+import os
+import pickle
+
+from argparse import ArgumentParser
+from pathlib import Path
+import numpy as np
+
 from src.utils.tools import fix_random_seed
 from data.utils.process import (
     prune_args,
@@ -14,13 +22,6 @@ from data.utils.schemes import (
     semantic_partition,
 )
 from data.utils.datasets import DATASETS
-import json
-import os
-import pickle
-from argparse import ArgumentParser
-from pathlib import Path
-
-import numpy as np
 
 CURRENT_DIR = Path(__file__).parent.absolute()
 
@@ -118,7 +119,7 @@ def main(args):
     if args.dataset not in ["femnist", "celeba"]:
         for client_id, idx in enumerate(partition["data_indices"]):
             if args.split == "sample":
-                num_train_samples = int(len(idx) * args.fraction)
+                num_train_samples = int(len(idx) * args.data_ratio)
                 np.random.shuffle(idx)
                 idx_train, idx_test = idx[:num_train_samples], idx[num_train_samples:]
                 partition["data_indices"][client_id] = {
@@ -127,7 +128,7 @@ def main(args):
                 }
             else:
                 if client_id in clients_4_train:
-                    num_train_samples = int(len(idx) * args.fraction)
+                    num_train_samples = int(len(idx) * args.data_ratio)
                     partition["data_indices"][client_id] = {
                         "train": idx[:num_train_samples],
                         "test": idx[num_train_samples:],
@@ -191,7 +192,14 @@ if __name__ == "__main__":
     parser.add_argument("-s", "--shards", type=int, default=0)
     parser.add_argument("-a", "--alpha", type=float, default=0)
     parser.add_argument("-ls", "--least_samples", type=int, default=40)
-
+    parser.add_argument("-a", "--alpha", type=float, default=0)
+    parser.add_argument(
+        "-dr",
+        "--data_ratio",
+        type=float,
+        default=0.9,
+        help="data ratio for spliting the dataset on training client",
+    )
     # For synthetic data only
     parser.add_argument("--gamma", type=float, default=0.5)
     parser.add_argument("--beta", type=float, default=0.5)

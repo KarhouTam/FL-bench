@@ -23,8 +23,8 @@ sh tiny_imagenet.sh
 | `--iid`                        | Non-zero value for randomly partitioning data and disabling all other Non-IID partition methods.                                                                                                                                                                 |
 | `--client_num`, `-cn`          | The number of clients.                                                                                                                                                                                                                                           |
 | `--split`                      | Chooses from `[sample, user, domain]`.  `user`: partition clients into train-test groups; `sample`: partition each client's data samples into train-test groups; `domain`: choose sketch as test domain by default (only available if the dataset is DomainNet). |
-| `--fraction`, `-f`             | Propotion of train data/clients that depends on `--split`. *Note that this argument is unused for FEMNIST and CelebA, which already split clients' dataset when you run their `preprocess.sh` according to its argument `--tf`.*                                 |
-
+| `--fraction`, `-f`             | Propotion of training clients that depends on `--split`. *Note that this argument is unused for FEMNIST and CelebA, which already split clients' dataset when you run their `preprocess.sh` according to its argument `--tf`.*                                   |
+| `--data_ratio`, `-dr`          | Proportion of training data on training clients.                                                                                                                                                                                                                 |
 
 ⭐ For *CIFAR-100* specifically, this benchmark supports partitioning it into the superclass category (*CIFAR-100*'s 100 classes can also be classified into 20 superclasses) by setting `--super_class` to non-zero.
 
