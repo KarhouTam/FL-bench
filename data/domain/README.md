@@ -5,7 +5,7 @@
    - Note that `python generate_data.py -d domain` *without* additional arguments would build domain separation partition (each client has only one domain).
    - Command `python generate_data.py -d domain` is at the end of [`data/domain/preprocess.py`](https://github.com/KarhouTam/FL-bench/tree/master/data/domain/preprocess.py) already.
    - Use `--alpha ` to generate heterogeneous partition.
-   - (Optional) You can run `python generate_data.py -d domain ${args}` with additional arguments showed below to further split DomainNet to build varisou partition.
+   - (Optional) You can run `python generate_data.py -d domain ${args}` with additional arguments showed below to further split DomainNet to build various partition.
 ## Steps for Partition DomainNet and More Arguments
 There are three steps to partition DomainNet:
 1. Split clients to test clients and training clients.
@@ -13,7 +13,7 @@ There are three steps to partition DomainNet:
 3. Construct heterogeneous data partition 
 
 ### Split Clients
-We split clients and data accrding to `--split`, more details in [Generating Federated dataset](/data/README.md).\
+We split clients and data accrding to `--split`, more details in [Generating Federated dataset](https://github.com/KarhouTam/FL-bench/tree/master/data#readme).\
 If `--split='domain'` we choose sketch as test domain by default. Users can easily choose their own test domain by modifying `generate_data.py`
 
 ### Split Samples on Training Clients
