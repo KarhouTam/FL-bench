@@ -1,20 +1,29 @@
-# Federated Learning Benchmark
+```
 
-</h1>
-  <p align="center">
-    <a href="https://github.com/KarhouTam/FL-bench/blob/master/LICENSE">
-      <img alt="GitHub License" src="https://img.shields.io/github/license/KarhouTam/FL-bench?style=for-the-badge&logo=github&color=8386e0"/>
-    </a>
-    <a href="https://github.com/KarhouTam/FL-bench/issues?q=is%3Aissue+is%3Aclosed">
-      <img alt="GitHub closed issues" src="https://img.shields.io/github/issues-closed-raw/KarhouTam/FL-bench?style=for-the-badge&logo=github&color=8386e0">
-    </a>
-    <a href="https://github.com/KarhouTam/FL-bench/stargazers">
-      <img alt="GitHub Repo stars" src="https://img.shields.io/github/stars/KarhouTam/FL-bench?style=for-the-badge&logo=github&color=8386e0">
-    </a>
-    <a href="https://github.com/KarhouTam/FL-bench/forks">
-      <img alt="GitHub Repo forks" src="https://img.shields.io/github/forks/KarhouTam/FL-bench?style=for-the-badge&logo=github&color=8386e0">
-    </a>
-  </p>
+
+                              ______ __               __                        __  
+                             / ____// /              / /_   ___   ____   _____ / /_ 
+                            / /_   / /     ______   / __ \ / _ \ / __ \ / ___// __ \
+                           / __/  / /___  /_____/  / /_/ //  __// / / // /__ / / / /
+                          /_/    /_____/          /_____/ \___//_/ /_/ \___//_/ /_/
+
+
+```
+
+<p align="center">
+  <a href="https://github.com/KarhouTam/FL-bench/blob/master/LICENSE">
+    <img alt="GitHub License" src="https://img.shields.io/github/license/KarhouTam/FL-bench?style=for-the-badge&logo=github&color=8386e0"/>
+  </a>
+  <a href="https://github.com/KarhouTam/FL-bench/issues?q=is%3Aissue+is%3Aclosed">
+    <img alt="GitHub closed issues" src="https://img.shields.io/github/issues-closed-raw/KarhouTam/FL-bench?style=for-the-badge&logo=github&color=8386e0">
+  </a>
+  <a href="https://github.com/KarhouTam/FL-bench/stargazers">
+    <img alt="GitHub Repo stars" src="https://img.shields.io/github/stars/KarhouTam/FL-bench?style=for-the-badge&logo=github&color=8386e0">
+  </a>
+  <a href="https://github.com/KarhouTam/FL-bench/forks">
+    <img alt="GitHub Repo forks" src="https://img.shields.io/github/forks/KarhouTam/FL-bench?style=for-the-badge&logo=github&color=8386e0">
+  </a>
+</p>
 <h4 align="center"><i>This is a benchmark for evaluating well-known federated learning (FL) and personalized federated learning (pFL) methods. This benchmark is not complicated and easy to extend.</i></h4>
 
 ## Methods 🧬
