@@ -17,14 +17,14 @@ sh tiny_imagenet.sh
 
 ## Generic Arguments 🔧
 📢 All arguments have their default value.
-| Arguments for general datasets | Description     |
-| ------------------------------ | --|
-| `--dataset`, `-d`              | The name of dataset.   |
-| `--iid`                        | Non-zero value for randomly partitioning data and disabling all other Non-IID partition methods. |
-| `--client_num`, `-cn`          | The number of clients.   |
-| `--split`                      | Chooses from `[sample, user]`.  `user`: partition clients into train-test groups; `sample`: partition each client's data samples into train-test groups  |
-| `--fraction`, `-f`             | Propotion of train data/clients that depends on `--split`. *Note that this argument is unused for FEMNIST and CelebA, which already split clients' dataset when you run their `preprocess.sh` according to its argument `--tf`.* |
-
+| Arguments for general datasets | Description                                                                                                                                                                                                                                                      |
+| ------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `--dataset`, `-d`              | The name of dataset.                                                                                                                                                                                                                                             |
+| `--iid`                        | Non-zero value for randomly partitioning data and disabling all other Non-IID partition methods.                                                                                                                                                                 |
+| `--client_num`, `-cn`          | The number of clients.                                                                                                                                                                                                                                           |
+| `--split`                      | Chooses from `[sample, user, domain]`.  `user`: partition clients into train-test groups; `sample`: partition each client's data samples into train-test groups; `domain`: choose sketch as test domain by default (only available if the dataset is DomainNet). |
+| `--fraction`, `-f`             | Propotion of training clients that depends on `--split`. *Note that this argument is unused for FEMNIST and CelebA, which already split clients' dataset when you run their `preprocess.sh` according to its argument `--tf`.*                                   |
+| `--data_ratio`, `-dr`          | Proportion of training data on training clients.                                                                                                                                                                                                                 |
 
 ⭐ For *CIFAR-100* specifically, this benchmark supports partitioning it into the superclass category (*CIFAR-100*'s 100 classes can also be classified into 20 superclasses) by setting `--super_class` to non-zero.
 
@@ -71,12 +71,8 @@ All generic arguments in `generate_data.py` will be deactivated when processing 
 
 When processing LEAF datasets, `generate_data.py` only responsible for translating the output of `preprocess.sh` (data files in .json format) into a single `data.npy` and `targets.npy`.
 
-### Guideline for Processing DomainNet 🧾
-1. Through [`download/domain.sh`](https://github.com/KarhouTam/FL-bench/tree/master/data/download/domain.sh) downloading and decomporessing DomainNet.
-2. `cd` to `data/domain` and run `python preprocess.py` (an interactive wizard).
-   - Note that `python generate_data.py -d domain` *without* additional arguments would build feature non-IID scenario already.
-   - Command `python generate_data.py -d domain` is at the end of [`data/domain/preprocess.py`](https://github.com/KarhouTam/FL-bench/tree/master/data/domain/preprocess.py) already.
-   - (Optional) You can run `python generate_data.py -d domain ${args}` with additional arguments showed below to further split DomainNet to build label Non-IID scenario deliberately.
+## Guideline for Processing DomainNet 🧾
+See more details in [Processing DomainNet](/data/domain/README.md).
 
 
 ## Acknowledgement 🤗
