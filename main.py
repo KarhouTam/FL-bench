@@ -14,22 +14,20 @@ if __name__ == "__main__":
     method = sys.argv[1]
     args_list = sys.argv[2:]
 
+    module = importlib.import_module(method)
     try:
-        module = importlib.import_module(method)
-        argparser_function = getattr(module, f"get_{method}_argparser")
-        parser = argparser_function()
-        module_attributes = inspect.getmembers(module, inspect.isclass)
-        server_class = [
-            attribute
-            for attribute in module_attributes
-            if attribute[0].lower() == method + "server"
-        ][0][1]
+        get_argparser = getattr(module, f"get_{method}_argparser")
     except:
-        raise ValueError(f"Cannot find method: {method} or its argparser funciton.")
+        fedavg_module = importlib.import_module("fedavg")
+        get_argparser = getattr(fedavg_module, "get_fedavg_argparser")
+    parser = get_argparser()
+    module_attributes = inspect.getmembers(module, inspect.isclass)
+    server_class = [
+        attribute
+        for attribute in module_attributes
+        if attribute[0].lower() == method + "server"
+    ][0][1]
 
-    try:
-        server = server_class(args=parser.parse_args(args_list))
-    except:
-        raise ValueError(f"Undefined argument in the list: {args_list}")
+    server = server_class(args=parser.parse_args(args_list))
 
     server.run()

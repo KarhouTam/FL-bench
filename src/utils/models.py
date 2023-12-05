@@ -310,7 +310,7 @@ class AlexNet(DecoupledModel):
         super().__init__()
 
         # NOTE: If you don't want parameters pretrained, set `pretrained` as False
-        pretrained = False
+        pretrained = True
         alexnet = models.alexnet(
             weights=models.AlexNet_Weights.DEFAULT if pretrained else None
         )
@@ -326,7 +326,7 @@ class SqueezeNet(DecoupledModel):
         super().__init__()
 
         # NOTE: If you don't want parameters pretrained, set `pretrained` as False
-        pretrained = False
+        pretrained = True
         archs = {
             "0": (models.squeezenet1_0, models.SqueezeNet1_0_Weights.DEFAULT),
             "1": (models.squeezenet1_1, models.SqueezeNet1_1_Weights.DEFAULT),
@@ -358,7 +358,7 @@ class DenseNet(DecoupledModel):
             "201": (models.densenet201, models.DenseNet201_Weights.DEFAULT),
         }
         # NOTE: If you don't want parameters pretrained, set `pretrained` as False
-        pretrained = False
+        pretrained = True
         densenet: models.DenseNet = archs[version][0](
             weights=archs[version][1] if pretrained else None
         )
@@ -381,7 +381,7 @@ class ResNet(DecoupledModel):
         }
 
         # NOTE: If you don't want parameters pretrained, set `pretrained` as False
-        pretrained = False
+        pretrained = True
         resnet: models.ResNet = archs[version][0](
             weights=archs[version][1] if pretrained else None
         )
@@ -405,7 +405,7 @@ class MobileNet(DecoupledModel):
             ),
         }
         # NOTE: If you don't want parameters pretrained, set `pretrained` as False
-        pretrained = False
+        pretrained = True
         mobilenet = archs[version][0](weights=archs[version][1] if pretrained else None)
         self.base = mobilenet
         self.classifier = nn.Linear(
@@ -428,7 +428,7 @@ class EfficientNet(DecoupledModel):
             "7": (models.efficientnet_b7, models.EfficientNet_B7_Weights.DEFAULT),
         }
         # NOTE: If you don't want parameters pretrained, set `pretrained` as False
-        pretrained = False
+        pretrained = True
         efficientnet: models.EfficientNet = archs[version][0](
             weights=archs[version][1] if pretrained else None
         )
