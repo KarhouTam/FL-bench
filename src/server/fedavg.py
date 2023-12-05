@@ -45,7 +45,7 @@ def get_fedavg_argparser() -> ArgumentParser:
         "-m",
         "--model",
         type=str,
-        default="mobile2",
+        default="lenet5",
         choices=[
             "lenet5",
             "avgcnn",
@@ -99,23 +99,23 @@ def get_fedavg_argparser() -> ArgumentParser:
             "cinic10",
             "domain",
         ],
-        default="domain",
+        default="cifar10",
     )
     parser.add_argument("--seed", type=int, default=42)
-    parser.add_argument("-jr", "--join_ratio", type=float, default=0.85)
-    parser.add_argument("-ge", "--global_epoch", type=int, default=10)
-    parser.add_argument("-le", "--local_epoch", type=int, default=1)
+    parser.add_argument("-jr", "--join_ratio", type=float, default=0.1)
+    parser.add_argument("-ge", "--global_epoch", type=int, default=100)
+    parser.add_argument("-le", "--local_epoch", type=int, default=5)
     parser.add_argument("-fe", "--finetune_epoch", type=int, default=0)
-    parser.add_argument("-tg", "--test_gap", type=int, default=1)
+    parser.add_argument("-tg", "--test_gap", type=int, default=100)
     parser.add_argument("-ee", "--eval_test", type=int, default=1)
     parser.add_argument("-er", "--eval_train", type=int, default=0)
     parser.add_argument(
         "-op", "--optimizer", type=str, default="sgd", choices=["sgd", "adam"]
     )
     parser.add_argument("-lr", "--local_lr", type=float, default=1e-2)
-    parser.add_argument("-mom", "--momentum", type=float, default=0.9)
-    parser.add_argument("-wd", "--weight_decay", type=float, default=0.0001)
-    parser.add_argument("-vg", "--verbose_gap", type=int, default=1)
+    parser.add_argument("-mom", "--momentum", type=float, default=0.0)
+    parser.add_argument("-wd", "--weight_decay", type=float, default=0.0)
+    parser.add_argument("-vg", "--verbose_gap", type=int, default=10)
     parser.add_argument("-bs", "--batch_size", type=int, default=32)
     parser.add_argument("-v", "--visible", type=int, default=0)
     parser.add_argument("--global_testset", type=int, default=0)
