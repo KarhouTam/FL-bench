@@ -80,13 +80,18 @@ class FedAvgClient:
             if not param.requires_grad
         }
         self.opt_state_dict = {}
-
-        self.optimizer = torch.optim.SGD(
-            params=trainable_params(self.model),
-            lr=self.args.local_lr,
-            momentum=self.args.momentum,
-            weight_decay=self.args.weight_decay,
-        )
+        if self.args.optimizer == "sgd":
+            self.optimizer = torch.optim.SGD(
+                params=trainable_params(self.model),
+                lr=self.args.local_lr,
+                momentum=self.args.momentum,
+                weight_decay=self.args.weight_decay,
+            )
+        elif self.args.optimizer == "adam":
+            self.optimizer = torch.optim.Adam(
+                params=trainable_params(self.model),
+                lr=self.args.local_lr,
+            )
         self.init_opt_state_dict = deepcopy(self.optimizer.state_dict())
 
     def load_dataset(self):

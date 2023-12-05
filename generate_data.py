@@ -179,20 +179,19 @@ if __name__ == "__main__":
             "cinic10",
             "domain",
         ],
-        default="cifar10",
+        default="domain",
     )
     parser.add_argument("--iid", type=int, default=0)
     parser.add_argument("-cn", "--client_num", type=int, default=20)
     parser.add_argument("--seed", type=int, default=42)
     parser.add_argument(
-        "--split", type=str, choices=["sample", "user", "domain"], default="sample"
+        "--split", type=str, choices=["sample", "user", "domain"], default="domain"
     )
     parser.add_argument("-f", "--fraction", type=float, default=0.5)
     parser.add_argument("-c", "--classes", type=int, default=0)
     parser.add_argument("-s", "--shards", type=int, default=0)
-    parser.add_argument("-a", "--alpha", type=float, default=0)
-    parser.add_argument("-ls", "--least_samples", type=int, default=40)
-    parser.add_argument("-a", "--alpha", type=float, default=0)
+    parser.add_argument("-a", "--alpha", type=float, default=0.8)
+    parser.add_argument("-ls", "--least_samples", type=int, default=700)
     parser.add_argument(
         "-dr",
         "--data_ratio",
