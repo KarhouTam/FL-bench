@@ -135,8 +135,3 @@ if __name__ == "__main__":
         f"cd ../..; python generate_data.py -d domain --alpha {alpha} --least_samples {least_samples} --split domain --data_ratio {data_ratio} "
     )
 
-    # os.system(
-    #     f"cd ../..; python generate_data.py -d domain --split user --data_ratio {data_ratio}"
-    # )
-
-    # os.system(f"cd ../..; python generate_data.py -d domain --split sample")
