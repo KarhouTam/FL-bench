@@ -2,12 +2,14 @@ import json
 import functools
 from collections import OrderedDict
 from typing import List, Optional
+from copy import deepcopy
 
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
 import torchvision.models as models
 from torch import Tensor
+import torch.distributions as distributions
 
 from .tools import PROJECT_DIR
 
@@ -21,10 +23,15 @@ def get_model_arch(model_name):
         "sqz": SqueezeNet,
         "2nn": TwoNN,
         "custom": CustomModel,
+        "discriminator": Discriminator,
     }
     if model_name in static:
         return static[model_name]
     else:
+        if "fedsr" in model_name:
+            return functools.partial(
+                Model_4_FedSR, base_model_name=model_name.split("_")[-1]
+            )
         if "res" in model_name:
             return functools.partial(ResNet, version=model_name[3:])
         if "dense" in model_name:
@@ -34,7 +41,10 @@ def get_model_arch(model_name):
         if "efficient" in model_name:
             return functools.partial(EfficientNet, version=model_name[9:])
         if "squeeze" in model_name:
-            return functools.partial(SqueezeNet, version=model_name[-1])
+            return functools.partial(
+                SqueezeNet,
+            )
+
         raise ValueError(f"Unsupported model: {model_name}")
 
 
@@ -437,6 +447,67 @@ class EfficientNet(DecoupledModel):
             efficientnet.classifier[-1].in_features, NUM_CLASSES[dataset]
         )
         self.base.classifier[-1] = nn.Identity()
+
+
+class Discriminator(nn.Module):
+    # discriminator for adversarial training in ADCOL
+    def __init__(self, base_model, client_num):
+        super(Discriminator, self).__init__()
+        try:
+            in_features = base_model.classifier.in_features
+        except:
+            raise ValueError("base model has no classifier")
+        self.discriminator = nn.Sequential(
+            nn.Linear(in_features, 512, bias=False),
+            nn.BatchNorm1d(512),
+            nn.ReLU(),
+            nn.Linear(512, 512, bias=False),
+            nn.BatchNorm1d(512),
+            nn.ReLU(),
+            nn.Linear(512, client_num, bias=False),
+        )
+
+    def forward(self, x):
+        x = self.discriminator(x)
+        return x
+
+
+class Model_4_FedSR(DecoupledModel):
+    # modify base model to suit FedSR
+    def __init__(self, base_model_name, dataset) -> None:
+        super().__init__()
+        self.base_model = get_model_arch(base_model_name)(dataset=dataset)
+        self.z_dim = self.base_model.classifier.in_features
+        out_dim = 2 * self.z_dim
+        self.base = deepcopy(self.base_model.base)
+        self.classifier = deepcopy(self.base_model.classifier)
+        self.base.classifier[1] = nn.Linear(
+            self.base_model.classifier.in_features, out_dim
+        )
+        self.classifier = nn.Linear(self.z_dim, NUM_CLASSES[dataset])
+        self.r_mu = nn.Parameter(torch.zeros(NUM_CLASSES[dataset], self.z_dim))
+        self.r_sigma = nn.Parameter(torch.ones(NUM_CLASSES[dataset], self.z_dim))
+        self.C = nn.Parameter(torch.ones([]))
+
+    def featurize(self, x, num_samples=1, return_dist=False):
+        # designed for FedSR
+        z_params = self.base(x)
+        z_mu = z_params[:, : self.z_dim]
+        z_sigma = F.softplus(z_params[:, self.z_dim :])
+        z_dist = distributions.Independent(
+            distributions.normal.Normal(z_mu, z_sigma), 1
+        )
+        z = z_dist.rsample([num_samples]).view([-1, self.z_dim])
+
+        if return_dist:
+            return z, (z_mu, z_sigma)
+        else:
+            return z
+
+    def forward(self, x):
+        z = self.featurize(x)
+        logits = self.classifier(z)
+        return logits
 
 
 # NOTE: You can build your custom model here.
