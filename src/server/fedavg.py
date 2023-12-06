@@ -244,11 +244,6 @@ class FedAvgServer:
         ]
         self.selected_clients: List[int] = []
         self.current_epoch = 0
-        self.epoch_test = list(
-            range(0, self.args.global_epoch, self.args.test_gap)
-        )  # epoch that need test model on test clients.
-        # For controlling behaviors of some specific methods while testing (not used by all methods)
-        self.test_flag = False
         self.epoch_test = [
             epoch
             for epoch in range(0, self.args.global_epoch)
