@@ -73,6 +73,11 @@ def get_fedavg_argparser() -> ArgumentParser:
             "efficient5",
             "efficient6",
             "efficient7",
+            "fedsr_mobile2",
+            "fedsr_mobile3s",
+            "fedsr_mobile3l",
+            "fedsr_res50",
+            "fedsr_res101",
             "custom",
         ],
     )
@@ -242,6 +247,13 @@ class FedAvgServer:
         self.epoch_test = list(
             range(0, self.args.global_epoch, self.args.test_gap)
         )  # epoch that need test model on test clients.
+        # For controlling behaviors of some specific methods while testing (not used by all methods)
+        self.test_flag = False
+        self.epoch_test = [
+            epoch
+            for epoch in range(0, self.args.global_epoch)
+            if (epoch + 1) % self.args.test_gap == 0
+        ]  # epoch that need test model on test clients.
         # For controlling behaviors of some specific methods while testing (not used by all methods)
         self.test_flag = False
 
@@ -563,7 +575,7 @@ class FedAvgServer:
             f"max_test_clients: {max_test_clients:.2f}% at epoch: {self.epoch_test[max_test_clients_index]+1}"
         )
         self.logger.log(
-            f"max_mean: {max_mean:.2f}% at epoch: {self.epoch_test[max_mean_index]+1}. test_before: {self.metrics['test_before'][self.epoch_test[max_mean_index]]:.2f}%, test_clients:{self.metrics['test_clients'][self.epoch_test[max_mean_index]]:.2f}%"
+            f"max_mean: {max_mean:.2f}% at epoch: {self.epoch_test[max_mean_index]+1}. test_before: {self.metrics['test_before'][self.epoch_test[max_mean_index]]:.2f}%, test_clients:{self.metrics['test_clients'][max_mean_index]:.2f}%"
         )
 
     def run(self):
