@@ -42,6 +42,7 @@ if __name__ == "__main__":
     alpha = 0 if not alpha else float(alpha)
     least_samples = 700 if not least_samples else int(least_samples)
     data_ratio = 0.9 if not data_ratio else float(data_ratio)
+
     random.seed(seed)
     torch.manual_seed(seed)
     if not (1 <= class_num <= 345):
@@ -134,4 +135,5 @@ if __name__ == "__main__":
     os.system(
         f"cd ../..; python generate_data.py -d domain --alpha {alpha} --least_samples {least_samples} --split domain --data_ratio {data_ratio} "
     )
+
 
