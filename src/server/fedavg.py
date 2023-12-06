@@ -239,7 +239,9 @@ class FedAvgServer:
         ]
         self.selected_clients: List[int] = []
         self.current_epoch = 0
-        self.epoch_test = []  # epoch that need test model on test clients.
+        self.epoch_test = list(
+            range(0, self.args.global_epoch, self.args.test_gap)
+        )  # epoch that need test model on test clients.
         # For controlling behaviors of some specific methods while testing (not used by all methods)
         self.test_flag = False
 
@@ -305,7 +307,6 @@ class FedAvgServer:
                 self.logger.log("-" * 26, f"TRAINING EPOCH: {E + 1}", "-" * 26)
 
             if (E + 1) % self.args.test_gap == 0:
-                self.epoch_test.append(E)
                 self.test()
 
             self.selected_clients = self.client_sample_stream[E]
