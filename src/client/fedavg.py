@@ -91,6 +91,7 @@ class FedAvgClient:
             self.optimizer = torch.optim.Adam(
                 params=trainable_params(self.model),
                 lr=self.args.local_lr,
+                weight_decay=self.args.weight_decay
             )
         self.init_opt_state_dict = deepcopy(self.optimizer.state_dict())
 
