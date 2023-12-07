@@ -41,10 +41,7 @@ def get_model_arch(model_name):
         if "efficient" in model_name:
             return functools.partial(EfficientNet, version=model_name[9:])
         if "squeeze" in model_name:
-            return functools.partial(
-                SqueezeNet,
-            )
-
+            return functools.partial(SqueezeNet, version=model_name[-1])
         raise ValueError(f"Unsupported model: {model_name}")
 
 
