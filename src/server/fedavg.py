@@ -154,20 +154,8 @@ class FedAvgServer:
         ):
             self.args = parse_config_file(self.args)
         fix_random_seed(self.args.seed)
-
-        # generate the name for output dir, e.g. "tau_0.1_mu_2.5_2023-12-04-20:30:49" for MOON.
         begin_time = str(local_time())
-        known_args, unknown_args = get_fedavg_argparser().parse_known_args()
-        args_original_dict = vars(known_args)
-        args_all_dict = vars(self.args)
-        diff_keys = args_all_dict.keys() - args_original_dict.keys()
-        hyperparameter_str = "_".join([f"{i}_{args_all_dict[i]}" for i in diff_keys])
-        self.name_4_output_dir = (
-            "_".join([hyperparameter_str, begin_time])
-            if len(hyperparameter_str) > 0
-            else begin_time
-        )
-
+        self.name_4_output_dir = begin_time
         with open(PROJECT_DIR / "data" / self.args.dataset / "args.json", "r") as f:
             self.args.dataset_args = json.load(f)
 
