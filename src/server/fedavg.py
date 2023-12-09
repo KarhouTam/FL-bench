@@ -11,6 +11,7 @@ import time
 from typing import Dict, List, OrderedDict
 
 import torch
+import numpy as np
 from rich.console import Console
 from rich.progress import track
 
@@ -28,6 +29,14 @@ from src.utils.tools import (
 )
 from src.utils.models import get_model_arch
 from src.client.fedavg import FedAvgClient
+
+
+def local_time():
+    now = int(round(time.time() * 1000))
+    now02 = time.strftime(
+        "%Y-%m-%d-%H:%M:%S", time.localtime(now / 1000)
+    )  # e.g. 2023-11-08-10:31:47
+    return now02
 
 
 def get_fedavg_argparser() -> ArgumentParser:
@@ -64,6 +73,11 @@ def get_fedavg_argparser() -> ArgumentParser:
             "efficient5",
             "efficient6",
             "efficient7",
+            "fedsr_mobile2",
+            "fedsr_mobile3s",
+            "fedsr_mobile3l",
+            "fedsr_res50",
+            "fedsr_res101",
             "custom",
         ],
     )
@@ -100,6 +114,9 @@ def get_fedavg_argparser() -> ArgumentParser:
     parser.add_argument("-tg", "--test_gap", type=int, default=100)
     parser.add_argument("-ee", "--eval_test", type=int, default=1)
     parser.add_argument("-er", "--eval_train", type=int, default=0)
+    parser.add_argument(
+        "-op", "--optimizer", type=str, default="sgd", choices=["sgd", "adam"]
+    )
     parser.add_argument("-lr", "--local_lr", type=float, default=1e-2)
     parser.add_argument("-mom", "--momentum", type=float, default=0.0)
     parser.add_argument("-wd", "--weight_decay", type=float, default=0.0)
@@ -137,6 +154,8 @@ class FedAvgServer:
         ):
             self.args = parse_config_file(self.args)
         fix_random_seed(self.args.seed)
+        begin_time = str(local_time())
+        self.name_4_output_dir = begin_time
         with open(PROJECT_DIR / "data" / self.args.dataset / "args.json", "r") as f:
             self.args.dataset_args = json.load(f)
 
@@ -213,14 +232,19 @@ class FedAvgServer:
         ]
         self.selected_clients: List[int] = []
         self.current_epoch = 0
+        self.epoch_test = [
+            epoch
+            for epoch in range(0, self.args.global_epoch)
+            if (epoch + 1) % self.args.test_gap == 0
+        ]  # epoch that need test model on test clients.
         # For controlling behaviors of some specific methods while testing (not used by all methods)
         self.test_flag = False
 
         # variables for logging
-        if not os.path.isdir(OUT_DIR / self.algo) and (
+        if not os.path.isdir(OUT_DIR / self.algo / self.name_4_output_dir) and (
             self.args.save_log or self.args.save_fig or self.args.save_metrics
         ):
-            os.makedirs(OUT_DIR / self.algo, exist_ok=True)
+            os.makedirs(OUT_DIR / self.algo / self.name_4_output_dir, exist_ok=True)
 
         if self.args.visible:
             from visdom import Visdom
@@ -241,12 +265,17 @@ class FedAvgServer:
             "train_after": [],
             "test_before": [],
             "test_after": [],
+            "test_clients": [],  # test accuracy on test clients
+            "mean": [],  # mean accuracy of test_before and test_clients
         }
         stdout = Console(log_path=False, log_time=False)
         self.logger = Logger(
             stdout=stdout,
             enable_log=self.args.save_log,
-            logfile_path=OUT_DIR / self.algo / f"{self.args.dataset}_log.html",
+            logfile_path=OUT_DIR
+            / self.algo
+            / self.name_4_output_dir
+            / f"{self.args.dataset}_log.html",
         )
         self.test_results: Dict[int, Dict[str, str]] = {}
         self.train_progress_bar = track(
@@ -342,6 +371,14 @@ class FedAvgServer:
                 correct_after.sum() / num_samples.sum() * 100,
             ),
         }
+        if len(self.test_clients) > 0:
+            self.metrics["test_clients"].append(
+                correct_before.sum() / num_samples.sum() * 100
+            )
+            if (self.current_epoch + 1) % self.args.verbose_gap == 0:
+                self.logger.log(
+                    f"The test accuracy on test clients before training: {self.metrics['test_clients'][-1]:.2f}%."
+                )
         self.test_flag = False
 
     @torch.no_grad()
@@ -442,7 +479,7 @@ class FedAvgServer:
     def log_info(self):
         """This function is for logging each selected client's training info."""
         split = self.args.dataset_args["split"]
-        label = {"sample": "test", "user": "train"}[split]
+        label = {"sample": "test", "user": "train", "domain": "test"}[split]
         correct_before = torch.tensor(
             [
                 self.client_stats[i][self.current_epoch]["before"][f"{label}_correct"]
@@ -470,7 +507,16 @@ class FedAvgServer:
         ).item()
         self.metrics[f"{label}_before"].append(acc_before)
         self.metrics[f"{label}_after"].append(acc_after)
-
+        if (self.current_epoch + 1) % self.args.test_gap == 0 and len(
+            self.metrics["test_clients"]
+        ) > 0:
+            self.metrics["mean"].append(
+                (self.metrics["test_before"][-1] + self.metrics["test_clients"][-1]) / 2
+            )
+            if (self.current_epoch + 1) % self.args.verbose_gap == 0:
+                self.logger.log(
+                    f"The average test accuracy on training clients {self.metrics['test_before'][-1]:.2f}% -> {self.metrics['test_after'][-1]:.2f}%."
+                )
         if self.args.visible:
             self.viz.line(
                 [acc_before],
@@ -491,6 +537,29 @@ class FedAvgServer:
                 update="append",
                 name=f"{label}(after)",
             )
+
+    def log_max_metrics(
+        self,
+    ):
+        self.logger.log("=" * 20, self.algo, "MAX ACC:", "=" * 20)
+        # find the max metrics
+        max_test_before = max(self.metrics["test_before"])
+        max_test_clients = max(self.metrics["test_clients"])
+        max_mean = max(self.metrics["mean"])
+        # find the index
+        max_test_before_index = self.metrics["test_before"].index(max_test_before)
+        max_test_clients_index = self.metrics["test_clients"].index(max_test_clients)
+        max_mean_index = self.metrics["mean"].index(max_mean)
+        # log the max metrics
+        self.logger.log(
+            f"max_test_before: {max_test_before:.2f}% at epoch: {max_test_before_index+1}"
+        )
+        self.logger.log(
+            f"max_test_clients: {max_test_clients:.2f}% at epoch: {self.epoch_test[max_test_clients_index]+1}"
+        )
+        self.logger.log(
+            f"max_mean: {max_mean:.2f}% at epoch: {self.epoch_test[max_mean_index]+1}. test_before: {self.metrics['test_before'][self.epoch_test[max_mean_index]]:.2f}%, test_clients:{self.metrics['test_clients'][max_mean_index]:.2f}%"
+        )
 
     def run(self):
         """The comprehensive FL process.
@@ -519,7 +588,7 @@ class FedAvgServer:
 
         if self.args.check_convergence:
             self.check_convergence()
-
+        self.log_max_metrics()
         self.logger.close()
 
         if self.args.save_fig:
@@ -532,17 +601,28 @@ class FedAvgServer:
                 "test_after": "solid",
                 "train_before": "dotted",
                 "train_after": "dotted",
+                "test_clients": "dashed",
+                "mean": "dashdot",
             }
             for label, acc in self.metrics.items():
                 if len(acc) > 0:
-                    plt.plot(acc, label=label, ls=linestyle[label])
+                    # because test_clients and mean are generated according to -tg while other metrics are generated in each epoch.
+                    # so we need to plot them in different ways.
+                    if label not in ("test_clients", "mean"):
+                        plt.plot(acc, label=label, ls=linestyle[label])
+                    else:
+                        plt.plot(self.epoch_test, acc, label=label, ls=linestyle[label])
             plt.title(f"{self.algo}_{self.args.dataset}")
             plt.ylim(0, 100)
             plt.xlabel("Communication Rounds")
             plt.ylabel("Accuracy")
             plt.legend()
             plt.savefig(
-                OUT_DIR / self.algo / f"{self.args.dataset}.jpeg", bbox_inches="tight"
+                OUT_DIR
+                / self.algo
+                / self.name_4_output_dir
+                / f"{self.args.dataset}.jpeg",
+                bbox_inches="tight",
             )
         if self.args.save_metrics:
             import pandas as pd
@@ -550,13 +630,24 @@ class FedAvgServer:
 
             accuracies = []
             labels = []
+            df = pd.DataFrame()
             for label, acc in self.metrics.items():
                 if len(acc) > 0:
-                    accuracies.append(np.array(acc).T)
-                    labels.append(label)
-            pd.DataFrame(np.stack(accuracies, axis=1), columns=labels).to_csv(
-                OUT_DIR / self.algo / f"{self.args.dataset}_acc_metrics.csv",
-                index=False,
+                    if label not in ("test_clients", "mean"):
+                        df.insert(df.shape[1], label, np.array(acc).T)
+                    else:
+                        df.insert(
+                            df.shape[1],
+                            label,
+                            pd.Series(np.array(acc).T, index=self.epoch_test),
+                        )
+            df.to_csv(
+                OUT_DIR
+                / self.algo
+                / self.name_4_output_dir
+                / f"{self.args.dataset}_acc_metrics.csv",
+                index=True,
+                index_label="epoch",
             )
         # save trained model(s)
         if self.args.save_model:
@@ -565,10 +656,14 @@ class FedAvgServer:
             )
             if self.unique_model:
                 torch.save(
-                    self.client_trainable_params, OUT_DIR / self.algo / model_name
+                    self.client_trainable_params,
+                    OUT_DIR / self.algo / self.name_4_output_dir / model_name,
                 )
             else:
-                torch.save(self.global_params_dict, OUT_DIR / self.algo / model_name)
+                torch.save(
+                    self.global_params_dict,
+                    OUT_DIR / self.algo / self.name_4_output_dir / model_name,
+                )
 
 
 if __name__ == "__main__":

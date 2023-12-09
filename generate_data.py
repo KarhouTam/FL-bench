@@ -192,7 +192,6 @@ if __name__ == "__main__":
     parser.add_argument("-s", "--shards", type=int, default=0)
     parser.add_argument("-a", "--alpha", type=float, default=0)
     parser.add_argument("-ls", "--least_samples", type=int, default=40)
-    parser.add_argument("-a", "--alpha", type=float, default=0)
     parser.add_argument(
         "-dr",
         "--data_ratio",

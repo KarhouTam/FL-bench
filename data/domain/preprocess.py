@@ -28,10 +28,10 @@ if __name__ == "__main__":
     )
     alpha = input("Set alpha for heterogeneous parition (0 by default): ")
     least_samples = input(
-        "Set least samples for heterogeneous parition (800 by default): "
+        "Set least samples for heterogeneous parition (700 by default): "
     )
-    fraction = input(
-        "Set the fraction of training set on training clients (0.9 by default): "
+    data_ratio = input(
+        "Set the ratio of training set on training clients (0.9 by default): "
     )
     seed = 42 if not seed else int(seed)
     img_size = 64 if not img_size else int(img_size)
@@ -40,8 +40,9 @@ if __name__ == "__main__":
         1 if not client_num_foreach_domain else int(client_num_foreach_domain)
     )
     alpha = 0 if not alpha else float(alpha)
-    least_samples = 800 if not least_samples else int(least_samples)
-    fraction = 0 if not fraction else float(fraction)
+    least_samples = 700 if not least_samples else int(least_samples)
+    data_ratio = 0.9 if not data_ratio else float(data_ratio)
+
     random.seed(seed)
     torch.manual_seed(seed)
     if not (1 <= class_num <= 345):
@@ -132,5 +133,7 @@ if __name__ == "__main__":
         json.dump(original_stats, f)
 
     os.system(
-        f"cd ../..; python generate_data.py -d domain --alpha {alpha} --least_samples {least_samples} --split domain --fraction {fraction} "
+        f"cd ../..; python generate_data.py -d domain --alpha {alpha} --least_samples {least_samples} --split domain --data_ratio {data_ratio} "
     )
+
+
