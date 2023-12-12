@@ -1,14 +1,12 @@
-from fedavg import FedAvgClient
-import torch.nn.functional as F
 import torch
-from typing import Dict, List
+import torch.nn.functional as F
+
+from fedavg import FedAvgClient
 
 
 class FedSRClient(FedAvgClient):
     def __init__(self, model, args, logger, device):
         super(FedSRClient, self).__init__(model, args, logger, device)
-        self.L2R_coeff = args.L2R_coeff
-        self.CMI_coeff = args.CMI_coeff
 
     def fit(self):
         self.model.train()
@@ -31,10 +29,10 @@ class FedSRClient(FedAvgClient):
                 regL2R = torch.zeros_like(obj)
                 regCMI = torch.zeros_like(obj)
                 regNegEnt = torch.zeros_like(obj)
-                if self.L2R_coeff != 0.0:
+                if self.args.L2R_coeff != 0.0:
                     regL2R = z.norm(dim=1).mean()
-                    obj = obj + self.L2R_coeff * regL2R
-                if self.CMI_coeff != 0.0:
+                    obj = obj + self.args.L2R_coeff * regL2R
+                if self.args.CMI_coeff != 0.0:
                     r_sigma_softplus = F.softplus(self.model.r_sigma)
                     r_mu = self.model.r_mu[y]
                     r_sigma = r_sigma_softplus[y]
@@ -48,7 +46,7 @@ class FedSRClient(FedAvgClient):
                         - 0.5
                     )
                     regCMI = regCMI.sum(1).mean()
-                    obj = obj + self.CMI_coeff * regCMI
+                    obj = obj + self.args.CMI_coeff * regCMI
                 self.optimizer.zero_grad()
                 obj.backward()
                 self.optimizer.step()

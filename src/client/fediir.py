@@ -1,11 +1,7 @@
-from fedavg import FedAvgClient
-from src.utils.tools import trainable_params
 import torch.nn.functional as F
 import torch
-import torch.nn as nn
-from argparse import Namespace
-from collections import OrderedDict
-from typing import Dict, List, Tuple, Union
+
+from fedavg import FedAvgClient
 import torch.autograd as autograd
 
 
@@ -17,7 +13,6 @@ class FedIIRClient(FedAvgClient):
 
     def fit(self):
         self.model.train()
-        penalty_weight = self.args.penalty
         for i in range(self.local_epoch):
             for x, y in self.trainloader:
                 if len(x) <= 1:
@@ -38,7 +33,7 @@ class FedIIRClient(FedAvgClient):
                 penalty_value = 0
                 for g_client, g_mean in zip(grad_client, self.grad_mean):
                     penalty_value += (g_client - g_mean).pow(2).sum()
-                loss = loss_erm + penalty_weight * penalty_value
+                loss = loss_erm + self.args.penalty * penalty_value
                 self.optimizer.zero_grad()
                 loss.backward()
                 self.optimizer.step()

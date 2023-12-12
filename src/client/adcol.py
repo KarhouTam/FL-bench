@@ -1,11 +1,12 @@
-from fedavg import FedAvgClient
-from src.utils.tools import trainable_params
-import torch.nn.functional as F
-import torch
-import torch.nn as nn
-from argparse import Namespace
 from collections import OrderedDict
 from typing import Dict, List, Tuple, Union
+
+import torch
+import torch.nn.functional as F
+import torch.nn as nn
+
+from fedavg import FedAvgClient
+from src.utils.tools import trainable_params
 
 
 class ADCOLClient(FedAvgClient):
