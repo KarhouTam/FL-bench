@@ -11,6 +11,7 @@ local_epoch: 10
 finetune_epoch: 0
 test_gap: 100
 eval_test: true
+eval_val: false
 eval_train: false
 local_lr: 0.01
 momentum: 0
