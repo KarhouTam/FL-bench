@@ -35,21 +35,22 @@ class FedMDServer(FedAvgServer):
     ):
         if args is None:
             args = get_fedmd_argparser().parse_args()
-
-        if args.public_dataset == "mnist" and args.dataset not in ["femnist", "emnist"]:
+        super().__init__(algo, args, unique_model, default_trainer)
+        if self.args.public_dataset == "mnist" and self.args.dataset not in [
+            "femnist",
+            "emnist",
+        ]:
             raise NotImplementedError(
                 "The public dataset is mnist and the --dataset should be in [femnist, emnist] (now: {})".format(
-                    args.dataset
+                    self.args.dataset
                 )
             )
-        elif args.public_dataset == "cifar10" and args.dataset != "cifar100":
+        elif self.args.public_dataset == "cifar10" and self.args.dataset != "cifar100":
             raise NotImplementedError(
                 "The public dataset is cifar10 and the --dataset should be cifar100 (now: {})".format(
-                    args.dataset
+                    self.args.dataset
                 )
             )
-
-        super().__init__(algo, args, unique_model, default_trainer)
         self.trainer = FedMDClient(
             model=deepcopy(self.model),
             args=self.args,

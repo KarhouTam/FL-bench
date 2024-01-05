@@ -1,106 +1,16 @@
 import json
-import functools
+from functools import partial
 from collections import OrderedDict
 from typing import List, Optional
-from copy import deepcopy
 
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
 import torchvision.models as models
 from torch import Tensor
-import torch.distributions as distributions
 
 from .tools import PROJECT_DIR
-
-
-def get_model_arch(model_name):
-    # static means the model arch is fixed.
-    static = {
-        "lenet5": LeNet5,
-        "avgcnn": FedAvgCNN,
-        "alex": AlexNet,
-        "sqz": SqueezeNet,
-        "2nn": TwoNN,
-        "custom": CustomModel,
-        "discriminator": Discriminator,
-    }
-    if model_name in static:
-        return static[model_name]
-    else:
-        if "fedsr" in model_name:
-            return functools.partial(
-                Model_4_FedSR, base_model_name=model_name.split("_")[-1]
-            )
-        if "res" in model_name:
-            return functools.partial(ResNet, version=model_name[3:])
-        if "dense" in model_name:
-            return functools.partial(DenseNet, version=model_name[5:])
-        if "mobile" in model_name:
-            return functools.partial(MobileNet, version=model_name[6:])
-        if "efficient" in model_name:
-            return functools.partial(EfficientNet, version=model_name[9:])
-        if "squeeze" in model_name:
-            return functools.partial(SqueezeNet, version=model_name[-1])
-        raise ValueError(f"Unsupported model: {model_name}")
-
-
-def get_domain_classes_num():
-    try:
-        with open(PROJECT_DIR / "data" / "domain" / "metadata.json", "r") as f:
-            metadata = json.load(f)
-        return metadata["class_num"]
-    except:
-        return 0
-
-
-def get_synthetic_classes_num():
-    try:
-        with open(PROJECT_DIR / "data" / "synthetic" / "args.json", "r") as f:
-            metadata = json.load(f)
-        return metadata["class_num"]
-    except:
-        return 0
-
-
-INPUT_CHANNELS = {
-    "mnist": 1,
-    "medmnistS": 1,
-    "medmnistC": 1,
-    "medmnistA": 1,
-    "covid19": 3,
-    "fmnist": 1,
-    "emnist": 1,
-    "femnist": 1,
-    "cifar10": 3,
-    "cinic10": 3,
-    "svhn": 3,
-    "cifar100": 3,
-    "celeba": 3,
-    "usps": 1,
-    "tiny_imagenet": 3,
-    "domain": 3,
-}
-
-NUM_CLASSES = {
-    "mnist": 10,
-    "medmnistS": 11,
-    "medmnistC": 11,
-    "medmnistA": 11,
-    "fmnist": 10,
-    "svhn": 10,
-    "emnist": 62,
-    "femnist": 62,
-    "cifar10": 10,
-    "cinic10": 10,
-    "cifar100": 100,
-    "covid19": 4,
-    "usps": 10,
-    "celeba": 2,
-    "tiny_imagenet": 200,
-    "synthetic": get_synthetic_classes_num(),
-    "domain": get_domain_classes_num(),
-}
+from .constants import NUM_CLASSES, INPUT_CHANNELS
 
 
 class DecoupledModel(nn.Module):
@@ -446,67 +356,6 @@ class EfficientNet(DecoupledModel):
         self.base.classifier[-1] = nn.Identity()
 
 
-class Discriminator(nn.Module):
-    # discriminator for adversarial training in ADCOL
-    def __init__(self, base_model, client_num):
-        super(Discriminator, self).__init__()
-        try:
-            in_features = base_model.classifier.in_features
-        except:
-            raise ValueError("base model has no classifier")
-        self.discriminator = nn.Sequential(
-            nn.Linear(in_features, 512, bias=False),
-            nn.BatchNorm1d(512),
-            nn.ReLU(),
-            nn.Linear(512, 512, bias=False),
-            nn.BatchNorm1d(512),
-            nn.ReLU(),
-            nn.Linear(512, client_num, bias=False),
-        )
-
-    def forward(self, x):
-        x = self.discriminator(x)
-        return x
-
-
-class Model_4_FedSR(DecoupledModel):
-    # modify base model to suit FedSR
-    def __init__(self, base_model_name, dataset) -> None:
-        super().__init__()
-        self.base_model = get_model_arch(base_model_name)(dataset=dataset)
-        self.z_dim = self.base_model.classifier.in_features
-        out_dim = 2 * self.z_dim
-        self.base = deepcopy(self.base_model.base)
-        self.classifier = deepcopy(self.base_model.classifier)
-        self.base.classifier[1] = nn.Linear(
-            self.base_model.classifier.in_features, out_dim
-        )
-        self.classifier = nn.Linear(self.z_dim, NUM_CLASSES[dataset])
-        self.r_mu = nn.Parameter(torch.zeros(NUM_CLASSES[dataset], self.z_dim))
-        self.r_sigma = nn.Parameter(torch.ones(NUM_CLASSES[dataset], self.z_dim))
-        self.C = nn.Parameter(torch.ones([]))
-
-    def featurize(self, x, num_samples=1, return_dist=False):
-        # designed for FedSR
-        z_params = self.base(x)
-        z_mu = z_params[:, : self.z_dim]
-        z_sigma = F.softplus(z_params[:, self.z_dim :])
-        z_dist = distributions.Independent(
-            distributions.normal.Normal(z_mu, z_sigma), 1
-        )
-        z = z_dist.rsample([num_samples]).view([-1, self.z_dim])
-
-        if return_dist:
-            return z, (z_mu, z_sigma)
-        else:
-            return z
-
-    def forward(self, x):
-        z = self.featurize(x)
-        logits = self.classifier(z)
-        return logits
-
-
 # NOTE: You can build your custom model here.
 # What you only need to do is define the architecture in __init__().
 # Don't need to consider anything else, which are handled by DecoupledModel well already.
@@ -519,3 +368,34 @@ class CustomModel(DecoupledModel):
         # 2. self.classifier (normally the final fully connected layer)
         # The default forwarding process is: out = self.classifier(self.base(input))
         pass
+
+
+MODELS = {
+    "custom": CustomModel,
+    "lenet5": LeNet5,
+    "avgcnn": FedAvgCNN,
+    "alex": AlexNet,
+    "2nn": TwoNN,
+    "squeeze0": partial(SqueezeNet, version="0"),
+    "squeeze1": partial(SqueezeNet, version="1"),
+    "res18": partial(ResNet, version="18"),
+    "res34": partial(ResNet, version="34"),
+    "res50": partial(ResNet, version="50"),
+    "res101": partial(ResNet, version="101"),
+    "res152": partial(ResNet, version="152"),
+    "dense121": partial(DenseNet, version="121"),
+    "dense161": partial(DenseNet, version="161"),
+    "dense169": partial(DenseNet, version="169"),
+    "dense201": partial(DenseNet, version="201"),
+    "mobile2": partial(MobileNet, version="2"),
+    "mobile3s": partial(MobileNet, version="3s"),
+    "mobile3l": partial(MobileNet, version="3l"),
+    "efficient0": partial(EfficientNet, version="0"),
+    "efficient1": partial(EfficientNet, version="1"),
+    "efficient2": partial(EfficientNet, version="2"),
+    "efficient3": partial(EfficientNet, version="3"),
+    "efficient4": partial(EfficientNet, version="4"),
+    "efficient5": partial(EfficientNet, version="5"),
+    "efficient6": partial(EfficientNet, version="6"),
+    "efficient7": partial(EfficientNet, version="7"),
+}

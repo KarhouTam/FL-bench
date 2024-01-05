@@ -1,15 +1,13 @@
-import torch.nn.functional as F
 import torch
+import torch.nn.functional as F
+import torch.autograd as autograd
 
 from fedavg import FedAvgClient
-import torch.autograd as autograd
 
 
 class FedIIRClient(FedAvgClient):
     def __init__(self, model, args, logger, device):
         super(FedIIRClient, self).__init__(model, args, logger, device)
-        self.penalty = args.penalty
-        self.ema = args.ema
 
     def fit(self):
         self.model.train()

@@ -3,9 +3,11 @@ import os
 from argparse import Namespace
 from collections import Counter
 from pathlib import Path
-from typing import Dict, List, Tuple
-from torch.utils.data import Dataset
+from typing import Dict, Set
+
+
 import numpy as np
+from matplotlib import pyplot as plt
 from PIL import Image
 
 DATA_ROOT = Path(__file__).parent.parent.absolute()
@@ -17,6 +19,8 @@ def prune_args(args: Namespace) -> Dict:
     args_dict["dataset"] = args.dataset
     args_dict["client_num"] = args.client_num
     args_dict["fraction"] = args.fraction
+    args_dict["test_ratio"] = args.test_ratio
+    args_dict["val_ratio"] = args.val_ratio
     args_dict["seed"] = args.seed
     args_dict["split"] = args.split
 
@@ -49,6 +53,8 @@ def prune_args(args: Namespace) -> Dict:
             args_dict["iid"] = True
     if args.iid == 1:
         args_dict["iid"] = True
+    if args.ood_domains is not None:
+        args_dict["ood_domains"] = args.ood_domains
     else:
         # Dirchlet
         if args.alpha > 0:
@@ -66,15 +72,14 @@ def prune_args(args: Namespace) -> Dict:
     return args_dict
 
 
-def process_femnist():
+def process_femnist(args, partition: Dict, stats: Dict):
     train_dir = DATA_ROOT / "femnist" / "data" / "train"
     test_dir = DATA_ROOT / "femnist" / "data" / "test"
-    stats = {}
     client_cnt = 0
     data_cnt = 0
     all_data = []
     all_targets = []
-    partition = {"separation": None, "data_indices": {}}
+    data_indices = {}
     clients_4_train, clients_4_test = None, None
     with open(DATA_ROOT / "femnist" / "preprocess_args.json", "r") as f:
         args = json.load(f)
@@ -132,7 +137,7 @@ def process_femnist():
 
                 all_data.append(np.array(data))
                 all_targets.append(np.array(targets))
-                partition["data_indices"][client_cnt] = {
+                data_indices[client_cnt] = {
                     "train": list(range(data_cnt, data_cnt + len(data))),
                     "test": [],
                 }
@@ -162,7 +167,7 @@ def process_femnist():
                 targets = json_data["user_data"][writer]["y"]
                 all_data.append(np.array(data))
                 all_targets.append(np.array(targets))
-                partition["data_indices"][client_cnt] = {
+                data_indices[client_cnt] = {
                     "train": [],
                     "test": list(range(data_cnt, data_cnt + len(data))),
                 }
@@ -190,14 +195,11 @@ def process_femnist():
         "test": clients_4_test,
         "total": client_cnt,
     }
-    partition["data_indices"] = [
-        indices for indices in partition["data_indices"].values()
-    ]
-
-    return partition, stats, client_cnt
+    partition["data_indices"] = [indices for indices in data_indices.values()]
+    args.client_num = client_cnt
 
 
-def process_celeba():
+def process_celeba(args, partition: Dict, stats: Dict):
     train_dir = DATA_ROOT / "celeba" / "data" / "train"
     test_dir = DATA_ROOT / "celeba" / "data" / "test"
     raw_data_dir = DATA_ROOT / "celeba" / "data" / "raw" / "img_align_celeba"
@@ -208,11 +210,10 @@ def process_celeba():
     with open(test_dir / test_filename, "r") as f:
         test = json.load(f)
 
-    stats = {}
     data_cnt = 0
     all_data = []
     all_targets = []
-    partition = {"separation": None, "data_indices": {}}
+    data_indices = {}
     client_cnt = 0
     clients_4_test, clients_4_train = None, None
 
@@ -249,7 +250,7 @@ def process_celeba():
                 all_targets = targets
             else:
                 all_targets = np.concatenate([all_targets, targets])
-            partition["data_indices"][client_cnt] = {
+            data_indices[client_cnt] = {
                 "train": list(range(data_cnt, data_cnt + len(train_data))),
                 "test": list(range(data_cnt + len(train_data), data_cnt + len(data))),
             }
@@ -290,7 +291,7 @@ def process_celeba():
                 all_targets = targets
             else:
                 all_targets = np.concatenate([all_targets, targets])
-            partition["data_indices"][client_cnt] = {
+            data_indices[client_cnt] = {
                 "train": list(range(data_cnt, data_cnt + len(data))),
                 "test": [],
             }
@@ -346,8 +347,8 @@ def process_celeba():
             list(map(lambda stat_i: stat_i["x"], stats["test"].values()))
         )
         stats["sample per client"] = {
-            "std": num_samples.mean(),
-            "stddev": num_samples.std(),
+            "std": num_samples.mean().item(),
+            "stddev": num_samples.std().item(),
         }
 
     np.save(DATA_ROOT / "celeba" / "data", all_data)
@@ -358,14 +359,11 @@ def process_celeba():
         "test": clients_4_test,
         "total": client_cnt,
     }
-    partition["data_indices"] = [
-        indices for indices in partition["data_indices"].values()
-    ]
-
-    return partition, stats, client_cnt
+    partition["data_indices"] = [indices for indices in data_indices.values()]
+    args.client_num = client_cnt
 
 
-def generate_synthetic_data(args):
+def generate_synthetic_data(args, partition: Dict, stats: Dict):
     def softmax(x):
         ex = np.exp(x)
         sum_ex = np.sum(np.exp(x))
@@ -404,12 +402,7 @@ def generate_synthetic_data(args):
     all_data = []
     all_targets = []
     data_cnt = 0
-    partition = {"separation": None, "data_indices": None}
-    data_indices = [[] for _ in range(args.client_num)]
-    stats = {}
-    if args.split == "user":
-        stats["train"] = {}
-        stats["test"] = {}
+
     for client_id in range(args.client_num):
         w = np.random.normal(mean_w[client_id], 1, (args.dimension, class_num))
         b = np.random.normal(mean_b[client_id], 1, class_num)
@@ -421,7 +414,7 @@ def generate_synthetic_data(args):
         data = np.random.multivariate_normal(
             mean_x[client_id], cov_x, samples_per_user[client_id]
         )
-        targets = np.zeros(samples_per_user[client_id])
+        targets = np.zeros(samples_per_user[client_id], dtype=np.int32)
 
         for j in range(samples_per_user[client_id]):
             true_logit = np.dot(data[j], w) + b
@@ -430,125 +423,86 @@ def generate_synthetic_data(args):
         all_data.append(data)
         all_targets.append(targets)
 
-        data_indices[client_id] = list(range(data_cnt, data_cnt + len(data)))
+        partition["data_indices"][client_id] = list(
+            range(data_cnt, data_cnt + len(data))
+        )
 
         data_cnt += len(data)
 
-        if args.split == "sample":
-            stats[client_id] = {}
-            stats[client_id]["x"] = samples_per_user[client_id]
-            stats[client_id]["y"] = Counter(targets.tolist())
-
-        else:
-            if client_id < int(args.client_num * args.fraction):
-                stats["train"][client_id] = {}
-                stats["train"][client_id]["x"] = samples_per_user[client_id]
-                stats["train"][client_id]["y"] = Counter(targets.tolist())
-            else:
-                stats["test"][client_id] = {}
-                stats["test"][client_id]["x"] = samples_per_user[client_id]
-                stats["test"][client_id]["y"] = Counter(targets.tolist())
+        stats[client_id] = {}
+        stats[client_id]["x"] = samples_per_user[client_id]
+        stats[client_id]["y"] = Counter(targets.tolist())
 
     np.save(DATA_ROOT / "synthetic" / "data", np.concatenate(all_data))
     np.save(DATA_ROOT / "synthetic" / "targets", np.concatenate(all_targets))
 
     num_samples = np.array(list(map(lambda stat_i: stat_i["x"], stats.values())))
     stats["sample per client"] = {
-        "std": num_samples.mean(),
-        "stddev": num_samples.std(),
+        "std": num_samples.mean().item(),
+        "stddev": num_samples.std().item(),
     }
 
-    partition["data_indices"] = data_indices
 
-    return partition, stats
-
-
-def dirichlet_4_domainnet(
-    partition, args, clients_4_train, domain_indices_bound, targets_numpy
+def exclude_domain(
+    client_num: int,
+    targets: np.ndarray,
+    domain_map: Dict[str, int],
+    domain_indices_bound: Dict,
+    ood_domains: Set[str],
+    partition: Dict,
+    stats: Dict,
 ):
-    domain_2_domain_label = {
-        "clipart": 0,
-        "infograph": 1,
-        "painting": 2,
-        "quickdraw": 3,
-        "real": 4,
-        "sketch": 5,
-    }
-    # the indices of all training data on all training clients
-    all_training_data_indices = []
-    for client_idx in clients_4_train:
-        all_training_data_indices = (
-            all_training_data_indices + partition["data_indices"][client_idx]["train"]
-        )
-    all_training_data_indices.sort()
+    ood_domain_num = 0
+    data_indices = np.arange(len(targets), dtype=np.int64)
+    for domain in ood_domains:
+        if domain not in domain_map:
+            Warning(f"One of `args.ood_domains` {domain} is unrecongnized and ignored.")
+        else:
+            ood_domain_num += 1
 
-    def index_2_domain_label(index):
+    def _idx_2_domain_label(index):
         # get the domain label of a specific data index
         for domain, bound in domain_indices_bound.items():
-            if index >= bound["begin"] and index < bound["end"]:
-                return domain_2_domain_label[domain]
+            if bound["begin"] <= index < bound["end"]:
+                return domain_map[domain]
 
-    all_data_domain_label = list(map(index_2_domain_label, all_training_data_indices))
-    # generate heterogeneous partition
-    min_size = 0
-    while min_size < args.least_samples:
-        idx_batch = [[] for _ in range(len(clients_4_train))]
-        for domain_label in range(5):
-            proportions = np.random.dirichlet(
-                np.repeat(args.alpha, len(clients_4_train))
-            )
-            idx = np.where(np.array(all_data_domain_label) == domain_label)[0]
-            np.random.shuffle(idx)
-            proportions = np.array(
-                [
-                    p
-                    * (
-                        len(idx_j)
-                        < len(all_training_data_indices) / len(clients_4_train)
-                    )
-                    for p, idx_j in zip(proportions, idx_batch)
-                ]
-            )  # balance proportion
-            proportions = proportions / proportions.sum()
-            proportions = (np.cumsum(proportions) * len(idx)).astype(int)[:-1]
-            idx_batch = [
-                idx_j + idx.tolist()
-                for idx_j, idx in zip(idx_batch, np.split(idx, proportions))
-            ]
-            min_size = min([len(idx_j) for idx_j in idx_batch])
-    for client_idx, sample_idx in zip(clients_4_train, idx_batch):
-        partition["data_indices"][client_idx]["train"] = sample_idx
-    # generate stats
-    client_num = args.client_num
-    stats = {}
-    for i in clients_4_train:
-        stats[i] = {"x": None, "y": None}
-        stats[i]["x"] = len(partition["data_indices"][i]["train"]) + len(
-            partition["data_indices"][i]["test"]
-        )
-        stats[i]["y"] = Counter(
-            targets_numpy[partition["data_indices"][i]["train"]].tolist()
-            + targets_numpy[partition["data_indices"][i]["test"]].tolist()
-        )
+    domain_targets = np.vectorize(_idx_2_domain_label)(data_indices)
 
-    num_samples = np.array(
-        [
-            len(
-                partition["data_indices"][j]["train"]
-                + partition["data_indices"][j]["test"]
-            )
-            for j in clients_4_train
-        ]
+    id_label_set = set(
+        label for domain, label in domain_map.items() if domain not in ood_domains
     )
-    stats["sample per client"] = {
-        "std": num_samples.mean(),
-        "stddev": num_samples.std(),
+
+    clients_4_train = list(range(client_num - ood_domain_num))
+    clients_4_test = list(range(client_num - ood_domain_num, client_num))
+    partition["separation"] = {
+        "train": clients_4_train,
+        "test": clients_4_test,
+        "total": client_num,
     }
-    stats["domain_info"] = {}
-    partition_data_indices = partition["data_indices"]
-    for client_idx, indices in enumerate(partition_data_indices):
-        indices = indices["train"]
-        domain_label_list = list(map(index_2_domain_label, indices))
-        domain_label_count = Counter(domain_label_list)
-        stats["domain_info"][client_idx] = domain_label_count
-    return partition, stats
+    for ood_domain, client_id in zip(ood_domains, clients_4_test):
+        indices = np.where(domain_targets == domain_map[ood_domain])[0]
+        partition["data_indices"][client_id] = {
+            "train": np.array([], dtype=np.int64),
+            "test": indices,
+        }
+        stats[client_id] = {
+            "x": len(indices),
+            "y": {domain_map[ood_domain]: len(indices)},
+        }
+
+    return id_label_set, domain_targets, len(clients_4_train)
+
+
+def plot_distribution(client_num: int, label_counts: np.ndarray, save_path: str):
+    plt.figure()
+    ax = plt.gca()
+    left = np.zeros(client_num)
+    client_ids = np.arange(client_num)
+    for y, cnts in enumerate(label_counts):
+        ax.barh(client_ids, width=cnts, label=y, left=left)
+        left += cnts
+    ax.set_yticks([])
+    ax.spines['right'].set_visible(False)
+    ax.spines['top'].set_visible(False)
+    ax.legend(bbox_to_anchor=(1.2, 1))
+    plt.savefig(save_path, bbox_inches="tight")

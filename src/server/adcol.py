@@ -1,20 +1,17 @@
-from argparse import ArgumentParser, Namespace
+from argparse import ArgumentParser
 from copy import deepcopy
+
+import torch
+import torch.nn as nn
+from torch.utils.data import Dataset, DataLoader
+
 from fedavg import FedAvgServer, get_fedavg_argparser
 from src.client.adcol import ADCOLClient
-from src.utils.models import get_model_arch
-import torch.nn as nn
-import torch
-from torch.utils.data import Dataset
 
 
 def get_adcol_argparser() -> ArgumentParser:
     parser = get_fedavg_argparser()
-    parser.add_argument(
-        "--mu",
-        type=float,
-        default=0.5,
-    )
+    parser.add_argument("--mu", type=float, default=0.5)
     parser.add_argument(
         "--dis_lr", type=float, default=0.01, help="learning rate for discriminator"
     )
@@ -27,7 +24,30 @@ def get_adcol_argparser() -> ArgumentParser:
     return parser
 
 
-class discriminate_dataset(Dataset):
+class Discriminator(nn.Module):
+    # discriminator for adversarial training in ADCOL
+    def __init__(self, base_model, client_num):
+        super(Discriminator, self).__init__()
+        try:
+            in_features = base_model.classifier.in_features
+        except:
+            raise ValueError("base model has no classifier")
+        self.discriminator = nn.Sequential(
+            nn.Linear(in_features, 512, bias=False),
+            nn.BatchNorm1d(512),
+            nn.ReLU(),
+            nn.Linear(512, 512, bias=False),
+            nn.BatchNorm1d(512),
+            nn.ReLU(),
+            nn.Linear(512, client_num, bias=False),
+        )
+
+    def forward(self, x):
+        x = self.discriminator(x)
+        return x
+
+
+class DiscriminateDataset(Dataset):
     def __init__(self, feature, index):
         # initiate this class
         self.feature = feature
@@ -44,17 +64,13 @@ class discriminate_dataset(Dataset):
 
 class ADCOLServer(FedAvgServer):
     def __init__(
-        self,
-        algo: str = "ADCOL",
-        args=None,
-        unique_model=False,
-        default_trainer=False,
+        self, algo: str = "ADCOL", args=None, unique_model=False, default_trainer=False
     ):
         if args is None:
             args = get_adcol_argparser().parse_args()
         super().__init__(algo, args, unique_model, default_trainer)
         self.train_client_num = len(self.train_clients)
-        self.discriminator: nn.Module = get_model_arch(model_name="discriminator")(
+        self.discriminator = Discriminator(
             base_model=self.model, client_num=len(self.train_clients)
         ).to(self.device)
         self.trainer = ADCOLClient(
@@ -71,7 +87,7 @@ class ADCOLServer(FedAvgServer):
         delta_cache = []
         weight_cache = []
         self.features = {}
-        self.feature_dataloader: torch.utils.data.DataLoader = None
+        self.feature_dataloader: DataLoader = None
         for client_id in self.selected_clients:
             client_local_params = self.generate_client_params(client_id)
             (
@@ -115,10 +131,8 @@ class ADCOLServer(FedAvgServer):
         loss_func = nn.CrossEntropyLoss().to(self.device)
         # train discriminator
         for _ in range(self.args.dis_epoch):
-            for batch in self.feature_dataloader:
-                x, y = batch
-                x = x.to(self.device)
-                y = y.to(self.device)
+            for x, y in self.feature_dataloader:
+                x, y = x.to(self.device), y.to(self.device)
                 y = y.type(torch.float32)
                 y_pred = self.discriminator(x)
                 loss = loss_func(y_pred, y).mean()
@@ -131,10 +145,8 @@ class ADCOLServer(FedAvgServer):
         if self.feature_dataloader:
             self.discriminator.eval()
             self.accuracy_list = []
-            for batch in self.feature_dataloader:
-                x, y = batch
-                x = x.to(self.device)
-                y = y.to(self.device)
+            for x, y in self.feature_dataloader:
+                x, y = x.to(self.device), y.to(self.device)
                 y_pred = self.discriminator(x)
                 y_pred = torch.argmax(y_pred, dim=1)
                 y = torch.argmax(y, dim=1)
@@ -164,10 +176,8 @@ class ADCOLServer(FedAvgServer):
             index=orgnized_client_index.unsqueeze(-1),
             src=torch.ones((orgnized_client_index.shape[0], 1), dtype=torch.int64),
         ).type(torch.float32)
-        discriminator_training_dataset = discriminate_dataset(
-            orgnized_features, targets
-        )
-        self.feature_dataloader = torch.utils.data.DataLoader(
+        discriminator_training_dataset = DiscriminateDataset(orgnized_features, targets)
+        self.feature_dataloader = DataLoader(
             discriminator_training_dataset,
             batch_size=self.args.batch_size,
             shuffle=True,

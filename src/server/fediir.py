@@ -44,10 +44,8 @@ class FedIIRServer(FedAvgServer):
             self.trainer.grad_mean = self.grad_mean
             (
                 delta,
-                weight,  # the length of trainset in Client #client_id
-                self.client_stats[client_id][
-                    self.current_epoch
-                ],  # {"before": before, "after": after}
+                _,
+                self.client_stats[client_id][self.current_epoch],
             ) = self.trainer.train(
                 client_id=client_id,
                 local_epoch=self.clients_local_epoch[client_id],
@@ -56,10 +54,10 @@ class FedIIRServer(FedAvgServer):
             )
 
             delta_cache.append(delta)
-            # weight_cache.append(weight)
+
         weight_cache = list(
-            np.ones((len(self.selected_clients),)) * (1 / len(self.selected_clients))
-        )  # the aggregation of FedIIR is different to FedAVG
+            np.ones(len(self.selected_clients)) * (1 / len(self.selected_clients))
+        )
         self.aggregate(delta_cache, weight_cache)
 
     def calculate_grad_mean(self):

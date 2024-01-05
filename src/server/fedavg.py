@@ -2,12 +2,12 @@ import pickle
 import sys
 import json
 import os
+import time
 import random
 from pathlib import Path
 from argparse import ArgumentParser, Namespace
 from collections import OrderedDict
 from copy import deepcopy
-import time
 from typing import Dict, List, OrderedDict
 
 import torch
@@ -25,86 +25,20 @@ from src.utils.tools import (
     fix_random_seed,
     parse_config_file,
     trainable_params,
-    get_best_device,
+    get_optimal_cuda_device,
 )
-from src.utils.models import get_model_arch
+from src.utils.models import MODELS
+from data.utils.datasets import DATASETS
 from src.client.fedavg import FedAvgClient
-
-
-def local_time():
-    now = int(round(time.time() * 1000))
-    now02 = time.strftime(
-        "%Y-%m-%d-%H:%M:%S", time.localtime(now / 1000)
-    )  # e.g. 2023-11-08-10:31:47
-    return now02
 
 
 def get_fedavg_argparser() -> ArgumentParser:
     parser = ArgumentParser()
     parser.add_argument(
-        "-m",
-        "--model",
-        type=str,
-        default="lenet5",
-        choices=[
-            "lenet5",
-            "avgcnn",
-            "alex",
-            "2nn",
-            "squeeze0",
-            "squeeze1",
-            "res18",
-            "res34",
-            "res50",
-            "res101",
-            "res152",
-            "dense121",
-            "dense161",
-            "dense169",
-            "dense201",
-            "mobile2",
-            "mobile3s",
-            "mobile3l",
-            "efficient0",
-            "efficient1",
-            "efficient2",
-            "efficient3",
-            "efficient4",
-            "efficient5",
-            "efficient6",
-            "efficient7",
-            "fedsr_mobile2",
-            "fedsr_mobile3s",
-            "fedsr_mobile3l",
-            "fedsr_res50",
-            "fedsr_res101",
-            "custom",
-        ],
+        "-m", "--model", type=str, default="lenet5", choices=MODELS.keys()
     )
     parser.add_argument(
-        "-d",
-        "--dataset",
-        type=str,
-        choices=[
-            "mnist",
-            "cifar10",
-            "cifar100",
-            "synthetic",
-            "femnist",
-            "emnist",
-            "fmnist",
-            "celeba",
-            "medmnistS",
-            "medmnistA",
-            "medmnistC",
-            "covid19",
-            "svhn",
-            "usps",
-            "tiny_imagenet",
-            "cinic10",
-            "domain",
-        ],
-        default="cifar10",
+        "-d", "--dataset", type=str, choices=DATASETS.keys(), default="cifar10"
     )
     parser.add_argument("--seed", type=int, default=42)
     parser.add_argument("-jr", "--join_ratio", type=float, default=0.1)
@@ -112,8 +46,9 @@ def get_fedavg_argparser() -> ArgumentParser:
     parser.add_argument("-le", "--local_epoch", type=int, default=5)
     parser.add_argument("-fe", "--finetune_epoch", type=int, default=0)
     parser.add_argument("-tg", "--test_gap", type=int, default=100)
-    parser.add_argument("-ee", "--eval_test", type=int, default=1)
-    parser.add_argument("-er", "--eval_train", type=int, default=0)
+    parser.add_argument("--eval_test", type=int, default=0)
+    parser.add_argument("--eval_val", type=int, default=0)
+    parser.add_argument("--eval_train", type=int, default=1)
     parser.add_argument(
         "-op", "--optimizer", type=str, default="sgd", choices=["sgd", "adam"]
     )
@@ -123,7 +58,6 @@ def get_fedavg_argparser() -> ArgumentParser:
     parser.add_argument("-vg", "--verbose_gap", type=int, default=10)
     parser.add_argument("-bs", "--batch_size", type=int, default=32)
     parser.add_argument("-v", "--visible", type=int, default=0)
-    parser.add_argument("--global_testset", type=int, default=0)
     parser.add_argument("--straggler_ratio", type=float, default=0)
     parser.add_argument("--straggler_min_local_epoch", type=int, default=1)
     parser.add_argument("--external_model_params_file", type=str, default="")
@@ -154,8 +88,10 @@ class FedAvgServer:
         ):
             self.args = parse_config_file(self.args)
         fix_random_seed(self.args.seed)
-        begin_time = str(local_time())
-        self.name_4_output_dir = begin_time
+        begin_time = str(
+            time.strftime("%Y-%m-%d-%H:%M:%S", time.localtime(round(time.time())))
+        )
+        self.output_dir = OUT_DIR / self.algo / begin_time
         with open(PROJECT_DIR / "data" / self.args.dataset / "args.json", "r") as f:
             self.args.dataset_args = json.load(f)
 
@@ -168,17 +104,16 @@ class FedAvgServer:
             raise FileNotFoundError(f"Please partition {args.dataset} first.")
         self.train_clients: List[int] = partition["separation"]["train"]
         self.test_clients: List[int] = partition["separation"]["test"]
+        self.val_clients: List[int] = partition["separation"]["val"]
         self.client_num: int = partition["separation"]["total"]
 
         # init model(s) parameters
-        self.device = get_best_device(self.args.use_cuda)
+        self.device = get_optimal_cuda_device(self.args.use_cuda)
 
         # get_model_arch() would return a class depends on model's name,
         # then init the model object by indicating the dataset and calling the class.
         # Finally transfer the model object to the target device.
-        self.model = get_model_arch(model_name=self.args.model)(
-            dataset=self.args.dataset
-        ).to(self.device)
+        self.model = MODELS[self.args.model](dataset=self.args.dataset).to(self.device)
         self.model.check_avaliability()
 
         # client_trainable_params is for pFL, which outputs exclusive model per client
@@ -232,19 +167,20 @@ class FedAvgServer:
         ]
         self.selected_clients: List[int] = []
         self.current_epoch = 0
+        # epoch that need test model on test clients.
         self.epoch_test = [
             epoch
             for epoch in range(0, self.args.global_epoch)
             if (epoch + 1) % self.args.test_gap == 0
-        ]  # epoch that need test model on test clients.
+        ]
         # For controlling behaviors of some specific methods while testing (not used by all methods)
         self.test_flag = False
 
         # variables for logging
-        if not os.path.isdir(OUT_DIR / self.algo / self.name_4_output_dir) and (
+        if not os.path.isdir(self.output_dir) and (
             self.args.save_log or self.args.save_fig or self.args.save_metrics
         ):
-            os.makedirs(OUT_DIR / self.algo / self.name_4_output_dir, exist_ok=True)
+            os.makedirs(self.output_dir, exist_ok=True)
 
         if self.args.visible:
             from visdom import Visdom
@@ -261,12 +197,16 @@ class FedAvgServer:
                 )
         self.client_stats = {i: {} for i in self.train_clients}
         self.metrics = {
-            "train_before": [],
-            "train_after": [],
-            "test_before": [],
-            "test_after": [],
-            "test_clients": [],  # test accuracy on test clients
-            "mean": [],  # mean accuracy of test_before and test_clients
+            "before": {
+                "train": {"accuracy": []},
+                "val": {"accuracy": []},
+                "test": {"accuracy": []},
+            },
+            "after": {
+                "train": {"accuracy": []},
+                "val": {"accuracy": []},
+                "test": {"accuracy": []},
+            },
         }
         stdout = Console(log_path=False, log_time=False)
         self.logger = Logger(
@@ -274,15 +214,15 @@ class FedAvgServer:
             enable_log=self.args.save_log,
             logfile_path=OUT_DIR
             / self.algo
-            / self.name_4_output_dir
+            / self.output_dir
             / f"{self.args.dataset}_log.html",
         )
-        self.test_results: Dict[int, Dict[str, str]] = {}
+        self.eval_results: Dict[int, Dict[str, str]] = {}
         self.train_progress_bar = track(
             range(self.args.global_epoch), "[bold green]Training...", console=stdout
         )
 
-        self.logger.log("=" * 20, "ALGORITHM:", self.algo, "=" * 20)
+        self.logger.log("=" * 20, self.algo, "=" * 20)
         self.logger.log("Experiment Arguments:", dict(self.args._get_kwargs()))
 
         # init trainer
@@ -342,43 +282,93 @@ class FedAvgServer:
     def test(self):
         """The function for testing FL method's output (a single global model or personalized client models)."""
         self.test_flag = True
-        loss_before, loss_after = [], []
-        correct_before, correct_after = [], []
-        num_samples = []
-        for client_id in self.test_clients:
-            client_local_params = self.generate_client_params(client_id)
-            stats = self.trainer.test(client_id, client_local_params)
+        client_ids = set(self.val_clients + self.test_clients)
+        split_sample_flag = False
+        if client_ids:
+            if (set(self.train_clients) != set(self.val_clients)) or (
+                set(self.train_clients) != set(self.test_clients)
+            ):
+                results = {
+                    "val_clients": {
+                        "before": {
+                            "train": {"loss": [], "correct": [], "size": []},
+                            "val": {"loss": [], "correct": [], "size": []},
+                            "test": {"loss": [], "correct": [], "size": []},
+                        },
+                        "after": {
+                            "train": {"loss": [], "correct": [], "size": []},
+                            "val": {"loss": [], "correct": [], "size": []},
+                            "test": {"loss": [], "correct": [], "size": []},
+                        },
+                    },
+                    "test_clients": {
+                        "before": {
+                            "train": {"loss": [], "correct": [], "size": []},
+                            "val": {"loss": [], "correct": [], "size": []},
+                            "test": {"loss": [], "correct": [], "size": []},
+                        },
+                        "after": {
+                            "train": {"loss": [], "correct": [], "size": []},
+                            "val": {"loss": [], "correct": [], "size": []},
+                            "test": {"loss": [], "correct": [], "size": []},
+                        },
+                    },
+                }
+            else:
+                split_sample_flag = True
+                results = {
+                    "all_clients": {
+                        "before": {
+                            "train": {"loss": [], "correct": [], "size": []},
+                            "val": {"loss": [], "correct": [], "size": []},
+                            "test": {"loss": [], "correct": [], "size": []},
+                        },
+                        "after": {
+                            "train": {"loss": [], "correct": [], "size": []},
+                            "val": {"loss": [], "correct": [], "size": []},
+                            "test": {"loss": [], "correct": [], "size": []},
+                        },
+                    }
+                }
+            for cid in client_ids:
+                client_local_params = self.generate_client_params(cid)
+                stats = self.trainer.test(cid, client_local_params)
 
-            correct_before.append(stats["before"]["test_correct"])
-            correct_after.append(stats["after"]["test_correct"])
-            loss_before.append(stats["before"]["test_loss"])
-            loss_after.append(stats["after"]["test_loss"])
-            num_samples.append(stats["before"]["test_size"])
+                for stage in ["before", "after"]:
+                    for split in ["train", "val", "test"]:
+                        for metric in ["loss", "correct", "size"]:
+                            if split_sample_flag:
+                                results["all_clients"][stage][split][metric].append(
+                                    stats[stage][split][metric]
+                                )
+                            else:
+                                if cid in self.val_clients:
+                                    results["val_clients"][stage][split][metric].append(
+                                        stats[stage][split][metric]
+                                    )
+                                if cid in self.test_clients:
+                                    results["test_clients"][stage][split][
+                                        metric
+                                    ].append(stats[stage][split][metric])
+            for group in results.keys():
+                for stage in ["before", "after"]:
+                    for split in ["train", "val", "test"]:
+                        for metric in ["loss", "correct", "size"]:
+                            results[group][stage][split][metric] = torch.tensor(
+                                results[group][stage][split][metric]
+                            )
+                        results[group][stage][split]["accuracy"] = (
+                            results[group][stage][split]["correct"].sum()
+                            / results[group][stage][split]["size"].sum()
+                            * 100
+                        )
+                        results[group][stage][split]["loss"] = (
+                            results[group][stage][split]["loss"].sum()
+                            / results[group][stage][split]["size"].sum()
+                        )
 
-        loss_before = torch.tensor(loss_before)
-        loss_after = torch.tensor(loss_after)
-        correct_before = torch.tensor(correct_before)
-        correct_after = torch.tensor(correct_after)
-        num_samples = torch.tensor(num_samples)
+            self.eval_results[self.current_epoch + 1] = results
 
-        self.test_results[self.current_epoch + 1] = {
-            "loss": "{:.4f} -> {:.4f}".format(
-                loss_before.sum() / num_samples.sum(),
-                loss_after.sum() / num_samples.sum(),
-            ),
-            "accuracy": "{:.2f}% -> {:.2f}%".format(
-                correct_before.sum() / num_samples.sum() * 100,
-                correct_after.sum() / num_samples.sum() * 100,
-            ),
-        }
-        if len(self.test_clients) > 0:
-            self.metrics["test_clients"].append(
-                correct_before.sum() / num_samples.sum() * 100
-            )
-            if (self.current_epoch + 1) % self.args.verbose_gap == 0:
-                self.logger.log(
-                    f"The test accuracy on test clients before training: {self.metrics['test_clients'][-1]:.2f}%."
-                )
         self.test_flag = False
 
     @torch.no_grad()
@@ -455,22 +445,28 @@ class FedAvgServer:
                 )
         self.model.load_state_dict(self.global_params_dict, strict=False)
 
-    def check_convergence(self):
+    def show_convergence(self):
         """This function is for checking model convergence through the entire FL training process."""
-        for label, metric in self.metrics.items():
-            if len(metric) > 0:
-                self.logger.log(f"Convergence ({label}):")
+        colors = {
+            "before": "blue",
+            "after": "red",
+            "train": "yellow",
+            "val": "green",
+            "test": "cyan",
+        }
+        self.logger.log("=" * 10, self.algo, "Convergence on train clients", "=" * 10)
+        for stage in ["before", "after"]:
+            for split in ["train", "val", "test"]:
+                self.logger.log(
+                    f"[{colors[split]}]{split}[/{colors[split]}] [{colors[stage]}]({stage} local training):"
+                )
                 acc_range = [90.0, 80.0, 70.0, 60.0, 50.0, 40.0, 30.0, 20.0, 10.0]
                 min_acc_idx = 10
                 max_acc = 0
-                for E, acc in enumerate(metric):
+                for E, acc in enumerate(self.metrics[stage][split]["accuracy"]):
                     for i, target in enumerate(acc_range):
                         if acc >= target and acc > max_acc:
-                            self.logger.log(
-                                "{} achieved {}%({:.2f}%) at epoch: {}".format(
-                                    self.algo, target, acc, E
-                                )
-                            )
+                            self.logger.log(f"{target}%({acc:.2f}%) at epoch: {E}")
                             max_acc = acc
                             min_acc_idx = i
                             break
@@ -478,88 +474,104 @@ class FedAvgServer:
 
     def log_info(self):
         """This function is for logging each selected client's training info."""
-        split = self.args.dataset_args["split"]
-        label = {"sample": "test", "user": "train", "domain": "test"}[split]
-        correct_before = torch.tensor(
-            [
-                self.client_stats[i][self.current_epoch]["before"][f"{label}_correct"]
-                for i in self.selected_clients
-            ]
-        )
-        correct_after = torch.tensor(
-            [
-                self.client_stats[i][self.current_epoch]["after"][f"{label}_correct"]
-                for i in self.selected_clients
-            ]
-        )
-        num_samples = torch.tensor(
-            [
-                self.client_stats[i][self.current_epoch]["before"][f"{label}_size"]
-                for i in self.selected_clients
-            ]
-        )
-
-        acc_before = (
-            correct_before.sum(dim=-1, keepdim=True) / num_samples.sum() * 100.0
-        ).item()
-        acc_after = (
-            correct_after.sum(dim=-1, keepdim=True) / num_samples.sum() * 100.0
-        ).item()
-        self.metrics[f"{label}_before"].append(acc_before)
-        self.metrics[f"{label}_after"].append(acc_after)
-        if (self.current_epoch + 1) % self.args.test_gap == 0 and len(
-            self.metrics["test_clients"]
-        ) > 0:
-            self.metrics["mean"].append(
-                (self.metrics["test_before"][-1] + self.metrics["test_clients"][-1]) / 2
+        for split in ["train", "val", "test"]:
+            correct_before = torch.tensor(
+                [
+                    self.client_stats[i][self.current_epoch]["before"][split]["correct"]
+                    for i in self.selected_clients
+                ]
             )
-            if (self.current_epoch + 1) % self.args.verbose_gap == 0:
-                self.logger.log(
-                    f"The average test accuracy on training clients {self.metrics['test_before'][-1]:.2f}% -> {self.metrics['test_after'][-1]:.2f}%."
+            correct_after = torch.tensor(
+                [
+                    self.client_stats[i][self.current_epoch]["after"][split]["correct"]
+                    for i in self.selected_clients
+                ]
+            )
+            num_samples = torch.tensor(
+                [
+                    self.client_stats[i][self.current_epoch]["before"][split]["size"]
+                    for i in self.selected_clients
+                ]
+            )
+            acc_before = (
+                correct_before.sum(dim=-1, keepdim=True) / num_samples.sum() * 100.0
+            ).item()
+            acc_after = (
+                correct_after.sum(dim=-1, keepdim=True) / num_samples.sum() * 100.0
+            ).item()
+            self.metrics["before"][split]["accuracy"].append(acc_before)
+            self.metrics["after"][split]["accuracy"].append(acc_after)
+            if self.args.visible:
+                self.viz.line(
+                    [acc_before],
+                    [self.current_epoch],
+                    win=self.viz_win_name,
+                    update="append",
+                    name=f"{split}(before)",
+                    opts=dict(
+                        title=self.viz_win_name,
+                        xlabel="Communication Rounds",
+                        ylabel="Accuracy",
+                    ),
                 )
-        if self.args.visible:
-            self.viz.line(
-                [acc_before],
-                [self.current_epoch],
-                win=self.viz_win_name,
-                update="append",
-                name=f"{label}(before)",
-                opts=dict(
-                    title=self.viz_win_name,
-                    xlabel="Communication Rounds",
-                    ylabel="Accuracy",
-                ),
-            )
-            self.viz.line(
-                [acc_after],
-                [self.current_epoch],
-                win=self.viz_win_name,
-                update="append",
-                name=f"{label}(after)",
-            )
+                self.viz.line(
+                    [acc_after],
+                    [self.current_epoch],
+                    win=self.viz_win_name,
+                    update="append",
+                    name=f"{split}(after)",
+                )
 
-    def log_max_metrics(
-        self,
-    ):
-        self.logger.log("=" * 20, self.algo, "MAX ACC:", "=" * 20)
-        # find the max metrics
-        max_test_before = max(self.metrics["test_before"])
-        max_test_clients = max(self.metrics["test_clients"])
-        max_mean = max(self.metrics["mean"])
-        # find the index
-        max_test_before_index = self.metrics["test_before"].index(max_test_before)
-        max_test_clients_index = self.metrics["test_clients"].index(max_test_clients)
-        max_mean_index = self.metrics["mean"].index(max_mean)
-        # log the max metrics
-        self.logger.log(
-            f"max_test_before: {max_test_before:.2f}% at epoch: {max_test_before_index+1}"
-        )
-        self.logger.log(
-            f"max_test_clients: {max_test_clients:.2f}% at epoch: {self.epoch_test[max_test_clients_index]+1}"
-        )
-        self.logger.log(
-            f"max_mean: {max_mean:.2f}% at epoch: {self.epoch_test[max_mean_index]+1}. test_before: {self.metrics['test_before'][self.epoch_test[max_mean_index]]:.2f}%, test_clients:{self.metrics['test_clients'][max_mean_index]:.2f}%"
-        )
+    def log_max_metrics(self):
+        self.logger.log("=" * 20, self.algo, "Max Accuracy", "=" * 20)
+
+        colors = {
+            "before": "blue",
+            "after": "red",
+            "train": "yellow",
+            "val": "green",
+            "test": "cyan",
+        }
+
+        groups = ["val_clients", "test_clients"]
+        if set(self.train_clients) == set(self.val_clients) == set(self.test_clients):
+            groups = ["all_clients"]
+
+        for group in groups:
+            self.logger.log(f"{group}:")
+            for stage in ["before", "after"]:
+                for split in ["train", "val", "test"]:
+                    epoch, max_acc = max(
+                        [
+                            (epoch, results[group][stage][split]["accuracy"])
+                            for epoch, results in self.eval_results.items()
+                        ],
+                        key=lambda tup: tup[1],
+                    )
+                    self.logger.log(
+                        f"[{colors[split]}]({split})[/{colors[split]}] [{colors[stage]}]{stage}[/{colors[stage]}] fine-tuning: {max_acc:.2f}% at epoch {epoch}"
+                    )
+        # # find the max metrics
+        # max_test_before = max(self.metrics["test_before"])
+        # acc_before_test_clients = list(
+        #     map(lambda stats: stats["acc_before"], self.eval_results.values())
+        # )
+        # max_test_clients = max(acc_before_test_clients)
+        # max_mean = max(self.metrics["mean"])
+        # # find the index
+        # max_test_before_index = self.metrics["test_before"].index(max_test_before)
+        # max_test_clients_index = acc_before_test_clients.index(max_test_clients)
+        # max_mean_index = self.metrics["mean"].index(max_mean)
+        # # log the max metrics
+        # self.logger.log(
+        #     f"max_test_before: {max_test_before:.2f}% at epoch: {max_test_before_index+1}"
+        # )
+        # self.logger.log(
+        #     f"max_test_clients: {max_test_clients:.2f}% at epoch: {self.epoch_test[max_test_clients_index]+1}"
+        # )
+        # self.logger.log(
+        #     f"max_mean: {max_mean:.2f}% at epoch: {self.epoch_test[max_mean_index]+1}. test_before: {self.metrics['test_before'][self.epoch_test[max_mean_index]]:.2f}%, test_clients:{self.metrics['test_clients'][max_mean_index]:.2f}%"
+        # )
 
     def run(self):
         """The comprehensive FL process.
@@ -582,12 +594,28 @@ class FedAvgServer:
         self.logger.log(
             f"{self.algo}'s total running time: {int(total // 3600)} h {int((total % 3600) // 60)} m {int(total % 60)} s."
         )
+        self.logger.log("=" * 20, self.algo, "Experiment Results:", "=" * 20)
         self.logger.log(
-            "=" * 20, self.algo, "TEST RESULTS:", "=" * 20, self.test_results
+            "Format: [green](before local fine-tuning) -> [blue](after local fine-tuning)"
+        )
+        self.logger.log(
+            {
+                epoch: {
+                    group: {
+                        split: {
+                            "loss": f"{metrics['before'][split]['loss']:.4f} -> {metrics['after'][split]['loss']:.4f}",
+                            "accuracy": f"{metrics['before'][split]['accuracy']:.2f}% -> {metrics['after'][split]['accuracy']:.2f}%",
+                        }
+                        for split in ["train", "val", "test"]
+                    }
+                    for group, metrics in results.items()
+                }
+                for epoch, results in self.eval_results.items()
+            }
         )
 
         if self.args.check_convergence:
-            self.check_convergence()
+            self.show_convergence()
         self.log_max_metrics()
         self.logger.close()
 
@@ -597,54 +625,44 @@ class FedAvgServer:
 
             matplotlib.use("Agg")
             linestyle = {
-                "test_before": "solid",
-                "test_after": "solid",
-                "train_before": "dotted",
-                "train_after": "dotted",
-                "test_clients": "dashed",
-                "mean": "dashdot",
+                "before": {"train": "dotted", "val": "dashed", "test": "solid"},
+                "after": {"train": "dotted", "val": "dashed", "test": "solid"},
             }
-            for label, acc in self.metrics.items():
-                if len(acc) > 0:
-                    # because test_clients and mean are generated according to -tg while other metrics are generated in each epoch.
-                    # so we need to plot them in different ways.
-                    if label not in ("test_clients", "mean"):
-                        plt.plot(acc, label=label, ls=linestyle[label])
-                    else:
-                        plt.plot(self.epoch_test, acc, label=label, ls=linestyle[label])
+            for stage in ["before", "after"]:
+                for split in ["train", "val", "test"]:
+                    if len(self.metrics[stage][split]["accuracy"]) > 0:
+                        plt.plot(
+                            self.metrics[stage][split]["accuracy"],
+                            label=f"{split}_{stage}",
+                            ls=linestyle[stage][split],
+                        )
+
             plt.title(f"{self.algo}_{self.args.dataset}")
             plt.ylim(0, 100)
             plt.xlabel("Communication Rounds")
             plt.ylabel("Accuracy")
             plt.legend()
             plt.savefig(
-                OUT_DIR
-                / self.algo
-                / self.name_4_output_dir
-                / f"{self.args.dataset}.jpeg",
+                OUT_DIR / self.algo / self.output_dir / f"{self.args.dataset}.pdf",
                 bbox_inches="tight",
             )
         if self.args.save_metrics:
             import pandas as pd
-            import numpy as np
 
-            accuracies = []
-            labels = []
             df = pd.DataFrame()
-            for label, acc in self.metrics.items():
-                if len(acc) > 0:
-                    if label not in ("test_clients", "mean"):
-                        df.insert(df.shape[1], label, np.array(acc).T)
-                    else:
-                        df.insert(
-                            df.shape[1],
-                            label,
-                            pd.Series(np.array(acc).T, index=self.epoch_test),
-                        )
+            for stage in ["before", "after"]:
+                for split in ["train", "val", "test"]:
+                    for metric, stats in self.metrics[stage][split].items():
+                        if len(stats) > 0:
+                            df.insert(
+                                loc=df.shape[1],
+                                column=f"{metric}_{split}_{stage}",
+                                value=np.array(stats).T,
+                            )
             df.to_csv(
                 OUT_DIR
                 / self.algo
-                / self.name_4_output_dir
+                / self.output_dir
                 / f"{self.args.dataset}_acc_metrics.csv",
                 index=True,
                 index_label="epoch",
@@ -655,15 +673,9 @@ class FedAvgServer:
                 f"{self.args.dataset}_{self.args.global_epoch}_{self.args.model}.pt"
             )
             if self.unique_model:
-                torch.save(
-                    self.client_trainable_params,
-                    OUT_DIR / self.algo / self.name_4_output_dir / model_name,
-                )
+                torch.save(self.client_trainable_params, self.output_dir / model_name)
             else:
-                torch.save(
-                    self.global_params_dict,
-                    OUT_DIR / self.algo / self.name_4_output_dir / model_name,
-                )
+                torch.save(self.global_params_dict, self.output_dir / model_name)
 
 
 if __name__ == "__main__":

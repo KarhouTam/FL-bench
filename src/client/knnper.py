@@ -16,55 +16,70 @@ class kNNPerClient(FedAvgClient):
     @torch.no_grad()
     def evaluate(self, model=None, test_flag=False) -> Dict[str, float]:
         if test_flag:
-            eval_model = self.model if model is None else model
             self.dataset.enable_train_transform = False
-            eval_model.eval()
+            target_model = self.model if model is None else model
+            target_model.eval()
             criterion = torch.nn.CrossEntropyLoss(reduction="sum")
-            model_logits = []
-            train_features = []
-            train_targets = []
-            test_features = []
-            test_targets = []
-
+            train_features, train_targets = [], []
+            val_loss, test_loss = 0, 0
+            val_correct, test_correct = 0, 0
+            val_size, test_size = 0, 0
             for x, y in self.trainloader:
                 x, y = x.to(self.device), y.to(self.device)
 
-                train_features.append(eval_model.get_final_features(x))
+                train_features.append(target_model.get_final_features(x))
                 train_targets.append(y)
 
-            for x, y in self.testloader:
-                x, y = x.to(self.device), y.to(self.device)
+            def _knnper_eval(dataloader):
+                nonlocal target_model, criterion, train_features, train_targets
+                model_logits = []
+                features, targets = [], []
+                for x, y in dataloader:
+                    x, y = x.to(self.device), y.to(self.device)
 
-                feature = eval_model.get_final_features(x)
-                test_features.append(feature)
-                model_logits.append(eval_model.classifier(torch.relu(feature)))
-                test_targets.append(y)
+                    feature = target_model.get_final_features(x)
+                    features.append(feature)
+                    model_logits.append(target_model.classifier(torch.relu(feature)))
+                    targets.append(y)
 
-            model_logits = torch.cat(model_logits, dim=0)
-            test_features = torch.cat(test_features, dim=0)
-            test_targets = torch.cat(test_targets, dim=0)
+                model_logits = torch.cat(model_logits, dim=0)
+                features = torch.cat(features, dim=0)
+                targets = torch.cat(targets, dim=0)
 
-            self.datastore.clear()
-            self.datastore.build(train_features, train_targets)
-            knn_logits = self.get_knn_logits(test_features)
-            self.datastore.clear()
+                self.datastore.clear()
+                self.datastore.build(train_features, train_targets)
+                knn_logits = self.get_knn_logits(features)
+                self.datastore.clear()
 
-            logits = (
-                self.args.weight * knn_logits + (1 - self.args.weight) * model_logits
-            )
-            pred = torch.argmax(logits, dim=-1)
-            loss = criterion(logits, test_targets).item()
-            correct = (pred == test_targets).sum().item()
+                logits = (
+                    self.args.weight * knn_logits
+                    + (1 - self.args.weight) * model_logits
+                )
+                pred = torch.argmax(logits, dim=-1)
+                loss = criterion(logits, targets).item()
+                correct = (pred == targets).sum().item()
+
+                return loss, correct, len(targets)
+
+            if len(self.testset) > 0 and (test_flag and self.args.eval_test):
+                test_loss, test_correct, test_size = _knnper_eval(self.testloader)
+            if len(self.valset) > 0 and self.args.eval_val:
+                val_loss, val_correct, val_size = _knnper_eval(self.valloader)
 
             self.dataset.enable_train_transform = True
-            # kNN-Per only do kNN trick in the test phase. So stats about evaluation on train data are not offered.
+            # kNN-Per only do kNN trick in model test phase. So stats on training data are not offered.
             return {
-                "train_loss": 0,
-                "test_loss": loss,
-                "train_correct": 0,
-                "test_correct": correct,
-                "train_size": 1.0,
-                "test_size": float(max(1, len(test_targets))),
+                "train": {"loss": 0, "correct": 0, "size": 1.0},
+                "val": {
+                    "loss": val_loss,
+                    "correct": val_correct,
+                    "size": float(max(1, val_size)),
+                },
+                "test": {
+                    "loss": test_loss,
+                    "correct": test_correct,
+                    "size": float(max(1, test_size)),
+                },
             }
         else:
             return super().evaluate(model, test_flag)

@@ -1,28 +1,36 @@
 import random
 from collections import Counter
-from typing import Dict, List, Tuple
+from typing import Dict, Set
 
 import numpy as np
-from torch.utils.data import Dataset
 
 
 def allocate_shards(
-    ori_dataset: Dataset, client_num: int, shard_num: int
-) -> Tuple[List[List[int]], Dict[str, Dict[str, int]]]:
-    partition = {"separation": None, "data_indices": None}
+    targets: np.ndarray,
+    label_set: Set[int],
+    client_num: int,
+    shard_num: int,
+    partition: Dict,
+    stats: Dict,
+):
+    """Refer to the mehtod used in FedAvg paper. Sort data by label first and split them into `shard_num * client_num` and allocate each client `shard_num` shards.
 
+    Args:
+        targets (np.ndarray): Data label array.
+        label_set (set): Label set.
+        client_num (int): Number of clients.
+        shard_num (int): Number of shards. A shard means a sub-list of data indices.
+        partition (Dict): Output data indices dict.
+        stats (Dict): Output dict that recording clients data distribution.
+    """
     shards_total = client_num * shard_num
     # one shard's length indicate how many data samples that belongs to one class that one client can obtain.
-    size_of_shards = int(len(ori_dataset) / shards_total)
-
-    data_indices = [[] for _ in range(client_num)]
-
-    targets_numpy = np.array(ori_dataset.targets, dtype=np.int32)
+    indices = [i for i in range(len(targets)) if targets[i] in label_set]
+    targets = targets[indices]
+    size_of_shards = int(len(targets) / shards_total)
 
     # sort sample indices according to labels
-    idxs_labels = np.vstack(
-        (np.arange(len(ori_dataset), dtype=np.int64), targets_numpy)
-    )
+    idxs_labels = np.vstack((np.arange(len(targets), dtype=np.int64), targets))
     # corresponding labels after sorting are [0, .., 0, 1, ..., 1, ...]
     idxs_labels = idxs_labels[:, idxs_labels[1, :].argsort()]
     idxs_argsorted = idxs_labels[0, :].tolist()
@@ -33,27 +41,21 @@ def allocate_shards(
         rand_set = random.sample(idx_shard, shard_num)
         idx_shard = list(set(idx_shard) - set(rand_set))
         for rand in rand_set:
-            data_indices[i] = np.concatenate(
+            partition["data_indices"][i] = np.concatenate(
                 [
-                    data_indices[i],
+                    partition["data_indices"][i],
                     idxs_argsorted[rand * size_of_shards : (rand + 1) * size_of_shards],
-                ],
-                axis=0,
+                ]
             ).astype(np.int64)
-        data_indices[i] = data_indices[i].tolist()
+        partition["data_indices"][i] = partition["data_indices"][i].tolist()
 
-    stats = {}
-    for i, idxs in enumerate(data_indices):
+    for i in range(client_num):
         stats[i] = {"x": None, "y": None}
-        stats[i]["x"] = len(idxs)
-        stats[i]["y"] = Counter(targets_numpy[idxs].tolist())
+        stats[i]["x"] = len(targets[partition["data_indices"][i]])
+        stats[i]["y"] = dict(Counter(targets[partition["data_indices"][i]].tolist()))
 
     num_samples = np.array(list(map(lambda stat_i: stat_i["x"], stats.values())))
     stats["sample per client"] = {
-        "std": num_samples.mean(),
-        "stddev": num_samples.std(),
+        "std": num_samples.mean().item(),
+        "stddev": num_samples.std().item(),
     }
-
-    partition["data_indices"] = data_indices
-
-    return partition, stats

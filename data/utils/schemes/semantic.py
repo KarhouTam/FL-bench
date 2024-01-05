@@ -2,6 +2,7 @@ import random
 import sys
 from collections import Counter
 from pathlib import Path
+from typing import Dict
 
 import torch
 import numpy as np
@@ -18,8 +19,7 @@ FL_BENCH_ROOT = Path(__file__).parent.parent.parent.parent.absolute()
 
 sys.path.append(FL_BENCH_ROOT.as_posix())
 
-# from .gaussian_mixture import GaussianMixture
-from src.utils.tools import get_best_device
+from src.utils.tools import get_optimal_cuda_device
 
 EFFICIENT_NETS = [
     (models.efficientnet_b0, models.EfficientNet_B0_Weights.DEFAULT),
@@ -61,6 +61,8 @@ def pairwise_kl_div(
 
 def semantic_partition(
     dataset: Dataset,
+    targets: np.ndarray,
+    label_set: set,
     efficient_net_type: int,
     client_num: int,
     pca_components: int,
@@ -68,10 +70,11 @@ def semantic_partition(
     gmm_max_iter: int,
     gmm_init_params: str,
     use_cuda: bool,
+    partition: Dict,
+    stats: Dict,
 ):
-    device = get_best_device(use_cuda)
+    device = get_optimal_cuda_device(use_cuda)
     client_ids = list(range(client_num))
-    label_set = set(dataset.targets.numpy())
     logger = Console()
 
     # build pre-trained EfficientNet
@@ -122,7 +125,7 @@ def semantic_partition(
     for label in label_set:
         logger.log(f"Buliding clusters of label {label}")
 
-        idx_current_label = torch.where(dataset.targets == label)[0]
+        idx_current_label = np.where(targets == label)[0]
         embeddings_of_current_label = (
             subsample(embeddings[idx_current_label], 10000).cpu().numpy()
         )
@@ -181,30 +184,25 @@ def semantic_partition(
         unmatched_labels.remove(label_to_match)
         latest_matched_label = label_to_match
 
-    data_indices = [[] for _ in client_ids]
-
     for label in label_set:
         for client_id in client_ids:
-            data_indices[cluster_assignment[label][client_id]].extend(
+            partition["data_indices"][cluster_assignment[label][client_id]].extend(
                 label_cluster_list[label][client_id]
             )
 
-    targets = np.array(dataset.targets, dtype=np.int16)
-    stats = {client_id: {"x": None, "y": None} for client_id in client_ids}
     for i in range(client_num):
+        partition["data_indices"][i] = np.array(
+            partition["data_indices"][i], dtype=np.int64
+        )
         stats[i] = {"x": None, "y": None}
-        stats[i]["x"] = len(targets[data_indices[i]])
-        stats[i]["y"] = Counter(targets[data_indices[i]].tolist())
-
-    partition = {"separation": None, "data_indices": None}
+        stats[i]["x"] = len(targets[partition["data_indices"][i]])
+        stats[i]["y"] = dict(Counter(targets[partition["data_indices"][i]].tolist()))
 
     num_samples = np.array(list(map(lambda stat_i: stat_i["x"], stats.values())))
     stats["sample per client"] = {
-        "std": num_samples.mean(),
-        "stddev": num_samples.std(),
+        "std": num_samples.mean().item(),
+        "stddev": num_samples.std().item(),
     }
-
-    partition["data_indices"] = data_indices
 
     logger.log("All is Done!")
 
