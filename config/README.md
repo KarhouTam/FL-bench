@@ -1,4 +1,7 @@
 # Generic Arguments 🛠
+
+You can add method-specific arugments in the config file also.
+
 | Argument| Description        |
 | - | - |
 | `dataset`                            | The name of dataset that experiment run on.        |
@@ -10,7 +13,9 @@
 | `finetune_epoch`                     | Epoch for clients fine-tunning their models before test.                          |
 | `test_gap`                           | Interval round of performing test on clients.      |
 | `eval_test`                          | `true` for performing evaluation on joined clients' testset before and after local training.             |
+| `eval_test`                          | `true` for performing evaluation on joined clients' valset before and after local training.             |
 | `eval_train`                         | `true` for performing evaluation on joined clients' trainset before and after local training.            |
+| `-op, --optimizer` | Client local optimizer, selected from `[sgd, adam]` |
 | `local_lr`                           | Learning rate for client local training.           |
 | `momentum`                           | Momentum for client local opitimizer.              |
 | `weight_decay`                       | Weight decay for client local optimizer.           |
@@ -18,7 +23,6 @@
 | `batch_size`                         | Data batch size for client local training.         |
 | `use_cuda`                           | `true` indicates that tensors are in gpu.  |
 | `visible`                            | `true` for using Visdom to monitor algorithm performance on `localhost:8097`.                            |
-| `global_testset`                     | `true` for evaluating client models over the global testset before and after local training, instead of evaluating over clients own testset. The global testset is the union set of all client's testset. |
 | `save_log`                           | `true` for saving algorithm running log in `FL-bench/out/${algo}`.        |
 | `straggler_ratio`                    | The ratio of stragglers (set in `[0, 1]`). Stragglers would not perform full-epoch local training as normal clients. Their local epoch would be randomly selected from range `[straggler_min_local_epoch, local_epoch)`.                 |
 | `straggler_min_local_epoch`          | The minimum value of local epoch for stragglers.   |
