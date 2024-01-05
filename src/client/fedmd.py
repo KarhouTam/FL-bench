@@ -1,14 +1,13 @@
-from copy import deepcopy
 from typing import List, OrderedDict
 
 import torch
-from torchvision.transforms import Compose, Normalize
+from torchvision import transforms
 from torch.utils.data import DataLoader
 
 from fedavg import FedAvgClient, PROJECT_DIR
 from data.utils.datasets import DATASETS
-from data.utils.constants import MEAN, STD
 from src.utils.tools import trainable_params
+from src.utils.constants import DATA_MEAN, DATA_STD
 
 
 class FedMDClient(FedAvgClient):
@@ -16,8 +15,14 @@ class FedMDClient(FedAvgClient):
         super(FedMDClient, self).__init__(model, args, logger, device)
 
         # --------- you can define your own data transformation strategy here ------------
-        general_data_transform = Compose(
-            [Normalize(MEAN[self.args.public_dataset], STD[self.args.public_dataset])]
+        general_data_transform = transforms.Compose(
+            [
+                transforms.Normalize(
+                    DATA_MEAN[self.args.dataset], DATA_STD[self.args.dataset]
+                )
+            ]
+            if self.args.dataset in DATA_MEAN and self.args.dataset in DATA_STD
+            else []
         )
         general_target_transform = None
         train_data_transform = None

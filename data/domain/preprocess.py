@@ -32,7 +32,6 @@ if __name__ == "__main__":
     client_num_foreach_domain = (
         1 if not client_num_foreach_domain else int(client_num_foreach_domain)
     )
-
     random.seed(seed)
     torch.manual_seed(seed)
     if not (1 <= class_num <= 345):
@@ -51,7 +50,7 @@ if __name__ == "__main__":
     filename_list = []
     old_count = 0
     new_count = 0
-
+    domain_indices_bound = {}
     for i, domain in enumerate(domains):
         for c, cls in enumerate(selected_classes):
             folder = CURRENT_DIR / "raw" / domain / cls
@@ -74,6 +73,7 @@ if __name__ == "__main__":
         # If data_idxs % client_num > 0, residual indices would be all allocated to the final client
         if len(data_idxs) > 0:
             original_partition[-1].extend(data_idxs)
+        domain_indices_bound[domain] = {"begin": old_count, "end": new_count}
         old_count = new_count
 
     targets = torch.tensor(targets, dtype=torch.long)
@@ -108,15 +108,15 @@ if __name__ == "__main__":
                 "client_num": client_num_foreach_domain * 6,
                 "data_amount": len(targets),
                 "image_size": img_size,
+                "seed": seed,
+                "domain_map": dict(zip(domains, range(len(domains)))),
                 "classes": {
                     cls: label_count[c] for c, cls in enumerate(selected_classes)
                 },
-                "seed": seed,
+                "domain_indices_bound": domain_indices_bound,
             },
             f,
+            indent=4
         )
-
-    with open("original_stats.json", "w") as f:
-        json.dump(original_stats, f)
 
     os.system(f"cd ../..; python generate_data.py -d domain")

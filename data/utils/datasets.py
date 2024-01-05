@@ -75,15 +75,7 @@ class FEMNIST(BaseDataset):
 
 
 class Synthetic(BaseDataset):
-    def __init__(
-        self,
-        root,
-        args=None,
-        general_data_transform=None,
-        general_target_transform=None,
-        train_data_transform=None,
-        train_target_transform=None,
-    ) -> None:
+    def __init__(self, root, *args, **kwargs) -> None:
         super().__init__()
         if not isinstance(root, Path):
             root = Path(root)

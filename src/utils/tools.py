@@ -37,8 +37,8 @@ def fix_random_seed(seed: int) -> None:
     torch.backends.cudnn.benchmark = False
 
 
-def get_best_device(use_cuda: bool) -> torch.device:
-    """Dynamically select the vacant CUDA device for running FL experiment.
+def get_optimal_cuda_device(use_cuda: bool) -> torch.device:
+    """Dynamically select CUDA device (has the most memory) for running FL experiment.
 
     Args:
         use_cuda (bool): `True` for using CUDA; `False` for using CPU only.

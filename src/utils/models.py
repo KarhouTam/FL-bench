@@ -1,5 +1,5 @@
 import json
-import functools
+from functools import partial
 from collections import OrderedDict
 from typing import List, Optional
 
@@ -10,90 +10,7 @@ import torchvision.models as models
 from torch import Tensor
 
 from .tools import PROJECT_DIR
-
-
-def get_model_arch(model_name):
-    # static means the model arch is fixed.
-    static = {
-        "lenet5": LeNet5,
-        "avgcnn": FedAvgCNN,
-        "alex": AlexNet,
-        "sqz": SqueezeNet,
-        "2nn": TwoNN,
-        "custom": CustomModel,
-    }
-    if model_name in static:
-        return static[model_name]
-    else:
-        if "res" in model_name:
-            return functools.partial(ResNet, version=model_name[3:])
-        if "dense" in model_name:
-            return functools.partial(DenseNet, version=model_name[5:])
-        if "mobile" in model_name:
-            return functools.partial(MobileNet, version=model_name[6:])
-        if "efficient" in model_name:
-            return functools.partial(EfficientNet, version=model_name[9:])
-        if "squeeze" in model_name:
-            return functools.partial(SqueezeNet, version=model_name[-1])
-        raise ValueError(f"Unsupported model: {model_name}")
-
-
-def get_domain_classes_num():
-    try:
-        with open(PROJECT_DIR / "data" / "domain" / "metadata.json", "r") as f:
-            metadata = json.load(f)
-        return metadata["class_num"]
-    except:
-        return 0
-
-
-def get_synthetic_classes_num():
-    try:
-        with open(PROJECT_DIR / "data" / "synthetic" / "args.json", "r") as f:
-            metadata = json.load(f)
-        return metadata["class_num"]
-    except:
-        return 0
-
-
-INPUT_CHANNELS = {
-    "mnist": 1,
-    "medmnistS": 1,
-    "medmnistC": 1,
-    "medmnistA": 1,
-    "covid19": 3,
-    "fmnist": 1,
-    "emnist": 1,
-    "femnist": 1,
-    "cifar10": 3,
-    "cinic10": 3,
-    "svhn": 3,
-    "cifar100": 3,
-    "celeba": 3,
-    "usps": 1,
-    "tiny_imagenet": 3,
-    "domain": 3,
-}
-
-NUM_CLASSES = {
-    "mnist": 10,
-    "medmnistS": 11,
-    "medmnistC": 11,
-    "medmnistA": 11,
-    "fmnist": 10,
-    "svhn": 10,
-    "emnist": 62,
-    "femnist": 62,
-    "cifar10": 10,
-    "cinic10": 10,
-    "cifar100": 100,
-    "covid19": 4,
-    "usps": 10,
-    "celeba": 2,
-    "tiny_imagenet": 200,
-    "synthetic": get_synthetic_classes_num(),
-    "domain": get_domain_classes_num(),
-}
+from .constants import NUM_CLASSES, INPUT_CHANNELS
 
 
 class DecoupledModel(nn.Module):
@@ -451,3 +368,34 @@ class CustomModel(DecoupledModel):
         # 2. self.classifier (normally the final fully connected layer)
         # The default forwarding process is: out = self.classifier(self.base(input))
         pass
+
+
+MODELS = {
+    "custom": CustomModel,
+    "lenet5": LeNet5,
+    "avgcnn": FedAvgCNN,
+    "alex": AlexNet,
+    "2nn": TwoNN,
+    "squeeze0": partial(SqueezeNet, version="0"),
+    "squeeze1": partial(SqueezeNet, version="1"),
+    "res18": partial(ResNet, version="18"),
+    "res34": partial(ResNet, version="34"),
+    "res50": partial(ResNet, version="50"),
+    "res101": partial(ResNet, version="101"),
+    "res152": partial(ResNet, version="152"),
+    "dense121": partial(DenseNet, version="121"),
+    "dense161": partial(DenseNet, version="161"),
+    "dense169": partial(DenseNet, version="169"),
+    "dense201": partial(DenseNet, version="201"),
+    "mobile2": partial(MobileNet, version="2"),
+    "mobile3s": partial(MobileNet, version="3s"),
+    "mobile3l": partial(MobileNet, version="3l"),
+    "efficient0": partial(EfficientNet, version="0"),
+    "efficient1": partial(EfficientNet, version="1"),
+    "efficient2": partial(EfficientNet, version="2"),
+    "efficient3": partial(EfficientNet, version="3"),
+    "efficient4": partial(EfficientNet, version="4"),
+    "efficient5": partial(EfficientNet, version="5"),
+    "efficient6": partial(EfficientNet, version="6"),
+    "efficient7": partial(EfficientNet, version="7"),
+}
