@@ -46,9 +46,9 @@ def get_fedavg_argparser() -> ArgumentParser:
     parser.add_argument("-le", "--local_epoch", type=int, default=5)
     parser.add_argument("-fe", "--finetune_epoch", type=int, default=0)
     parser.add_argument("-tg", "--test_gap", type=int, default=100)
-    parser.add_argument("--eval_test", type=int, default=0)
+    parser.add_argument("--eval_test", type=int, default=1)
     parser.add_argument("--eval_val", type=int, default=0)
-    parser.add_argument("--eval_train", type=int, default=1)
+    parser.add_argument("--eval_train", type=int, default=0)
     parser.add_argument(
         "-op", "--optimizer", type=str, default="sgd", choices=["sgd", "adam"]
     )
@@ -357,15 +357,19 @@ class FedAvgServer:
                             results[group][stage][split][metric] = torch.tensor(
                                 results[group][stage][split][metric]
                             )
-                        results[group][stage][split]["accuracy"] = (
-                            results[group][stage][split]["correct"].sum()
-                            / results[group][stage][split]["size"].sum()
-                            * 100
-                        )
-                        results[group][stage][split]["loss"] = (
-                            results[group][stage][split]["loss"].sum()
-                            / results[group][stage][split]["size"].sum()
-                        )
+                        num_samples = results[group][stage][split]["size"].sum()
+                        if num_samples > 0:
+                            results[group][stage][split]["accuracy"] = (
+                                results[group][stage][split]["correct"].sum()
+                                / num_samples
+                                * 100
+                            )
+                            results[group][stage][split]["loss"] = (
+                                results[group][stage][split]["loss"].sum() / num_samples
+                            )
+                        else:
+                            results[group][stage][split]["accuracy"] = 0
+                            results[group][stage][split]["loss"] = 0
 
             self.eval_results[self.current_epoch + 1] = results
 
