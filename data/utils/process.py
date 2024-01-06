@@ -18,7 +18,6 @@ def prune_args(args: Namespace) -> Dict:
     # general settings
     args_dict["dataset"] = args.dataset
     args_dict["client_num"] = args.client_num
-    args_dict["fraction"] = args.fraction
     args_dict["test_ratio"] = args.test_ratio
     args_dict["val_ratio"] = args.val_ratio
     args_dict["seed"] = args.seed
@@ -472,17 +471,19 @@ def exclude_domain(
         label for domain, label in domain_map.items() if domain not in ood_domains
     )
 
-    clients_4_train = list(range(client_num - ood_domain_num))
-    clients_4_test = list(range(client_num - ood_domain_num, client_num))
+    train_clients = list(range(client_num - ood_domain_num))
+    ood_clients = list(range(client_num - ood_domain_num, client_num))
     partition["separation"] = {
-        "train": clients_4_train,
-        "test": clients_4_test,
+        "train": train_clients,
+        "val": [],
+        "test": ood_clients,
         "total": client_num,
     }
-    for ood_domain, client_id in zip(ood_domains, clients_4_test):
+    for ood_domain, client_id in zip(ood_domains, ood_clients):
         indices = np.where(domain_targets == domain_map[ood_domain])[0]
         partition["data_indices"][client_id] = {
             "train": np.array([], dtype=np.int64),
+            "val": np.array([], dtype=np.int64),
             "test": indices,
         }
         stats[client_id] = {
@@ -490,7 +491,7 @@ def exclude_domain(
             "y": {domain_map[ood_domain]: len(indices)},
         }
 
-    return id_label_set, domain_targets, len(clients_4_train)
+    return id_label_set, domain_targets, len(train_clients)
 
 
 def plot_distribution(client_num: int, label_counts: np.ndarray, save_path: str):
