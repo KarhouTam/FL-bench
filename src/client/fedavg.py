@@ -133,11 +133,7 @@ class FedAvgClient:
             self.save_state()
             eval_results["after"] = self.evaluate()
         if verbose:
-            colors = {
-                "train": "yellow",
-                "val": "green",
-                "test": "cyan"
-            }
+            colors = {"train": "yellow", "val": "green", "test": "cyan"}
             for split, flag, subset in [
                 ["train", self.args.eval_train, self.trainset],
                 ["val", self.args.eval_val, self.valset],
@@ -261,13 +257,13 @@ class FedAvgClient:
 
     @torch.no_grad()
     def evaluate(
-        self, model: torch.nn.Module = None, test_flag=False
+        self, model: torch.nn.Module = None, force_eval=False
     ) -> Dict[str, float]:
         """The evaluation function. Would be activated before and after local training if `eval_test = True` or `eval_train = True`.
 
         Args:
             model (torch.nn.Module, optional): The target model needed evaluation (set to `None` for using `self.model`). Defaults to None.
-            test_flag (bool, optional): Set as `True` when the server asking client to test model.
+            force_eval (bool, optional): Set as `True` when the server asking client to evaluate model.
         Returns:
             Dict[str, float]: The evaluation metric stats.
         """
@@ -281,7 +277,7 @@ class FedAvgClient:
         train_size, val_size, test_size = 0, 0, 0
         criterion = torch.nn.CrossEntropyLoss(reduction="sum")
 
-        if len(self.testset) > 0 and (test_flag and self.args.eval_test):
+        if len(self.testset) > 0 and self.args.eval_test:
             test_loss, test_correct, test_size = evalutate_model(
                 model=target_model,
                 dataloader=self.testloader,
@@ -289,7 +285,7 @@ class FedAvgClient:
                 device=self.device,
             )
 
-        if len(self.valset) > 0 and (test_flag or self.args.eval_val):
+        if len(self.valset) > 0 and (force_eval or self.args.eval_val):
             val_loss, val_correct, val_size = evalutate_model(
                 model=target_model,
                 dataloader=self.valloader,
@@ -354,10 +350,10 @@ class FedAvgClient:
             },
         }
 
-        results["before"] = self.evaluate(test_flag=True)
+        results["before"] = self.evaluate(force_eval=True)
         if self.args.finetune_epoch > 0:
             self.finetune()
-            results["after"] = self.evaluate(test_flag=True)
+            results["after"] = self.evaluate(force_eval=True)
         return results
 
     def finetune(self):
