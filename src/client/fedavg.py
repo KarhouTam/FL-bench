@@ -354,6 +354,7 @@ class FedAvgClient:
         if self.args.finetune_epoch > 0:
             self.finetune()
             results["after"] = self.evaluate(force_eval=True)
+
         return results
 
     def finetune(self):
