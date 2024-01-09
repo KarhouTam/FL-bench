@@ -102,7 +102,7 @@ class FedAvgClient:
         self.trainset.indices = self.data_indices[self.client_id]["train"]
         self.testset.indices = self.data_indices[self.client_id]["test"]
         self.valset.indices = self.data_indices[self.client_id]["val"]
-        self.trainloader = DataLoader(self.trainset, self.args.batch_size)
+        self.trainloader = DataLoader(self.trainset, self.args.batch_size, shuffle=True)
         self.valloader = DataLoader(self.valset, self.args.batch_size)
         self.testloader = DataLoader(self.testset, self.args.batch_size)
 
