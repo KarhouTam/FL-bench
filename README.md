@@ -24,7 +24,7 @@
     <img alt="GitHub Repo forks" src="https://img.shields.io/github/forks/KarhouTam/FL-bench?style=for-the-badge&logo=github&color=8386e0">
   </a>
 </p>
-<h4 align="center"><i>This is a benchmark for evaluating well-known federated learning (FL) and personalized federated learning (pFL) methods. This benchmark is not complicated and easy to extend.</i></h4>
+<h4 align="center"><i>This is a benchmark for evaluating well-known traditional, personalized and domain generalization federated learning methods. This benchmark straightforward and easy to extend.</i></h4>
 
 ## Methods 🧬
 
@@ -46,7 +46,7 @@
 
 - ***FedGen*** -- [Data-Free Knowledge Distillation for Heterogeneous Federated Learning](https://arxiv.org/abs/2105.10056) (ICML'21)
 
-- ***CCVR (New Reproduction 🌟)*** -- [No Fear of Heterogeneity: Classifier Calibration for Federated Learning with Non-IID Data](https://arxiv.org/abs/2106.05001) (NIPS'21)
+- ***CCVR*** -- [No Fear of Heterogeneity: Classifier Calibration for Federated Learning with Non-IID Data](https://arxiv.org/abs/2106.05001) (NIPS'21)
 
 ### Personalized FL Methods
 
@@ -140,7 +140,7 @@ docker build \
 
 ## Easy Run 🏃‍♂️
 
-ALL classes of methods are inherited from `FedAvgServer` and `FedAvgClient`. If you wanna figure out the entire workflow and detail of variable settings, go check [`./src/server/fedavg.py`](https://github.com/KarhouTam/FL-bench/blob/master/src/server/fedavg.py) and [`./src/client/fedavg.py`](https://github.com/KarhouTam/FL-bench/blob/master/src/client/fedavg.py).
+ALL classes of methods are inherited from `FedAvgServer` and `FedAvgClient`. If you wanna figure out the entire workflow and detail of variable settings, go check [`src/server/fedavg.py`](src/server/fedavg.py) and [`src/client/fedavg.py`](src/client/fedavg.py).
 
 
 ```shell
@@ -153,7 +153,7 @@ python generate_data.py -d cifar10 -a 0.1 -cn 100
 python main.py fedavg -d cifar10
 ```
 
-About methods of generating federated dastaset, go check [`data/README.md`](https://github.com/KarhouTam/FL-bench/tree/master/data/#readme) for full details.
+About methods of generating federated dastaset, go check [`data/README.md`](data/#readme) for full details.
 
 
 ### Monitor 📈 (recommended 👍)
@@ -162,9 +162,9 @@ About methods of generating federated dastaset, go check [`data/README.md`](http
 3. Go check `localhost:8097` on your browser.
 ## Generic Arguments 🔧
 
-📢 All generic arguments have their default value. Go check `get_fedavg_argparser()` in [`FL-bench/src/server/fedavg.py`](https://github.com/KarhouTam/FL-bench/tree/master/src/server/fedavg.py) for full details of generic arguments. 
+📢 All generic arguments have their default value. Go check `get_fedavg_argparser()` in [`FL-bench/src/server/fedavg.py`](src/server/fedavg.py) for full details of generic arguments. 
 
-You can also write your own `.yaml` config file. I offer you a template in `config` and recommend you to save your config files there also. 
+You can also write your own `.yaml` config file. I offer you a [template](config/template.yaml) in `config` and recommend you to save your config files there also. 
 
 One example: `python main.py fedavg -cfg config/template.yaml`
 
@@ -190,13 +190,13 @@ About the default values and hyperparameters of advanced FL methods, go check co
 | `--batch_size`                 | Data batch size for client local training.                                                                                                                                                                                                                                                                                                |
 | `--use_cuda`                   | Non-zero value indicates that tensors are in gpu.                                                                                                                                                                                                                                                                                         |
 | `--visible`                    | Non-zero value for using Visdom to monitor algorithm performance on `localhost:8097`.                                                                                                                                                                                                                                                     |
-| `--save_log`                   | Non-zero value for saving algorithm running log in `FL-bench/out/<method>`.                                                                                                                                                                                                                                                               |
+| `--save_log`                   | Non-zero value for saving algorithm running log in `out/<method>`.                                                                                                                                                                                                                                                               |
 | `--straggler_ratio`            | The ratio of stragglers (set in `[0, 1]`). Stragglers would not perform full-epoch local training as normal clients. Their local epoch would be randomly selected from range `[--straggler_min_local_epoch, --local_epoch)`.                                                                                                              |
 | `--straggler_min_local_epoch`  | The minimum value of local epoch for stragglers.                                                                                                                                                                                                                                                                                          |
-| `--external_model_params_file` | The relative file path of external (pretrained) model parameters (`*.pt`). e.g., `../../out/FedAvg/mnist_100_lenet5.pt`. Please confirm whether the shape of parameters compatible with the model by yourself. ⚠ This feature is enabled only when `unique_model=False`, which is pre-defined by each FL method.                          |
-| `--save_model`                 | Non-zero value for saving output model(s) parameters in `FL-bench/out/<method>`.  The default file name pattern is `<dataset>_<global_epoch>_<model>.pt`.                                                                                                                                                                                 |
-| `--save_fig`                   | Non-zero value for saving the accuracy curves showed on Visdom into a `.jpeg` file at `FL-bench/out/<method>`.                                                                                                                                                                                                                            |
-| `--save_metrics`               | Non-zero value for saving metrics stats into a `.csv` file at `FL-bench/out/<method>`.                                                                                                                                                                                                                                                    |
+| `--external_model_params_file` | The relative file path of external model parameters. Please confirm whether the shape of parameters compatible with the model by yourself. ⚠ This feature is enabled only when `unique_model=False`, which is pre-defined by each FL method.                          |
+| `--save_model`                 | Non-zero value for saving output model(s) parameters in `out/<method>`.pt`.                                                                                                                                                                                 |
+| `--save_fig`                   | Non-zero value for saving the accuracy curves showed on Visdom into a `.jpeg` file at `out/<method>`.                                                                                                                                                                                                                            |
+| `--save_metrics`               | Non-zero value for saving metrics stats into a `.csv` file at `out/<method>`.                                                                                                                                                                                                                                                    |
 | `--viz_win_name`               | Custom visdom window name (active when setting `--visible` as a non-zero value).                                                                                                                                                                                                                                                          |
 | `--config_file`                | Relative file path of custom config `.yaml` file.                                                                                                                                                                                                                                                                                         |
 | `--check_convergence`          | Non-zero value for checking convergence after training.                                                                                                                                                                                                                                                                                   |
@@ -212,7 +212,7 @@ This benchmark supports bunch of models that common and integrated in Torchvisio
 - LeNet5
 ...
 
-🤗 You can define your own custom model by filling the `CustomModel` class in [`src/utils/models.py`](https://github.com/KarhouTam/FL-bench/tree/master/src/utils/models.py) and use it by specifying `--model custom` when running.
+🤗 You can define your own custom model by filling the `CustomModel` class in [`src/utils/models.py`](src/utils/models.py) and use it by specifying `--model custom` when running.
 
 ## Supported Datasets 🎨
 
@@ -243,8 +243,10 @@ Regular Image Datasets
 
 - [*CINIC-10*](https://datashare.ed.ac.uk/handle/10283/3192) (3 x 32 x 32, 10 classes)
 
+Domain Generalization Image Datasets
+
 - [*DomainNet*](http://ai.bu.edu/DomainNet/) (3 x ? x ?, 345 classes) 
-  - Go check [`data/domain/README.md`](https://github.com/KarhouTam/FL-bench/tree/master/data#readme) for the full process guideline 🧾.
+  - Go check [`data/README.md`](data#readme) for the full process guideline 🧾.
   
 Medical Image Datasets
 

@@ -4,7 +4,7 @@ This benchmark also integrates [*LEAF*](https://github.com/TalwalkarLab/leaf), a
 
 Most of the datasets supported by this benchmark are integrated into `torchvision.datasets`, expect *Tiny-ImageNet-200*, *Covid-19*, *Organ-S/A/CMNIST*, *DomainNet*. 
 
-For those datasets, I prepare download scripts (at [`data/download`](https://github.com/KarhouTam/FL-bench/blob/master/data/download)) for you. 🤗
+For those datasets, I prepare download scripts (in folder [`data/download`](download)) for you. 🤗
 
 e.g.
 
@@ -119,7 +119,7 @@ python generate_data.py -d synthetic --beta 1 --gamma 1  -cn 20
 
 ## The LEAF 🍂 
 
-Argument details are in [`data/femnist/README.md`](https://github.com/KarhouTam/FL-bench/tree/master/data/femnist#readme) and [`data/celeba/README.md`](https://github.com/KarhouTam/FL-bench/tree/master/data/celeba#readme)
+Argument details are in [`data/femnist/README.md`](femnist#readme) and [`data/celeba/README.md`](celeba#readme)
 
 You should set all arguments well already when running `preprocess.sh`. 
 
@@ -132,14 +132,14 @@ When processing LEAF datasets, `generate_data.py` only responsible for translati
 
 ### Pre-requisite 🐾
 
-1. Through [`/data/download/domain.sh`](https://github.com/KarhouTam/FL-bench/tree/master/data/download/domain.sh) downloading and decomporessing DomainNet raw data.
+1. Through [`data/download/domain.sh`](download/domain.sh) downloading and decomporessing DomainNet raw data.
 2. `cd` to `data/domain` and run `python preprocess.py` (an interactive wizard).
 
 
 ### Default Partitioning Scheme ❤ 
 
 Running `python generate_data.py -d domain` *without* additional arguments would build domain separation partition (each client has only has data from one domain).
-- Note that `python generate_data.py -d domain` is at the end of [`data/domain/preprocess.py`](https://github.com/KarhouTam/FL-bench/tree/master/data/domain/preprocess.py) already, so you don't need to run that command by yourself after running `preprocess.py`.
+- Note that `python generate_data.py -d domain` is at the end of [`data/domain/preprocess.py`](domain/preprocess.py) already, so you don't need to run that command by yourself after running `preprocess.py`.
 
 <p float="left">
   <img src="../.github/images/domainnet/original_class.png" width="350" />
@@ -192,7 +192,7 @@ python generate_data.py -d domain -a 1.0 -cn 10 --ood_domains sketch quickdraw
 
 # Acknowledgement 🤗
 
-[`data/femnist`](https://github.com/KarhouTam/FL-bench/tree/master/data/femnist), [`data/celeba`](https://github.com/KarhouTam/FL-bench/tree/master/data/celeba), [`data/leaf_utils`](https://github.com/KarhouTam/FL-bench/tree/master/data/leaf_utils) are copied from [*LEAF*](https://github.com/TalwalkarLab/leaf) with subtle modifications to be integrated into this benchmark. [`data/femnist/README.md`](https://github.com/KarhouTam/FL-bench/tree/master/data/femnist#readme) and [`data/celeba/README.md`](https://github.com/KarhouTam/FL-bench/tree/master/data/celeba#readme) for full details.
+[`data/femnist`](femnist), [`data/celeba`](celeba), [`data/leaf_utils`](leaf_utils) are copied from [*LEAF*](https://github.com/TalwalkarLab/leaf) with subtle modifications to be integrated into this benchmark. [`data/femnist/README.md`](femnist#readme) and [`data/celeba/README.md`](celeba#readme) for full details.
 
 FL-bench ignores the test set of *Tiny-ImageNet-200* due to it is unlabeled.
 
