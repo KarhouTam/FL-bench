@@ -3,7 +3,6 @@ ARG IMAGE_SOURCE=registry.cn-hangzhou.aliyuncs.com/karhou/linux:ubuntu-basic
 FROM ${IMAGE_SOURCE}
 
 ARG CHINA_MAINLAND=true
-ARG FL_BENCH_ROOT=../
 
 WORKDIR /etc/apt
 
@@ -13,9 +12,8 @@ RUN if [ "${CHINA_MAINLAND}" = "false" ]; then \
     fi
 
 RUN apt update && \
-    apt install -y \
-    python3.10 \
-    python3-pip
+    apt install -y python3.11 python3-pip && \
+    ln -s /usr/bin/python3.11 /usr/bin/python 
 
 RUN if [ "${CHINA_MAINLAND}" = "true" ]; then \
     pip config set global.index-url https://mirrors.sustech.edu.cn/pypi/simple ; \
@@ -24,7 +22,9 @@ RUN if [ "${CHINA_MAINLAND}" = "true" ]; then \
 RUN pip install --upgrade pip && \
     pip install poetry
 
-COPY ${FL_BENCH_ROOT} /root/FL-bench
+WORKDIR /root
+
+RUN git clone https://github.com/KarhouTam/FL-bench.git
 
 WORKDIR /root/FL-bench
 
