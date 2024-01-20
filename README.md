@@ -119,7 +119,7 @@ poetry install
 
 **Not at China mainland**
 ```
-sed -i "26,30d" pyproject.toml && poetry lock --no-update && poetry install
+sed -i "10,14d" pyproject.toml && poetry lock --no-update && poetry install
 ```
 
 ### Docker 🐳

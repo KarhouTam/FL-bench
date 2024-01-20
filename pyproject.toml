@@ -7,6 +7,11 @@ license = "GPL-2.0-or-later"
 readme = ["README.md", "data/README.md"]
 repository = "https://github.com/KarhouTam/FL-bench"
 
+[[tool.poetry.source]]
+name = "mirrors"
+url = "https://mirrors.sustech.edu.cn/pypi/simple"
+priority = "default"
+
 [tool.poetry.dependencies]
 python = ">=3.10, <3.12"
 torch = "2.1.2"
@@ -23,11 +28,6 @@ scikit-learn = "1.2.2"
 faiss-cpu = "1.7.4"
 pynvml = "11.5.0"
 PyYAML = "6.0.1"
-
-[[tool.poetry.source]]
-name = "mirrors"
-url = "https://mirrors.sustech.edu.cn/pypi/simple"
-priority = "default"
 
 [build-system]
 requires = ["poetry-core"]
