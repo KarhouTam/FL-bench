@@ -50,6 +50,8 @@
 
 - ***FedOpt*** -- [Adaptive Federated Optimization](https://arxiv.org/abs/2003.00295) (ICLR'21)
 
+- ***Elastic Aggregation*** -- [Elastic Aggregation for Federated Optimization](https://openaccess.thecvf.com/content/CVPR2023/html/Chen_Elastic_Aggregation_for_Federated_Optimization_CVPR_2023_paper.html) (CVPR'23)
+
 ### Personalized FL Methods
 
 - ***pFedSim (My Work⭐)*** -- [pFedSim: Similarity-Aware Model Aggregation Towards Personalized Federated Learning](https://arxiv.org/abs/2305.15706) (ArXiv'23)
@@ -114,12 +116,12 @@ conda env create -f environment.yml
 
 **At China mainland**
 ```
-poetry install
+poetry install --no-root
 ```
 
 **Not at China mainland**
 ```
-sed -i "10,14d" pyproject.toml && poetry lock --no-update && poetry install
+sed -i "10,14d" pyproject.toml && poetry lock --no-update && poetry install --no-root
 ```
 
 ### Docker 🐳
@@ -192,13 +194,13 @@ About the default values and hyperparameters of advanced FL methods, go check co
 | `--batch_size`                 | Data batch size for client local training.                                                                                                                                                                                                                                                                                                |
 | `--use_cuda`                   | Non-zero value indicates that tensors are in gpu.                                                                                                                                                                                                                                                                                         |
 | `--visible`                    | Non-zero value for using Visdom to monitor algorithm performance on `localhost:8097`.                                                                                                                                                                                                                                                     |
-| `--save_log`                   | Non-zero value for saving algorithm running log in `out/<method>`.                                                                                                                                                                                                                                                               |
 | `--straggler_ratio`            | The ratio of stragglers (set in `[0, 1]`). Stragglers would not perform full-epoch local training as normal clients. Their local epoch would be randomly selected from range `[--straggler_min_local_epoch, --local_epoch)`.                                                                                                              |
 | `--straggler_min_local_epoch`  | The minimum value of local epoch for stragglers.                                                                                                                                                                                                                                                                                          |
 | `--external_model_params_file` | The relative file path of external model parameters. Please confirm whether the shape of parameters compatible with the model by yourself. ⚠ This feature is enabled only when `unique_model=False`, which is pre-defined by each FL method.                          |
-| `--save_model`                 | Non-zero value for saving output model(s) parameters in `out/<method>`.pt`.                                                                                                                                                                                 |
-| `--save_fig`                   | Non-zero value for saving the accuracy curves showed on Visdom into a `.jpeg` file at `out/<method>`.                                                                                                                                                                                                                            |
-| `--save_metrics`               | Non-zero value for saving metrics stats into a `.csv` file at `out/<method>`.                                                                                                                                                                                                                                                    |
+| `--save_log`                   | Non-zero value for saving algorithm running log in `out/<method>/<start_time>`.                                                                                                                                                                                                                                                               |
+| `--save_model`                 | Non-zero value for saving output model(s) parameters in `out/<method>/<start_time>`.pt`.                                                                                                                                                                                 |
+| `--save_fig`                   | Non-zero value for saving the accuracy curves showed on Visdom into a `.pdf` file at `out/<method>/<start_time>`.                                                                                                                                                                                                                            |
+| `--save_metrics`               | Non-zero value for saving metrics stats into a `.csv` file at `out/<method>/<start_time>`.                                                                                                                                                                                                                                                    |
 | `--viz_win_name`               | Custom visdom window name (active when setting `--visible` as a non-zero value).                                                                                                                                                                                                                                                          |
 | `--config_file`                | Relative file path of custom config `.yaml` file.                                                                                                                                                                                                                                                                                         |
 | `--check_convergence`          | Non-zero value for checking convergence after training.                                                                                                                                                                                                                                                                                   |
