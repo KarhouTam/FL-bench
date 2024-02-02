@@ -126,6 +126,13 @@ sed -i "10,14d" pyproject.toml && poetry lock --no-update && poetry install --no
 
 ### Docker 🐳
 
+#### Pull from Docker Hub (Linux Only)
+```
+docker pull karhoutam/flbench:master
+```
+
+#### Build locally
+
 **At China mainland**
 ```
 docker build -t fl-bench .
