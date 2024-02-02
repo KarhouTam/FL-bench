@@ -20,7 +20,7 @@ def get_elastic_argparser() -> ArgumentParser:
 class ElasticServer(FedAvgServer):
     def __init__(
         self,
-        algo: str = "FedAvg",
+        algo: str = "Elastic",
         args: Namespace = None,
         unique_model=False,
         default_trainer=False,

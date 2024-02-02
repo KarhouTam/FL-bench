@@ -555,27 +555,6 @@ class FedAvgServer:
                     self.logger.log(
                         f"[{colors[split]}]({split})[/{colors[split]}] [{colors[stage]}]{stage}[/{colors[stage]}] fine-tuning: {max_acc:.2f}% at epoch {epoch}"
                     )
-        # # find the max metrics
-        # max_test_before = max(self.metrics["test_before"])
-        # acc_before_test_clients = list(
-        #     map(lambda stats: stats["acc_before"], self.eval_results.values())
-        # )
-        # max_test_clients = max(acc_before_test_clients)
-        # max_mean = max(self.metrics["mean"])
-        # # find the index
-        # max_test_before_index = self.metrics["test_before"].index(max_test_before)
-        # max_test_clients_index = acc_before_test_clients.index(max_test_clients)
-        # max_mean_index = self.metrics["mean"].index(max_mean)
-        # # log the max metrics
-        # self.logger.log(
-        #     f"max_test_before: {max_test_before:.2f}% at epoch: {max_test_before_index+1}"
-        # )
-        # self.logger.log(
-        #     f"max_test_clients: {max_test_clients:.2f}% at epoch: {self.epoch_test[max_test_clients_index]+1}"
-        # )
-        # self.logger.log(
-        #     f"max_mean: {max_mean:.2f}% at epoch: {self.epoch_test[max_mean_index]+1}. test_before: {self.metrics['test_before'][self.epoch_test[max_mean_index]]:.2f}%, test_clients:{self.metrics['test_clients'][max_mean_index]:.2f}%"
-        # )
 
     def run(self):
         """The comprehensive FL process.
