@@ -1,24 +1,9 @@
-ARG IMAGE_SOURCE=registry.cn-hangzhou.aliyuncs.com/karhou/linux:ubuntu-basic
+FROM ubuntu:22.04
 
-FROM ${IMAGE_SOURCE}
-
-ARG CHINA_MAINLAND=true
-
-WORKDIR /etc/apt
-
-RUN if [ "${CHINA_MAINLAND}" = "false" ]; then \
-    rm sources.list && \
-    mv sources.list.bak sources.list ; \
-    fi
-    
 RUN apt update && \
-    apt install python3-pip -y && \
+    apt install build-essential git python3.10 python3-pip -y && \
     cd /usr/bin && \
-    ln -s python3.10 python 
-
-RUN if [ "${CHINA_MAINLAND}" = "true" ]; then \
-    pip config set global.index-url https://mirrors.sustech.edu.cn/pypi/simple ; \
-    fi 
+    ln -s python3.10 python
 
 WORKDIR /root
 

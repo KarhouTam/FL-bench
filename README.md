@@ -114,39 +114,26 @@ conda env create -f environment.yml
 
 ### Poetry 🎶
 
-**At China mainland**
-```
+```sh
+# For those China mainland users
 poetry install --no-root
-```
 
-**Not at China mainland**
-```
+# For those oversea users
 sed -i "10,14d" pyproject.toml && poetry lock --no-update && poetry install --no-root
 ```
 
 ### Docker 🐳
 
-#### Pull from Docker Hub (Linux Only)
-```
-docker pull karhoutam/flbench:master
-```
+```shell
+# For those China mainland users
+docker pull registry.cn-hangzhou.aliyuncs.com/karhoutam/fl-bench:master
 
-#### Build locally
+# For those oversea users
+docker pull ghcr.io/karhoutam/fl-bench:master
 
-**At China mainland**
+# An example for building container
+docker run -it --name fl-bench --privileged -p 8097:8097 --gpus all  ghcr.io/karhoutam/fl-bench:master
 ```
-docker build -t fl-bench .
-```
-
-**Not at China mainland**
-```
-docker build \
--t fl-bench \
---build-arg IMAGE_SOURCE=karhou/ubuntu:basic \
---build-arg CHINA_MAINLAND=false \
-.
-```
-
 
 
 ## Easy Run 🏃‍♂️
