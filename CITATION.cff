@@ -1,0 +1,25 @@
+# This CITATION.cff file was generated with cffinit.
+# Visit https://bit.ly/cffinit to generate yours today!
+
+cff-version: 1.2.0
+title: 'FL-bench: A federated learning benchmark for solving image classification tasks'
+message: >-
+  If you use this software, please cite it using the
+  metadata from this file.
+type: software
+authors:
+  - given-names: Jiahao
+    family-names: Tan
+    email: karhoutam@qq.com
+    affiliation: Shenzhen University
+  - given-names: Xinpeng
+    family-names: Wang
+    affiliation: 'The Chinese University of Hong Kong, Shenzhen'
+    email: 223015056@link.cuhk.edu.cn
+repository-code: 'https://github.com/KarhouTam/FL-bench'
+abstract: >-
+  Benchmark of federated learning that aim solving image
+  classification tasks.
+keywords:
+  - federated learning
+license: GPL-2.0

@@ -251,3 +251,24 @@ Medical Image Datasets
 - [*COVID-19*](https://www.researchgate.net/publication/344295900_Curated_Dataset_for_COVID-19_Posterior-Anterior_Chest_Radiography_Images_X-Rays) (3 x 244 x 224, 4 classes)
 
 - [*Organ-S/A/CMNIST*](https://medmnist.com/) (1 x 28 x 28, 11 classes)
+
+## Citation 🧐
+
+```
+@software{Tan_FL-bench,
+          author = {Tan, Jiahao and Wang, Xinpeng},
+          license = {GPL-2.0},
+          title = {{FL-bench: A federated learning benchmark for solving image classification tasks}},
+          url = {https://github.com/KarhouTam/FL-bench}
+}
+
+@misc{tan2023pfedsim,
+      title={pFedSim: Similarity-Aware Model Aggregation Towards Personalized Federated Learning}, 
+      author={Jiahao Tan and Yipeng Zhou and Gang Liu and Jessie Hui Wang and Shui Yu},
+      year={2023},
+      eprint={2305.15706},
+      archivePrefix={arXiv},
+      primaryClass={cs.LG}
+}
+
+```
