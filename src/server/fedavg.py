@@ -27,7 +27,7 @@ from src.utils.tools import (
     trainable_params,
     get_optimal_cuda_device,
 )
-from src.utils.models import MODELS
+from src.utils.models import MODELS, DecoupledModel
 from data.utils.datasets import DATASETS
 from src.client.fedavg import FedAvgClient
 
@@ -113,7 +113,9 @@ class FedAvgServer:
         # get_model_arch() would return a class depends on model's name,
         # then init the model object by indicating the dataset and calling the class.
         # Finally transfer the model object to the target device.
-        self.model = MODELS[self.args.model](dataset=self.args.dataset).to(self.device)
+        self.model: DecoupledModel = MODELS[self.args.model](
+            dataset=self.args.dataset
+        ).to(self.device)
         self.model.check_avaliability()
 
         # client_trainable_params is for pFL, which outputs exclusive model per client
