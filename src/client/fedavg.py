@@ -352,8 +352,10 @@ class FedAvgClient:
 
         results["before"] = self.evaluate(force_eval=True)
         if self.args.finetune_epoch > 0:
+            frz_params_dict = deepcopy(self.model.state_dict())
             self.finetune()
             results["after"] = self.evaluate(force_eval=True)
+            self.model.load_state_dict(frz_params_dict)
         return results
 
     def finetune(self):
