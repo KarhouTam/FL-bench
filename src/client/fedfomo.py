@@ -60,8 +60,7 @@ class FedFomoClient(FedAvgClient):
             dataloader=self.valloader,
             criterion=self.criterion,
             device=self.device,
-        )[0]
-        LOSS /= len(self.valset)
+        ).loss
         W = torch.zeros(len(received_params), device=self.device)
         self.weight_vector.zero_()
         with torch.no_grad():
@@ -75,8 +74,7 @@ class FedFomoClient(FedAvgClient):
                     dataloader=self.valloader,
                     criterion=self.criterion,
                     device=self.device,
-                )[0]
-                loss /= len(self.valset)
+                ).loss
                 params_diff = vectorize(params_i) - vectorized_self_params
                 w = (LOSS - loss) / (torch.norm(params_diff) + 1e-5)
                 W[i] = w

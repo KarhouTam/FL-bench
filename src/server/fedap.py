@@ -76,7 +76,7 @@ class FedAPServer(FedAvgServer):
             delta_cache = []
             weight_cache = []
             for client_id in self.selected_clients:
-                (delta, weight, self.client_stats[client_id][E]) = self.trainer.train(
+                (delta, weight, self.client_metrics[client_id][E]) = self.trainer.train(
                     client_id=client_id,
                     local_epoch=self.clients_local_epoch[client_id],
                     new_parameters=self.global_params_dict,
@@ -147,7 +147,7 @@ class FedAPServer(FedAvgServer):
             delta_cache = []
             for client_id in self.selected_clients:
                 client_local_params = self.generate_client_params(client_id)
-                delta, _, self.client_stats[client_id][E] = self.trainer.train(
+                delta, _, self.client_metrics[client_id][E] = self.trainer.train(
                     client_id=client_id,
                     local_epoch=self.clients_local_epoch[client_id],
                     new_parameters=client_local_params,

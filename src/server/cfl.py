@@ -45,7 +45,7 @@ class CFLServer(FedAvgServer):
             (
                 delta,
                 _,
-                self.client_stats[client_id][self.current_epoch],
+                self.client_metrics[client_id][self.current_epoch],
             ) = self.trainer.train(
                 client_id=client_id,
                 local_epoch=self.clients_local_epoch[client_id],
@@ -116,8 +116,6 @@ class CFLServer(FedAvgServer):
                     param.data += diff
 
         self.delta_list = [None for _ in self.train_clients]
-        if self.current_epoch % 5 == 0:
-            print(self.client_clusters)
 
 
 @torch.no_grad()

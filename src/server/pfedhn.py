@@ -79,7 +79,7 @@ class pFedHNServer(FedAvgServer):
             (
                 delta,
                 weight,
-                self.client_stats[client_id][self.current_epoch],
+                self.client_metrics[client_id][self.current_epoch],
             ) = self.trainer.train(
                 client_id=client_id,
                 local_epoch=self.clients_local_epoch[client_id],

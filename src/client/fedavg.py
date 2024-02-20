@@ -12,6 +12,7 @@ from torchvision import transforms
 PROJECT_DIR = Path(__file__).parent.parent.parent.absolute()
 
 from src.utils.tools import trainable_params, evalutate_model, Logger
+from src.utils.metrics import Metrics
 from src.utils.models import DecoupledModel
 from src.utils.constants import DATA_MEAN, DATA_STD
 from data.utils.datasets import DATASETS
@@ -69,6 +70,7 @@ class FedAvgClient:
         self.trainset: Subset = Subset(self.dataset, indices=[])
         self.valset: Subset = Subset(self.dataset, indices=[])
         self.testset: Subset = Subset(self.dataset, indices=[])
+        self.test_flag = False
 
         self.model = model.to(self.device)
         self.local_epoch = self.args.local_epoch
@@ -115,50 +117,35 @@ class FedAvgClient:
         Returns:
             Dict[str, Dict[str, float]]: The logging info, which contains metric stats.
         """
-        eval_results = {
-            "before": {
-                "train": {"loss": 0, "correct": 0, "size": 0},
-                "val": {"loss": 0, "correct": 0, "size": 0},
-                "test": {"loss": 0, "correct": 0, "size": 0},
-            },
-            "after": {
-                "train": {"loss": 0, "correct": 0, "size": 0},
-                "val": {"loss": 0, "correct": 0, "size": 0},
-                "test": {"loss": 0, "correct": 0, "size": 0},
-            },
+        eval_metrics = {
+            "before": {"train": Metrics(), "val": Metrics(), "test": Metrics()},
+            "after": {"train": Metrics(), "val": Metrics(), "test": Metrics()},
         }
-        eval_results["before"] = self.evaluate()
+        eval_metrics["before"] = self.evaluate()
         if self.local_epoch > 0:
             self.fit()
             self.save_state()
-            eval_results["after"] = self.evaluate()
+            eval_metrics["after"] = self.evaluate()
         if verbose:
-            colors = {"train": "yellow", "val": "green", "test": "cyan"}
-            for split, flag, subset in [
-                ["train", self.args.eval_train, self.trainset],
-                ["val", self.args.eval_val, self.valset],
-                ["test", self.args.eval_test, self.testset],
+            for split, color, flag, subset in [
+                ["train", "yellow", self.args.eval_train, self.trainset],
+                ["val", "green", self.args.eval_val, self.valset],
+                ["test", "cyan", self.args.eval_test, self.testset],
             ]:
                 if len(subset) > 0 and flag:
                     self.logger.log(
                         "client [{}] [{}]({})  loss: {:.4f} -> {:.4f}   accuracy: {:.2f}% -> {:.2f}%".format(
                             self.client_id,
-                            colors[split],
+                            color,
                             split,
-                            eval_results["before"][split]["loss"]
-                            / eval_results["before"][split]["size"],
-                            eval_results["after"][split]["loss"]
-                            / eval_results["after"][split]["size"],
-                            eval_results["before"][split]["correct"]
-                            / eval_results["before"][split]["size"]
-                            * 100.0,
-                            eval_results["after"][split]["correct"]
-                            / eval_results["after"][split]["size"]
-                            * 100.0,
+                            eval_metrics["before"][split].loss,
+                            eval_metrics["after"][split].loss,
+                            eval_metrics["before"][split].accuracy,
+                            eval_metrics["after"][split].accuracy,
                         )
                     )
 
-        return eval_results
+        return eval_metrics
 
     def set_parameters(self, new_parameters: OrderedDict[str, torch.Tensor]):
         """Load model parameters received from the server.
@@ -256,37 +243,35 @@ class FedAvgClient:
                 self.optimizer.step()
 
     @torch.no_grad()
-    def evaluate(
-        self, model: torch.nn.Module = None, force_eval=False
-    ) -> Dict[str, float]:
+    def evaluate(self, model: torch.nn.Module = None) -> Dict[str, Metrics]:
         """The evaluation function. Would be activated before and after local training if `eval_test = True` or `eval_train = True`.
 
         Args:
             model (torch.nn.Module, optional): The target model needed evaluation (set to `None` for using `self.model`). Defaults to None.
             force_eval (bool, optional): Set as `True` when the server asking client to evaluate model.
         Returns:
-            Dict[str, float]: The evaluation metric stats.
+            Dict[str, Metrics]: The evaluation metric stats.
         """
         # disable train data transform while evaluating
         self.dataset.enable_train_transform = False
 
         target_model = self.model if model is None else model
         target_model.eval()
-        train_loss, val_loss, test_loss = 0, 0, 0
-        train_correct, val_correct, test_correct = 0, 0, 0
-        train_size, val_size, test_size = 0, 0, 0
+        train_metrics = Metrics()
+        val_metrics = Metrics()
+        test_metrics = Metrics()
         criterion = torch.nn.CrossEntropyLoss(reduction="sum")
 
         if len(self.testset) > 0 and self.args.eval_test:
-            test_loss, test_correct, test_size = evalutate_model(
+            test_metrics = evalutate_model(
                 model=target_model,
                 dataloader=self.testloader,
                 criterion=criterion,
                 device=self.device,
             )
 
-        if len(self.valset) > 0 and (force_eval or self.args.eval_val):
-            val_loss, val_correct, val_size = evalutate_model(
+        if len(self.valset) > 0 and self.args.eval_val:
+            val_metrics = evalutate_model(
                 model=target_model,
                 dataloader=self.valloader,
                 criterion=criterion,
@@ -294,7 +279,7 @@ class FedAvgClient:
             )
 
         if len(self.trainset) > 0 and self.args.eval_train:
-            train_loss, train_correct, train_size = evalutate_model(
+            train_metrics = evalutate_model(
                 model=target_model,
                 dataloader=self.trainloader,
                 criterion=criterion,
@@ -302,27 +287,11 @@ class FedAvgClient:
             )
 
         self.dataset.enable_train_transform = True
-        return {
-            "train": {
-                "loss": train_loss,
-                "correct": train_correct,
-                "size": float(max(1, train_size)),
-            },
-            "val": {
-                "loss": val_loss,
-                "correct": val_correct,
-                "size": float(max(1, val_size)),
-            },
-            "test": {
-                "loss": test_loss,
-                "correct": test_correct,
-                "size": float(max(1, test_size)),
-            },
-        }
+        return {"train": train_metrics, "val": val_metrics, "test": test_metrics}
 
     def test(
         self, client_id: int, new_parameters: OrderedDict[str, torch.Tensor]
-    ) -> Dict[str, Dict[str, float]]:
+    ) -> Dict[str, Dict[str, Metrics]]:
         """Test function. Only be activated while in FL test round.
 
         Args:
@@ -330,32 +299,25 @@ class FedAvgClient:
             new_parameters (OrderedDict[str, torch.Tensor]): The FL model parameters.
 
         Returns:
-            Dict[str, Dict[str, float]]: the evalutaion metrics stats.
+            Dict[str, Dict[str, Metrics]]: the evalutaion metrics stats.
         """
+        self.test_flag = True
         self.client_id = client_id
         self.load_dataset()
         self.set_parameters(new_parameters)
 
-        # set `size` as 1 for avoiding NaN.
         results = {
-            "before": {
-                "train": {"loss": 0, "correct": 0, "size": 1},
-                "val": {"loss": 0, "correct": 0, "size": 1},
-                "test": {"loss": 0, "correct": 0, "size": 1},
-            },
-            "after": {
-                "train": {"loss": 0, "correct": 0, "size": 1},
-                "val": {"loss": 0, "correct": 0, "size": 1},
-                "test": {"loss": 0, "correct": 0, "size": 1},
-            },
+            "before": {"train": Metrics(), "val": Metrics(), "test": Metrics()},
+            "after": {"train": Metrics(), "val": Metrics(), "test": Metrics()},
         }
 
-        results["before"] = self.evaluate(force_eval=True)
+        results["before"] = self.evaluate()
         if self.args.finetune_epoch > 0:
             frz_params_dict = deepcopy(self.model.state_dict())
             self.finetune()
-            results["after"] = self.evaluate(force_eval=True)
+            results["after"] = self.evaluate()
             self.model.load_state_dict(frz_params_dict)
+        self.test_flag = False
         return results
 
     def finetune(self):

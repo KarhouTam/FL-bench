@@ -33,7 +33,6 @@ class pFedMeClient(FedAvgClient):
         self.load_dataset()
         self.set_parameters(new_parameters)
         self.local_parameters = trainable_params(new_parameters, detach=True)
-        # self.iter_trainloader = iter(self.trainloader)
         stats = self.train_and_log(verbose=verbose)
         return (deepcopy(self.local_parameters), len(self.trainset), stats)
 
@@ -46,7 +45,6 @@ class pFedMeClient(FedAvgClient):
     def fit(self):
         self.model.train()
         for _ in range(self.args.local_epoch):
-            # x, y = self.get_data_batch()
             for x, y in self.trainloader:
                 if len(x) <= 1:
                     continue
@@ -70,11 +68,11 @@ class pFedMeClient(FedAvgClient):
                     )
 
     @torch.no_grad()
-    def evaluate(self, model=None, test_flag=False) -> Dict[str, Dict[str, float]]:
+    def evaluate(self) -> Dict[str, Dict[str, float]]:
         frz_model_params = deepcopy(self.model.state_dict())
         if self.client_id in self.personalized_params_dict.keys():
             self.model.load_state_dict(self.personalized_params_dict[self.client_id])
-        res = super().evaluate(model, test_flag)
+        res = super().evaluate()
         self.model.load_state_dict(frz_model_params)
         return res
 

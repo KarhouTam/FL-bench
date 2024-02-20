@@ -15,6 +15,8 @@ import numpy as np
 from rich.console import Console
 from rich.progress import track
 
+from src.utils.metrics import Metrics
+
 PROJECT_DIR = Path(__file__).parent.parent.parent.absolute()
 
 sys.path.append(PROJECT_DIR.as_posix())
@@ -197,18 +199,10 @@ class FedAvgServer:
                     + f"_{self.args.global_epoch}"
                     + f"_{self.args.local_epoch}"
                 )
-        self.client_stats = {i: {} for i in self.train_clients}
-        self.metrics = {
-            "before": {
-                "train": {"accuracy": []},
-                "val": {"accuracy": []},
-                "test": {"accuracy": []},
-            },
-            "after": {
-                "train": {"accuracy": []},
-                "val": {"accuracy": []},
-                "test": {"accuracy": []},
-            },
+        self.client_metrics = {i: {} for i in self.train_clients}
+        self.global_metrics = {
+            "before": {"train": [], "val": [], "test": []},
+            "after": {"train": [], "val": [], "test": []},
         }
         stdout = Console(log_path=False, log_time=False)
         self.logger = Logger(
@@ -219,7 +213,7 @@ class FedAvgServer:
             / self.output_dir
             / f"{self.args.dataset}_log.html",
         )
-        self.eval_results: Dict[int, Dict[str, str]] = {}
+        self.test_results: Dict[int, Dict[str, Dict[str, Metrics]]] = {}
         self.train_progress_bar = track(
             range(self.args.global_epoch), "[bold green]Training...", console=stdout
         )
@@ -268,7 +262,7 @@ class FedAvgServer:
             (
                 delta,
                 weight,
-                self.client_stats[client_id][self.current_epoch],
+                self.client_metrics[client_id][self.current_epoch],
             ) = self.trainer.train(
                 client_id=client_id,
                 local_epoch=self.clients_local_epoch[client_id],
@@ -285,95 +279,72 @@ class FedAvgServer:
         """The function for testing FL method's output (a single global model or personalized client models)."""
         self.test_flag = True
         client_ids = set(self.val_clients + self.test_clients)
-        split_sample_flag = False
+        all_same = False
         if client_ids:
-            if (set(self.train_clients) != set(self.val_clients)) or (
-                set(self.train_clients) != set(self.test_clients)
-            ):
+            if self.val_clients == self.train_clients == self.test_clients:
+                all_same = True
+                results = {
+                    "all_clients": {
+                        "before": {
+                            "train": Metrics(),
+                            "val": Metrics(),
+                            "test": Metrics(),
+                        },
+                        "after": {
+                            "train": Metrics(),
+                            "val": Metrics(),
+                            "test": Metrics(),
+                        },
+                    }
+                }
+            else:
                 results = {
                     "val_clients": {
                         "before": {
-                            "train": {"loss": [], "correct": [], "size": []},
-                            "val": {"loss": [], "correct": [], "size": []},
-                            "test": {"loss": [], "correct": [], "size": []},
+                            "train": Metrics(),
+                            "val": Metrics(),
+                            "test": Metrics(),
                         },
                         "after": {
-                            "train": {"loss": [], "correct": [], "size": []},
-                            "val": {"loss": [], "correct": [], "size": []},
-                            "test": {"loss": [], "correct": [], "size": []},
+                            "train": Metrics(),
+                            "val": Metrics(),
+                            "test": Metrics(),
                         },
                     },
                     "test_clients": {
                         "before": {
-                            "train": {"loss": [], "correct": [], "size": []},
-                            "val": {"loss": [], "correct": [], "size": []},
-                            "test": {"loss": [], "correct": [], "size": []},
+                            "train": Metrics(),
+                            "val": Metrics(),
+                            "test": Metrics(),
                         },
                         "after": {
-                            "train": {"loss": [], "correct": [], "size": []},
-                            "val": {"loss": [], "correct": [], "size": []},
-                            "test": {"loss": [], "correct": [], "size": []},
+                            "train": Metrics(),
+                            "val": Metrics(),
+                            "test": Metrics(),
                         },
                     },
                 }
-            else:
-                split_sample_flag = True
-                results = {
-                    "all_clients": {
-                        "before": {
-                            "train": {"loss": [], "correct": [], "size": []},
-                            "val": {"loss": [], "correct": [], "size": []},
-                            "test": {"loss": [], "correct": [], "size": []},
-                        },
-                        "after": {
-                            "train": {"loss": [], "correct": [], "size": []},
-                            "val": {"loss": [], "correct": [], "size": []},
-                            "test": {"loss": [], "correct": [], "size": []},
-                        },
-                    }
-                }
             for cid in client_ids:
                 client_local_params = self.generate_client_params(cid)
-                stats = self.trainer.test(cid, client_local_params)
+                client_metrics = self.trainer.test(cid, client_local_params)
 
                 for stage in ["before", "after"]:
                     for split in ["train", "val", "test"]:
-                        for metric in ["loss", "correct", "size"]:
-                            if split_sample_flag:
-                                results["all_clients"][stage][split][metric].append(
-                                    stats[stage][split][metric]
-                                )
-                            else:
-                                if cid in self.val_clients:
-                                    results["val_clients"][stage][split][metric].append(
-                                        stats[stage][split][metric]
-                                    )
-                                if cid in self.test_clients:
-                                    results["test_clients"][stage][split][
-                                        metric
-                                    ].append(stats[stage][split][metric])
-            for group in results.keys():
-                for stage in ["before", "after"]:
-                    for split in ["train", "val", "test"]:
-                        for metric in ["loss", "correct", "size"]:
-                            results[group][stage][split][metric] = torch.tensor(
-                                results[group][stage][split][metric]
-                            )
-                        num_samples = results[group][stage][split]["size"].sum()
-                        if num_samples > 0:
-                            results[group][stage][split]["accuracy"] = (
-                                results[group][stage][split]["correct"].sum()
-                                / num_samples
-                                * 100
-                            )
-                            results[group][stage][split]["loss"] = (
-                                results[group][stage][split]["loss"].sum() / num_samples
+                        if all_same:
+                            results["all_clients"][stage][split].update(
+                                client_metrics[stage][split]
                             )
                         else:
-                            results[group][stage][split]["accuracy"] = 0
-                            results[group][stage][split]["loss"] = 0
+                            if cid in self.val_clients:
+                                results["val_clients"][stage][split].update(
+                                    client_metrics[stage][split]
+                                )
+                            if cid in self.test_clients:
+                                results["test_clients"][stage][split].update(
+                                    client_metrics[stage][split]
+                                )
 
-            self.eval_results[self.current_epoch + 1] = results
+            self.test_results[self.current_epoch + 1] = results
 
         self.test_flag = False
 
@@ -463,70 +434,56 @@ class FedAvgServer:
         self.logger.log("=" * 10, self.algo, "Convergence on train clients", "=" * 10)
         for stage in ["before", "after"]:
             for split in ["train", "val", "test"]:
-                self.logger.log(
-                    f"[{colors[split]}]{split}[/{colors[split]}] [{colors[stage]}]({stage} local training):"
-                )
-                acc_range = [90.0, 80.0, 70.0, 60.0, 50.0, 40.0, 30.0, 20.0, 10.0]
-                min_acc_idx = 10
-                max_acc = 0
-                for E, acc in enumerate(self.metrics[stage][split]["accuracy"]):
-                    for i, target in enumerate(acc_range):
-                        if acc >= target and acc > max_acc:
-                            self.logger.log(f"{target}%({acc:.2f}%) at epoch: {E}")
-                            max_acc = acc
-                            min_acc_idx = i
-                            break
-                    acc_range = acc_range[:min_acc_idx]
+                if len(self.global_metrics[stage][split]) > 0:
+                    self.logger.log(
+                        f"[{colors[split]}]{split}[/{colors[split]}] [{colors[stage]}]({stage} local training):"
+                    )
+                    acc_range = [90.0, 80.0, 70.0, 60.0, 50.0, 40.0, 30.0, 20.0, 10.0]
+                    min_acc_idx = 10
+                    max_acc = 0
+                    accuracies = [
+                        metrics.accuracy
+                        for metrics in self.global_metrics[stage][split]
+                    ]
+                    for E, acc in enumerate(accuracies):
+                        for i, target in enumerate(acc_range):
+                            if acc >= target and acc > max_acc:
+                                self.logger.log(f"{target}%({acc:.2f}%) at epoch: {E}")
+                                max_acc = acc
+                                min_acc_idx = i
+                                break
+                        acc_range = acc_range[:min_acc_idx]
 
     def log_info(self):
         """This function is for logging each selected client's training info."""
-        for split in ["train", "val", "test"]:
-            correct_before = torch.tensor(
-                [
-                    self.client_stats[i][self.current_epoch]["before"][split]["correct"]
-                    for i in self.selected_clients
-                ]
-            )
-            correct_after = torch.tensor(
-                [
-                    self.client_stats[i][self.current_epoch]["after"][split]["correct"]
-                    for i in self.selected_clients
-                ]
-            )
-            num_samples = torch.tensor(
-                [
-                    self.client_stats[i][self.current_epoch]["before"][split]["size"]
-                    for i in self.selected_clients
-                ]
-            )
-            acc_before = (
-                correct_before.sum(dim=-1, keepdim=True) / num_samples.sum() * 100.0
-            ).item()
-            acc_after = (
-                correct_after.sum(dim=-1, keepdim=True) / num_samples.sum() * 100.0
-            ).item()
-            self.metrics["before"][split]["accuracy"].append(acc_before)
-            self.metrics["after"][split]["accuracy"].append(acc_after)
-            if self.args.visible:
-                self.viz.line(
-                    [acc_before],
-                    [self.current_epoch],
-                    win=self.viz_win_name,
-                    update="append",
-                    name=f"{split}(before)",
-                    opts=dict(
-                        title=self.viz_win_name,
-                        xlabel="Communication Rounds",
-                        ylabel="Accuracy",
-                    ),
-                )
-                self.viz.line(
-                    [acc_after],
-                    [self.current_epoch],
-                    win=self.viz_win_name,
-                    update="append",
-                    name=f"{split}(after)",
-                )
+        for stage in ["before", "after"]:
+            for split, flag in [
+                ("train", self.args.eval_train),
+                ("val", self.args.eval_val),
+                ("test", self.args.eval_test),
+            ]:
+                if flag:
+                    global_metrics = Metrics()
+                    for i in self.selected_clients:
+                        global_metrics.update(
+                            self.client_metrics[i][self.current_epoch][stage][split]
+                        )
+
+                    self.global_metrics[stage][split].append(global_metrics)
+
+                    if self.args.visible:
+                        self.viz.line(
+                            [global_metrics.accuracy],
+                            [self.current_epoch],
+                            win=self.viz_win_name,
+                            update="append",
+                            name=f"{split}({stage})",
+                            opts=dict(
+                                title=self.viz_win_name,
+                                xlabel="Communication Rounds",
+                                ylabel="Accuracy",
+                            ),
+                        )
 
     def log_max_metrics(self):
         self.logger.log("=" * 20, self.algo, "Max Accuracy", "=" * 20)
@@ -540,23 +497,35 @@ class FedAvgServer:
         }
 
         groups = ["val_clients", "test_clients"]
-        if set(self.train_clients) == set(self.val_clients) == set(self.test_clients):
+        if self.train_clients == self.val_clients == self.test_clients:
             groups = ["all_clients"]
 
         for group in groups:
             self.logger.log(f"{group}:")
             for stage in ["before", "after"]:
-                for split in ["train", "val", "test"]:
-                    epoch, max_acc = max(
-                        [
-                            (epoch, results[group][stage][split]["accuracy"])
-                            for epoch, results in self.eval_results.items()
-                        ],
-                        key=lambda tup: tup[1],
-                    )
-                    self.logger.log(
-                        f"[{colors[split]}]({split})[/{colors[split]}] [{colors[stage]}]{stage}[/{colors[stage]}] fine-tuning: {max_acc:.2f}% at epoch {epoch}"
-                    )
+                for split, flag in [
+                    ("train", self.args.eval_train),
+                    ("val", self.args.eval_val),
+                    ("test", self.args.eval_test),
+                ]:
+                    if flag:
+                        metrics_list = list(
+                            map(
+                                lambda tup: (tup[0], tup[1][group][stage][split]),
+                                self.test_results.items(),
+                            )
+                        )
+                        if len(metrics_list) > 0:
+                            epoch, max_acc = max(
+                                [
+                                    (epoch, metrics.accuracy)
+                                    for epoch, metrics in metrics_list
+                                ],
+                                key=lambda tup: tup[1],
+                            )
+                            self.logger.log(
+                                f"[{colors[split]}]({split})[/{colors[split]}] [{colors[stage]}]{stage}[/{colors[stage]}] fine-tuning: {max_acc:.2f}% at epoch {epoch}"
+                            )
 
     def run(self):
         """The comprehensive FL process.
@@ -588,14 +557,19 @@ class FedAvgServer:
                 epoch: {
                     group: {
                         split: {
-                            "loss": f"{metrics['before'][split]['loss']:.4f} -> {metrics['after'][split]['loss']:.4f}",
-                            "accuracy": f"{metrics['before'][split]['accuracy']:.2f}% -> {metrics['after'][split]['accuracy']:.2f}%",
+                            "loss": f"{metrics['before'][split].loss:.4f} -> {metrics['after'][split].loss:.4f}",
+                            "accuracy": f"{metrics['before'][split].accuracy:.2f}% -> {metrics['after'][split].accuracy:.2f}%",
                         }
-                        for split in ["train", "val", "test"]
+                        for split, flag in [
+                            ("train", self.args.eval_train),
+                            ("val", self.args.eval_val),
+                            ("test", self.args.eval_test),
+                        ]
+                        if flag
                     }
                     for group, metrics in results.items()
                 }
-                for epoch, results in self.eval_results.items()
+                for epoch, results in self.test_results.items()
             }
         )
 
@@ -615,9 +589,12 @@ class FedAvgServer:
             }
             for stage in ["before", "after"]:
                 for split in ["train", "val", "test"]:
-                    if len(self.metrics[stage][split]["accuracy"]) > 0:
+                    if len(self.global_metrics[stage][split]) > 0:
                         plt.plot(
-                            self.metrics[stage][split]["accuracy"],
+                            [
+                                metrics.accuracy
+                                for metrics in self.global_metrics[stage][split]
+                            ],
                             label=f"{split}_{stage}",
                             ls=linestyle[stage][split],
                         )
@@ -637,8 +614,18 @@ class FedAvgServer:
             df = pd.DataFrame()
             for stage in ["before", "after"]:
                 for split in ["train", "val", "test"]:
-                    for metric, stats in self.metrics[stage][split].items():
-                        if len(stats) > 0:
+                    if len(self.global_metrics[stage][split]) > 0:
+                        for metric in [
+                            "accuracy",
+                            "micro_precision",
+                            "macro_precision",
+                            "micro_recall",
+                            "macro_recall",
+                        ]:
+                            stats = [
+                                getattr(metrics, metric)
+                                for metrics in self.global_metrics[stage][split]
+                            ]
                             df.insert(
                                 loc=df.shape[1],
                                 column=f"{metric}_{split}_{stage}",

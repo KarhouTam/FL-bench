@@ -69,7 +69,6 @@ class APFLClient(FedAvgClient):
                 logit_g = self.model(x)
                 logit_p = self.alpha * logit_l + (1 - self.alpha) * logit_g.detach()
                 loss = self.criterion(logit_p, y)
-                self.optimizer.zero_grad()
                 loss.backward()
                 self.optimizer.step()
 
@@ -93,9 +92,9 @@ class APFLClient(FedAvgClient):
         self.alpha.data -= self.args.local_lr * alpha_grad
         self.alpha.clip_(0, 1.0)
 
-    def evaluate(self, model=None, test_flag=False):
+    def evaluate(self):
         return super().evaluate(
-            MixedModel(self.local_model, self.model, alpha=self.alpha), test_flag
+            model=MixedModel(self.local_model, self.model, alpha=self.alpha)
         )
 
 

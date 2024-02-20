@@ -38,7 +38,7 @@ class FedSRModel(DecoupledModel):
 
     def featurize(self, x, num_samples=1, return_dist=False):
         # designed for FedSR
-        z_params = self.map_layer(self.base(x))
+        z_params = F.relu(self.map_layer(F.relu(self.base(x))))
         z_mu = z_params[:, : self.z_dim]
         z_sigma = F.softplus(z_params[:, self.z_dim :])
         z_dist = distrib.Independent(distrib.normal.Normal(z_mu, z_sigma), 1)

@@ -93,7 +93,7 @@ class ADCOLServer(FedAvgServer):
             (
                 delta,
                 weight,
-                self.client_stats[client_id][self.current_epoch],
+                self.client_metrics[client_id][self.current_epoch],
                 self.features[client_id],
             ) = self.trainer.train(
                 client_id=client_id,

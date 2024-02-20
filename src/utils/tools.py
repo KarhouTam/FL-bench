@@ -14,6 +14,7 @@ from torch.utils.data import DataLoader
 from rich.console import Console
 
 from data.utils.datasets import BaseDataset
+from src.utils.metrics import Metrics
 
 PROJECT_DIR = Path(__file__).parent.parent.parent.absolute()
 OUT_DIR = PROJECT_DIR / "out"
@@ -127,8 +128,8 @@ def evalutate_model(
     dataloader: DataLoader,
     criterion=torch.nn.CrossEntropyLoss(reduction="sum"),
     device=torch.device("cpu"),
-) -> Tuple[float, float, int]:
-    """For evaluating the `model` over `dataloader` and return the result calculated by `criterion`.
+) -> Metrics:
+    """For evaluating the `model` over `dataloader` and return metrics.
 
     Args:
         model (torch.nn.Module): Target model.
@@ -137,20 +138,17 @@ def evalutate_model(
         device (torch.device, optional): The device that holds the computation. Defaults to torch.device("cpu").
 
     Returns:
-        Tuple[float, float, int]: [loss, correct num, sample num]
+        Metrics: The metrics objective.
     """
     model.eval()
-    correct = 0
-    loss = 0
-    sample_num = 0
+    metrics = Metrics()
     for x, y in dataloader:
         x, y = x.to(device), y.to(device)
         logits = model(x)
-        loss += criterion(logits, y).item()
+        loss = criterion(logits, y).item()
         pred = torch.argmax(logits, -1)
-        correct += (pred == y).sum().item()
-        sample_num += len(y)
-    return loss, correct, sample_num
+        metrics.update(Metrics(loss, pred, y))
+    return metrics
 
 
 def count_labels(

@@ -74,7 +74,7 @@ class MetaFedServer(FedAvgServer):
                 teacher_params = self.generate_client_params(
                     (client_id + self.client_num - 1) % self.client_num
                 )
-                student_params, self.client_stats[client_id][E] = self.trainer.train(
+                student_params, self.client_metrics[client_id][E] = self.trainer.train(
                     client_id=client_id,
                     local_epoch=self.clients_local_epoch[client_id],
                     student_parameters=student_params,
@@ -107,7 +107,7 @@ class MetaFedServer(FedAvgServer):
 
             (
                 student_params,
-                self.client_stats[client_id][self.current_epoch],
+                self.client_metrics[client_id][self.current_epoch],
             ) = self.trainer.personalize(
                 client_id=client_id,
                 student_parameters=student_params,

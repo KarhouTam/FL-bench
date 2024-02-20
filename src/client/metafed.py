@@ -35,11 +35,10 @@ class MetaFedClient(FedAvgClient):
         return trainable_params(self.model, detach=True)
 
     def update_flag(self):
-        _, val_correct, val_sample_num = evalutate_model(
-            self.model, self.valloader, device=self.device
+        metrics = evalutate_model(self.model, self.valloader, device=self.device)
+        self.client_flags[self.client_id] = (
+            metrics.accuracy > self.args.threshold_1
         )
-        val_acc = val_correct / val_sample_num
-        self.client_flags[self.client_id] = val_acc > self.args.threshold_1
 
     def train(
         self,
@@ -84,14 +83,14 @@ class MetaFedClient(FedAvgClient):
         self.load_dataset()
         self.teacher.load_state_dict(teacher_parameters, strict=False)
 
-        _, student_correct, val_sample_num = evalutate_model(
+        student_metrics = evalutate_model(
             self.model, self.valloader, device=self.device
         )
-        _, teacher_correct, _ = evalutate_model(
+        teacher_metrics = evalutate_model(
             self.teacher, self.valloader, device=self.device
         )
-        teacher_acc = teacher_correct / val_sample_num
-        student_acc = student_correct / val_sample_num
+        teacher_acc = teacher_metrics.accuracy
+        student_acc = student_metrics.accuracy
         if teacher_acc <= student_acc and teacher_acc < self.args.threshold_2:
             self.lamda = 0
         else:

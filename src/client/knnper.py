@@ -6,6 +6,7 @@ import numpy as np
 import faiss
 
 from fedavg import FedAvgClient
+from src.utils.metrics import Metrics
 
 
 class kNNPerClient(FedAvgClient):
@@ -14,16 +15,15 @@ class kNNPerClient(FedAvgClient):
         self.datastore = DataStore(args, self.model.classifier.in_features)
 
     @torch.no_grad()
-    def evaluate(self, model=None, test_flag=False) -> Dict[str, float]:
-        if test_flag:
+    def evaluate(self, model=None):
+        if self.test_flag:
             self.dataset.enable_train_transform = False
             target_model = self.model if model is None else model
             target_model.eval()
             criterion = torch.nn.CrossEntropyLoss(reduction="sum")
             train_features, train_targets = [], []
-            val_loss, test_loss = 0, 0
-            val_correct, test_correct = 0, 0
-            val_size, test_size = 0, 0
+            val_metrics = Metrics()
+            test_metrics = Metrics()
             for x, y in self.trainloader:
                 x, y = x.to(self.device), y.to(self.device)
 
@@ -57,32 +57,18 @@ class kNNPerClient(FedAvgClient):
                 )
                 pred = torch.argmax(logits, dim=-1)
                 loss = criterion(logits, targets).item()
-                correct = (pred == targets).sum().item()
+                return Metrics(loss, pred, targets)
 
-                return loss, correct, len(targets)
-
-            if len(self.testset) > 0 and (test_flag and self.args.eval_test):
-                test_loss, test_correct, test_size = _knnper_eval(self.testloader)
+            if len(self.testset) > 0 and self.args.eval_test:
+                test_metrics = _knnper_eval(self.testloader)
             if len(self.valset) > 0 and self.args.eval_val:
-                val_loss, val_correct, val_size = _knnper_eval(self.valloader)
+                val_metrics = _knnper_eval(self.valloader)
 
             self.dataset.enable_train_transform = True
             # kNN-Per only do kNN trick in model test phase. So stats on training data are not offered.
-            return {
-                "train": {"loss": 0, "correct": 0, "size": 1.0},
-                "val": {
-                    "loss": val_loss,
-                    "correct": val_correct,
-                    "size": float(max(1, val_size)),
-                },
-                "test": {
-                    "loss": test_loss,
-                    "correct": test_correct,
-                    "size": float(max(1, test_size)),
-                },
-            }
+            return {"train": Metrics(), "val": val_metrics, "test": test_metrics}
         else:
-            return super().evaluate(model, test_flag)
+            return super().evaluate(model)
 
     def get_knn_logits(self, features: torch.Tensor):
         distances, indices = self.datastore.index.search(

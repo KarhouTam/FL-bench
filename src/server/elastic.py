@@ -42,7 +42,7 @@ class ElasticServer(FedAvgServer):
             (
                 delta,
                 weight,
-                self.client_stats[client_id][self.current_epoch],
+                self.client_metrics[client_id][self.current_epoch],
                 sensitivity,
             ) = self.trainer.train(
                 client_id=client_id,
