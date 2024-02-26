@@ -24,7 +24,7 @@
     <img alt="GitHub Repo forks" src="https://img.shields.io/github/forks/KarhouTam/FL-bench?style=for-the-badge&logo=github&color=8386e0">
   </a>
 </p>
-<h4 align="center"><i>This is a benchmark for evaluating well-known traditional, personalized and domain generalization federated learning methods. This benchmark straightforward and easy to extend.</i></h4>
+<h4 align="center"><i>This is a benchmark for evaluating well-known traditional, personalized and domain generalization federated learning methods. This benchmark is straightforward and easy to extend.</i></h4>
 
 ## Methods 🧬
 
@@ -105,23 +105,23 @@
 ## Environment Preparation 🧩
 
 ### PyPI 🐍
-```
-pip install -r requirements.txt
+```sh
+pip install -r .environment/requirements.txt
 ```
 
 ### Conda 💻
-```
-conda env create -f environment.yml
+```sh
+conda env create -f .environment/environment.yml
 ```
 
 ### Poetry 🎶
 
 ```sh
 # For those China mainland users
-poetry install --no-root
+cd .environment && poetry install --no-root
 
 # For those oversea users
-sed -i "10,14d" pyproject.toml && poetry lock --no-update && poetry install --no-root
+cd .environment && sed -i "10,14d" pyproject.toml && poetry lock --no-update && poetry install --no-root
 ```
 
 ### Docker 🐳
@@ -132,9 +132,11 @@ docker pull registry.cn-hangzhou.aliyuncs.com/karhoutam/fl-bench:master
 
 # For those oversea users
 docker pull ghcr.io/karhoutam/fl-bench:master
+or
+docker pull docker.io/karhoutam/fl-bench:master
 
 # An example for building container
-docker run -it --name fl-bench --privileged -p 8097:8097 --gpus all  ghcr.io/karhoutam/fl-bench:master
+docker run -it --name fl-bench --privileged -p 8097:8097 --gpus all ghcr.io/karhoutam/fl-bench:master
 ```
 
 
@@ -256,21 +258,21 @@ Medical Image Datasets
 
 ## Citation 🧐
 
-```
+```bibtex
 @software{Tan_FL-bench,
-          author = {Tan, Jiahao and Wang, Xinpeng},
-          license = {GPL-2.0},
-          title = {{FL-bench: A federated learning benchmark for solving image classification tasks}},
-          url = {https://github.com/KarhouTam/FL-bench}
+  author = {Tan, Jiahao and Wang, Xinpeng},
+  license = {GPL-2.0},
+  title = {{FL-bench: A federated learning benchmark for solving image classification tasks}},
+  url = {https://github.com/KarhouTam/FL-bench}
 }
 
 @misc{tan2023pfedsim,
-      title={pFedSim: Similarity-Aware Model Aggregation Towards Personalized Federated Learning}, 
-      author={Jiahao Tan and Yipeng Zhou and Gang Liu and Jessie Hui Wang and Shui Yu},
-      year={2023},
-      eprint={2305.15706},
-      archivePrefix={arXiv},
-      primaryClass={cs.LG}
+  title={pFedSim: Similarity-Aware Model Aggregation Towards Personalized Federated Learning}, 
+  author={Jiahao Tan and Yipeng Zhou and Gang Liu and Jessie Hui Wang and Shui Yu},
+  year={2023},
+  eprint={2305.15706},
+  archivePrefix={arXiv},
+  primaryClass={cs.LG}
 }
 
 ```
