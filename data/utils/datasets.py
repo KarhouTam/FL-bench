@@ -59,7 +59,7 @@ class FEMNIST(BaseDataset):
             root / "targets.npy"
         ):
             raise RuntimeError(
-                "run data/utils/run.py -d femnist for generating the data.npy and targets.npy first."
+                "Please run generate_data.py -d synthetic for generating the data.npy and targets.npy first."
             )
 
         data = np.load(root / "data.npy")
@@ -83,7 +83,7 @@ class Synthetic(BaseDataset):
             root / "targets.npy"
         ):
             raise RuntimeError(
-                "run data/utils/run.py -d femnist for generating the data.npy and targets.npy first."
+                "Please run generate_data.py -d synthetic for generating the data.npy and targets.npy first."
             )
 
         data = np.load(root / "data.npy")
@@ -111,7 +111,7 @@ class CelebA(BaseDataset):
             root / "targets.npy"
         ):
             raise RuntimeError(
-                "run data/utils/run.py -d femnist for generating the data.npy and targets.npy first."
+                "Please run generate_data.py -d synthetic for generating the data.npy and targets.npy first."
             )
 
         data = np.load(root / "data.npy")

@@ -10,6 +10,8 @@ import numpy as np
 from matplotlib import pyplot as plt
 from PIL import Image
 
+from data.utils.datasets import FEMNIST, CelebA, Synthetic
+
 DATA_ROOT = Path(__file__).parent.parent.absolute()
 
 
@@ -81,10 +83,10 @@ def process_femnist(args, partition: Dict, stats: Dict):
     data_indices = {}
     clients_4_train, clients_4_test = None, None
     with open(DATA_ROOT / "femnist" / "preprocess_args.json", "r") as f:
-        args = json.load(f)
+        preprocess_args = json.load(f)
 
     # load data of train clients
-    if args["t"] == "sample":
+    if preprocess_args["t"] == "sample":
         train_filename_list = sorted(os.listdir(train_dir))
         test_filename_list = sorted(os.listdir(test_dir))
         for train_js_file, test_js_file in zip(train_filename_list, test_filename_list):
@@ -103,7 +105,7 @@ def process_femnist(args, partition: Dict, stats: Dict):
                 targets = train_targets + test_targets
                 all_data.append(np.array(data))
                 all_targets.append(np.array(targets))
-                partition["data_indices"][client_cnt] = {
+                data_indices[client_cnt] = {
                     "train": list(range(data_cnt, data_cnt + len(train_data))),
                     "test": list(
                         range(data_cnt + len(train_data), data_cnt + len(data))
@@ -196,6 +198,14 @@ def process_femnist(args, partition: Dict, stats: Dict):
     }
     partition["data_indices"] = [indices for indices in data_indices.values()]
     args.client_num = client_cnt
+    return FEMNIST(
+        root=DATA_ROOT / "femnist",
+        args=None,
+        general_data_transform=None,
+        general_target_transform=None,
+        train_data_transform=None,
+        train_target_transform=None,
+    )
 
 
 def process_celeba(args, partition: Dict, stats: Dict):
@@ -217,9 +227,9 @@ def process_celeba(args, partition: Dict, stats: Dict):
     clients_4_test, clients_4_train = None, None
 
     with open(DATA_ROOT / "celeba" / "preprocess_args.json") as f:
-        args = json.load(f)
+        preprocess_args = json.load(f)
 
-    if args["t"] == "sample":
+    if preprocess_args["t"] == "sample":
         for client_cnt, ori_id in enumerate(train["users"]):
             stats[client_cnt] = {"x": None, "y": None}
             train_data = np.stack(
@@ -360,6 +370,14 @@ def process_celeba(args, partition: Dict, stats: Dict):
     }
     partition["data_indices"] = [indices for indices in data_indices.values()]
     args.client_num = client_cnt
+    return CelebA(
+        root=DATA_ROOT / "celeba",
+        args=None,
+        general_data_transform=None,
+        general_target_transform=None,
+        train_data_transform=None,
+        train_target_transform=None,
+    )
 
 
 def generate_synthetic_data(args, partition: Dict, stats: Dict):
@@ -440,6 +458,7 @@ def generate_synthetic_data(args, partition: Dict, stats: Dict):
         "std": num_samples.mean().item(),
         "stddev": num_samples.std().item(),
     }
+    return Synthetic(root=DATA_ROOT / "synthetic")
 
 
 def exclude_domain(

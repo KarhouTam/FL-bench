@@ -23,7 +23,7 @@ from data.utils.schemes import (
     allocate_shards,
     semantic_partition,
 )
-from data.utils.datasets import DATASETS
+from data.utils.datasets import DATASETS, BaseDataset
 
 CURRENT_DIR = Path(__file__).parent.absolute()
 
@@ -36,22 +36,23 @@ def main(args):
     if not os.path.isdir(dataset_root):
         os.mkdir(dataset_root)
 
-    dataset = DATASETS[args.dataset](dataset_root, args)
-    targets = np.array(dataset.targets, dtype=np.int32)
-    label_set = set(range(len(dataset.classes)))
     client_num = args.client_num
     partition = {"separation": None, "data_indices": [[] for _ in range(client_num)]}
     stats = {}
-
+    dataset: BaseDataset = None
+    
     if args.dataset == "femnist":
-        process_femnist(args, partition, stats)
+        dataset = process_femnist(args, partition, stats)
     elif args.dataset == "celeba":
-        process_celeba(args, partition, stats)
+        dataset = process_celeba(args, partition, stats)
     elif args.dataset == "synthetic":
-        generate_synthetic_data(args, partition, stats)
+        dataset = generate_synthetic_data(args, partition, stats)
     else:  # MEDMNIST, COVID, MNIST, CIFAR10, ...
         # NOTE: If `args.ood_domains`` is not empty, then FL-bench will map all labels (class space) to the domain space
         # and partition data according to the new `targets` array.
+        dataset = DATASETS[args.dataset](dataset_root, args)
+        targets = np.array(dataset.targets, dtype=np.int32)
+        label_set = set(range(len(dataset.classes)))
         if args.dataset in ["domain"] and args.ood_domains:
             metadata = json.load(open(dataset_root / "metadata.json", "r"))
             label_set, targets, client_num = exclude_domain(
