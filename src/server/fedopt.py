@@ -16,9 +16,9 @@ def get_fedopt_argparser() -> ArgumentParser:
         "--type", choices=["adagrad", "yogi", "adam"], type=str, default="adam"
     )
     parser.add_argument("--beta1", type=float, default=0.9)
-    parser.add_argument("--beta2", type=float, default=0.99)
-    parser.add_argument("--server_lr", type=float, default=-1)
-    parser.add_argument("--tau", type=float, default=-3)
+    parser.add_argument("--beta2", type=float, default=0.999)
+    parser.add_argument("--server_lr", type=float, default=1e-1)
+    parser.add_argument("--tau", type=float, default=1e-3)
     return parser
 
 
@@ -51,15 +51,13 @@ class FedOptServer(FedAvgServer):
         weight_cache = []
         for client_id in self.selected_clients:
             client_local_params = self.generate_client_params(client_id)
-            (
-                delta,
-                weight,
-                self.client_metrics[client_id][self.current_epoch],
-            ) = self.trainer.train(
-                client_id=client_id,
-                local_epoch=self.clients_local_epoch[client_id],
-                new_parameters=client_local_params,
-                verbose=((self.current_epoch + 1) % self.args.verbose_gap) == 0,
+            (delta, weight, self.client_metrics[client_id][self.current_epoch]) = (
+                self.trainer.train(
+                    client_id=client_id,
+                    local_epoch=self.clients_local_epoch[client_id],
+                    new_parameters=client_local_params,
+                    verbose=((self.current_epoch + 1) % self.args.verbose_gap) == 0,
+                )
             )
 
             delta_cache.append(delta)
@@ -124,7 +122,7 @@ class AdaptiveOptimizer:
         for param, m, v in zip(
             trainable_params(self.model), self.momentums, self.velocities
         ):
-            param.data = param.data + self.lr * (m / (v.sqrt() + self.tau))
+            param.data = param.data - self.lr * (m / (v.sqrt() + self.tau))
 
     def _update_adagrad(self, delta_list):
         for v, delta in zip(self.velocities, delta_list):
