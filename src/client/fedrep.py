@@ -7,6 +7,7 @@ class FedRepClient(FedPerClient):
 
     def fit(self):
         self.model.train()
+        self.dataset.train()
         for E in range(self.local_epoch):
             for x, y in self.trainloader:
                 if len(x) <= 1:
@@ -31,6 +32,7 @@ class FedRepClient(FedPerClient):
 
     def finetune(self):
         self.model.train()
+        self.dataset.train()
         full_model = False
         if full_model:
             # fine-tune the full model

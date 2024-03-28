@@ -40,6 +40,7 @@ class PerFedAvgClient(FedAvgClient):
 
     def fit(self):
         self.model.train()
+        self.dataset.train()
         for _ in range(self.local_epoch):
             for _ in range(len(self.trainloader) // (2 + (self.args.version == "hf"))):
                 x0, y0 = self.get_data_batch()

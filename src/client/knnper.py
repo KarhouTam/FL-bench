@@ -1,5 +1,5 @@
 import random
-from typing import Dict, List
+from typing import List
 
 import torch
 import numpy as np
@@ -17,7 +17,7 @@ class kNNPerClient(FedAvgClient):
     @torch.no_grad()
     def evaluate(self, model=None):
         if self.test_flag:
-            self.dataset.enable_train_transform = False
+            self.dataset.eval()
             target_model = self.model if model is None else model
             target_model.eval()
             criterion = torch.nn.CrossEntropyLoss(reduction="sum")

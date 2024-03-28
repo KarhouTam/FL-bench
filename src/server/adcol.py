@@ -82,6 +82,7 @@ class ADCOLServer(FedAvgServer):
             self.client_num,
         )
         self.feature_dataloader = None
+        self.features = {}
 
     def train_one_round(self):
         delta_cache = []

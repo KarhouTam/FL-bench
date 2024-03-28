@@ -60,7 +60,9 @@ class MetaFedClient(FedAvgClient):
         return trainable_params(self.model, detach=True), stats
 
     def fit(self):
+        self.model.train()
         self.teacher.eval()
+        self.dataset.train()
         for _ in range(self.local_epoch):
             for x, y in self.trainloader:
                 x, y = x.to(self.device), y.to(self.device)

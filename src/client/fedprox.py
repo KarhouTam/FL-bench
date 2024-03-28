@@ -8,6 +8,7 @@ class FedProxClient(FedAvgClient):
 
     def fit(self):
         self.model.train()
+        self.dataset.train()
         global_params = trainable_params(self.model, detach=True)
         for _ in range(self.local_epoch):
             for x, y in self.trainloader:

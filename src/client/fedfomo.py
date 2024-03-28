@@ -3,7 +3,6 @@ from copy import deepcopy
 from typing import Dict, List
 
 import torch
-from torch.utils.data import DataLoader, Subset
 
 from fedavg import FedAvgClient
 from src.utils.tools import trainable_params, evalutate_model, vectorize
@@ -16,8 +15,6 @@ class FedFomoClient(FedAvgClient):
         self.eval_model = deepcopy(self.model)
         self.weight_vector = torch.zeros(client_num, device=self.device)
         self.trainable_params_name = trainable_params(self.model, requires_name=True)[1]
-        self.valset = Subset(self.dataset, indices=[])
-        self.valloader: DataLoader = None
 
     def train(
         self,
@@ -42,7 +39,6 @@ class FedFomoClient(FedAvgClient):
         num_val_samples = int(len(self.trainset) * self.args.valset_ratio)
         self.valset.indices = self.trainset.indices[:num_val_samples]
         self.trainset.indices = self.trainset.indices[num_val_samples:]
-        self.valloader = DataLoader(self.valset, 32, shuffle=True)
 
     def set_parameters(self, received_params: Dict[int, List[torch.Tensor]]):
         local_params_dict = OrderedDict(

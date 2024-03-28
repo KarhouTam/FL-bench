@@ -53,6 +53,7 @@ class APFLClient(FedAvgClient):
     def fit(self):
         self.model.train()
         self.local_model.train()
+        self.dataset.train()
         for i in range(self.local_epoch):
             for x, y in self.trainloader:
                 if len(x) <= 1:

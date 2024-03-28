@@ -30,7 +30,7 @@ class ElasticServer(FedAvgServer):
             deepcopy(self.model), self.args, self.logger, self.device
         )
         self.client_lr_scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(
-            self.trainer.optimizer, self.args.global_epoch, verbose=False
+            self.trainer.optimizer, self.args.global_epoch
         )
 
     def train_one_round(self):

@@ -15,7 +15,7 @@ from src.utils.tools import trainable_params, evalutate_model, Logger
 from src.utils.metrics import Metrics
 from src.utils.models import DecoupledModel
 from src.utils.constants import DATA_MEAN, DATA_STD
-from data.utils.datasets import DATASETS
+from data.utils.datasets import DATASETS, BaseDataset
 
 
 class FedAvgClient:
@@ -40,8 +40,8 @@ class FedAvgClient:
 
         self.data_indices: List[List[int]] = partition["data_indices"]
 
-        # --------- you can define your own data transformation strategy here ------------
-        general_data_transform = transforms.Compose(
+        # --------- you can define your custom data preprocessing strategy here ------------
+        test_data_transform = transforms.Compose(
             [
                 transforms.Normalize(
                     DATA_MEAN[self.args.dataset], DATA_STD[self.args.dataset]
@@ -50,26 +50,37 @@ class FedAvgClient:
             if self.args.dataset in DATA_MEAN and self.args.dataset in DATA_STD
             else []
         )
-        general_target_transform = transforms.Compose([])
-        train_data_transform = transforms.Compose([])
+        test_target_transform = transforms.Compose([])
+        train_data_transform = transforms.Compose(
+            [
+                transforms.Normalize(
+                    DATA_MEAN[self.args.dataset], DATA_STD[self.args.dataset]
+                )
+            ]
+            if self.args.dataset in DATA_MEAN and self.args.dataset in DATA_STD
+            else []
+        )
         train_target_transform = transforms.Compose([])
         # --------------------------------------------------------------------------------
 
-        self.dataset = DATASETS[self.args.dataset](
+        self.dataset: BaseDataset = DATASETS[self.args.dataset](
             root=PROJECT_DIR / "data" / args.dataset,
             args=args.dataset_args,
-            general_data_transform=general_data_transform,
-            general_target_transform=general_target_transform,
+            test_data_transform=test_data_transform,
+            test_target_transform=test_target_transform,
             train_data_transform=train_data_transform,
             train_target_transform=train_target_transform,
         )
 
-        self.trainloader: DataLoader = None
-        self.valloader: DataLoader = None
-        self.testloader: DataLoader = None
-        self.trainset: Subset = Subset(self.dataset, indices=[])
-        self.valset: Subset = Subset(self.dataset, indices=[])
-        self.testset: Subset = Subset(self.dataset, indices=[])
+        # don't bother with the [0], which is only for avoiding raising runtime error by setting indices=[] in Subset() with shuffle=True in DataLoader()
+        self.trainset = Subset(self.dataset, indices=[0])
+        self.valset = Subset(self.dataset, indices=[])
+        self.testset = Subset(self.dataset, indices=[])
+        self.trainloader = DataLoader(
+            self.trainset, batch_size=self.args.batch_size, shuffle=True
+        )
+        self.valloader = DataLoader(self.valset, batch_size=self.args.batch_size)
+        self.testloader = DataLoader(self.testset, batch_size=self.args.batch_size)
         self.test_flag = False
 
         self.model = model.to(self.device)
@@ -102,11 +113,8 @@ class FedAvgClient:
     def load_dataset(self):
         """This function is for loading data indices for No.`self.client_id` client."""
         self.trainset.indices = self.data_indices[self.client_id]["train"]
-        self.testset.indices = self.data_indices[self.client_id]["test"]
         self.valset.indices = self.data_indices[self.client_id]["val"]
-        self.trainloader = DataLoader(self.trainset, self.args.batch_size, shuffle=True)
-        self.valloader = DataLoader(self.valset, self.args.batch_size)
-        self.testloader = DataLoader(self.testset, self.args.batch_size)
+        self.testset.indices = self.data_indices[self.client_id]["test"]
 
     def train_and_log(self, verbose=False) -> Dict[str, Dict[str, float]]:
         """This function includes the local training and logging process.
@@ -192,8 +200,8 @@ class FedAvgClient:
             new_parameters (OrderedDict[str, torch.Tensor]): Parameters of FL model.
 
             return_diff (bool, optional):
-            Set as `True` to send the difference between FL model parameters that before and after training;
-            Set as `False` to send FL model parameters without any change.  Defaults to True.
+            `True`: to send the differences between FL model parameters that before and after training;
+            `False`: to send FL model parameters without any change.  Defaults to True.
 
             verbose (bool, optional): Set to `True` for print logging info onto the stdout (Controled by the server by default). Defaults to False.
 
@@ -228,6 +236,7 @@ class FedAvgClient:
         If you wanna implement your method and your method has different local training operations to FedAvg, this method has to be overrided.
         """
         self.model.train()
+        self.dataset.train()
         for _ in range(self.local_epoch):
             for x, y in self.trainloader:
                 # When the current batch size is 1, the batchNorm2d modules in the model would raise error.
@@ -257,6 +266,7 @@ class FedAvgClient:
 
         target_model = self.model if model is None else model
         target_model.eval()
+        self.dataset.eval()
         train_metrics = Metrics()
         val_metrics = Metrics()
         test_metrics = Metrics()
@@ -326,6 +336,7 @@ class FedAvgClient:
         This function will only be activated in FL test epoches.
         """
         self.model.train()
+        self.dataset.train()
         for _ in range(self.args.finetune_epoch):
             for x, y in self.trainloader:
                 if len(x) <= 1:

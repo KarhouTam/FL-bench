@@ -22,21 +22,27 @@ class BaseDataset(Dataset):
         self.targets: torch.Tensor = None
         self.train_data_transform = None
         self.train_target_transform = None
-        self.general_data_transform = None
-        self.general_target_transform = None
-        self.enable_train_transform = True
+        self.test_data_transform = None
+        self.test_target_transform = None
+        self.data_transform = None
+        self.target_transform = None
 
     def __getitem__(self, index):
         data, targets = self.data[index], self.targets[index]
-        if self.enable_train_transform and self.train_data_transform is not None:
-            data = self.train_data_transform(data)
-        if self.enable_train_transform and self.train_target_transform is not None:
-            targets = self.train_target_transform(targets)
-        if self.general_data_transform is not None:
-            data = self.general_data_transform(data)
-        if self.general_target_transform is not None:
-            targets = self.general_target_transform(targets)
+        if self.data_transform is not None:
+            data = self.data_transform(data)
+        if self.target_transform is not None:
+            targets = self.target_transform(targets)
+
         return data, targets
+
+    def train(self):
+        self.data_transform = self.train_data_transform
+        self.target_transform = self.train_target_transform
+
+    def eval(self):
+        self.data_transform = self.test_data_transform
+        self.target_transform = self.test_target_transform
 
     def __len__(self):
         return len(self.targets)
@@ -47,8 +53,8 @@ class FEMNIST(BaseDataset):
         self,
         root,
         args=None,
-        general_data_transform=None,
-        general_target_transform=None,
+        test_data_transform=None,
+        test_target_transform=None,
         train_data_transform=None,
         train_target_transform=None,
     ) -> None:
@@ -68,8 +74,8 @@ class FEMNIST(BaseDataset):
         self.data = torch.from_numpy(data).float().reshape(-1, 1, 28, 28)
         self.targets = torch.from_numpy(targets).long()
         self.classes = list(range(62))
-        self.general_data_transform = general_data_transform
-        self.general_target_transform = general_target_transform
+        self.test_data_transform = test_data_transform
+        self.test_target_transform = test_target_transform
         self.train_data_transform = train_data_transform
         self.train_target_transform = train_target_transform
 
@@ -99,8 +105,8 @@ class CelebA(BaseDataset):
         self,
         root,
         args=None,
-        general_data_transform=None,
-        general_target_transform=None,
+        test_data_transform=None,
+        test_target_transform=None,
         train_data_transform=None,
         train_target_transform=None,
     ) -> None:
@@ -119,8 +125,8 @@ class CelebA(BaseDataset):
 
         self.data = torch.from_numpy(data).permute([0, -1, 1, 2]).float()
         self.targets = torch.from_numpy(targets).long()
-        self.general_data_transform = general_data_transform
-        self.general_target_transform = general_target_transform
+        self.test_data_transform = test_data_transform
+        self.test_target_transform = test_target_transform
         self.train_data_transform = train_data_transform
         self.train_target_transform = train_target_transform
         self.classes = [0, 1]
@@ -131,8 +137,8 @@ class MedMNIST(BaseDataset):
         self,
         root,
         args=None,
-        general_data_transform=None,
-        general_target_transform=None,
+        test_data_transform=None,
+        test_target_transform=None,
         train_data_transform=None,
         train_target_transform=None,
     ):
@@ -146,8 +152,8 @@ class MedMNIST(BaseDataset):
         self.targets = (
             torch.Tensor(np.load(root / "raw" / "ydata.npy")).long().squeeze()
         )
-        self.general_data_transform = general_data_transform
-        self.general_target_transform = general_target_transform
+        self.test_data_transform = test_data_transform
+        self.test_target_transform = test_target_transform
         self.train_data_transform = train_data_transform
         self.train_target_transform = train_target_transform
 
@@ -157,8 +163,8 @@ class COVID19(BaseDataset):
         self,
         root,
         args=None,
-        general_data_transform=None,
-        general_target_transform=None,
+        test_data_transform=None,
+        test_target_transform=None,
         train_data_transform=None,
         train_target_transform=None,
     ):
@@ -174,8 +180,8 @@ class COVID19(BaseDataset):
             torch.Tensor(np.load(root / "raw" / "ydata.npy")).long().squeeze()
         )
         self.classes = [0, 1, 2, 3]
-        self.general_data_transform = general_data_transform
-        self.general_target_transform = general_target_transform
+        self.test_data_transform = test_data_transform
+        self.test_target_transform = test_target_transform
         self.train_data_transform = train_data_transform
         self.train_target_transform = train_target_transform
 
@@ -185,8 +191,8 @@ class USPS(BaseDataset):
         self,
         root,
         args=None,
-        general_data_transform=None,
-        general_target_transform=None,
+        test_data_transform=None,
+        test_target_transform=None,
         train_data_transform=None,
         train_target_transform=None,
     ):
@@ -203,8 +209,8 @@ class USPS(BaseDataset):
         self.data = torch.cat([train_data, test_data])
         self.targets = torch.cat([train_targets, test_targets])
         self.classes = list(range(10))
-        self.general_data_transform = general_data_transform
-        self.general_target_transform = general_target_transform
+        self.test_data_transform = test_data_transform
+        self.test_target_transform = test_target_transform
         self.train_data_transform = train_data_transform
         self.train_target_transform = train_target_transform
 
@@ -214,8 +220,8 @@ class SVHN(BaseDataset):
         self,
         root,
         args=None,
-        general_data_transform=None,
-        general_target_transform=None,
+        test_data_transform=None,
+        test_target_transform=None,
         train_data_transform=None,
         train_target_transform=None,
     ):
@@ -232,8 +238,8 @@ class SVHN(BaseDataset):
         self.data = torch.cat([train_data, test_data])
         self.targets = torch.cat([train_targets, test_targets])
         self.classes = list(range(10))
-        self.general_data_transform = general_data_transform
-        self.general_target_transform = general_target_transform
+        self.test_data_transform = test_data_transform
+        self.test_target_transform = test_target_transform
         self.train_data_transform = train_data_transform
         self.train_target_transform = train_target_transform
 
@@ -243,8 +249,8 @@ class MNIST(BaseDataset):
         self,
         root,
         args=None,
-        general_data_transform=None,
-        general_target_transform=None,
+        test_data_transform=None,
+        test_target_transform=None,
         train_data_transform=None,
         train_target_transform=None,
     ):
@@ -258,8 +264,8 @@ class MNIST(BaseDataset):
         self.data = torch.cat([train_data, test_data])
         self.targets = torch.cat([train_targets, test_targets])
         self.classes = train_part.classes
-        self.general_data_transform = general_data_transform
-        self.general_target_transform = general_target_transform
+        self.test_data_transform = test_data_transform
+        self.test_target_transform = test_target_transform
         self.train_data_transform = train_data_transform
         self.train_target_transform = train_target_transform
 
@@ -269,8 +275,8 @@ class FashionMNIST(BaseDataset):
         self,
         root,
         args=None,
-        general_data_transform=None,
-        general_target_transform=None,
+        test_data_transform=None,
+        test_target_transform=None,
         train_data_transform=None,
         train_target_transform=None,
     ):
@@ -284,8 +290,8 @@ class FashionMNIST(BaseDataset):
         self.data = torch.cat([train_data, test_data])
         self.targets = torch.cat([train_targets, test_targets])
         self.classes = train_part.classes
-        self.general_data_transform = general_data_transform
-        self.general_target_transform = general_target_transform
+        self.test_data_transform = test_data_transform
+        self.test_target_transform = test_target_transform
         self.train_data_transform = train_data_transform
         self.train_target_transform = train_target_transform
 
@@ -295,8 +301,8 @@ class EMNIST(BaseDataset):
         self,
         root,
         args,
-        general_data_transform=None,
-        general_target_transform=None,
+        test_data_transform=None,
+        test_target_transform=None,
         train_data_transform=None,
         train_target_transform=None,
     ):
@@ -319,8 +325,8 @@ class EMNIST(BaseDataset):
         self.data = torch.cat([train_data, test_data])
         self.targets = torch.cat([train_targets, test_targets])
         self.classes = train_part.classes
-        self.general_data_transform = general_data_transform
-        self.general_target_transform = general_target_transform
+        self.test_data_transform = test_data_transform
+        self.test_target_transform = test_target_transform
         self.train_data_transform = train_data_transform
         self.train_target_transform = train_target_transform
 
@@ -330,8 +336,8 @@ class CIFAR10(BaseDataset):
         self,
         root,
         args=None,
-        general_data_transform=None,
-        general_target_transform=None,
+        test_data_transform=None,
+        test_target_transform=None,
         train_data_transform=None,
         train_target_transform=None,
     ):
@@ -345,8 +351,8 @@ class CIFAR10(BaseDataset):
         self.data = torch.cat([train_data, test_data])
         self.targets = torch.cat([train_targets, test_targets])
         self.classes = train_part.classes
-        self.general_data_transform = general_data_transform
-        self.general_target_transform = general_target_transform
+        self.test_data_transform = test_data_transform
+        self.test_target_transform = test_target_transform
         self.train_data_transform = train_data_transform
         self.train_target_transform = train_target_transform
 
@@ -356,8 +362,8 @@ class CIFAR100(BaseDataset):
         self,
         root,
         args,
-        general_data_transform=None,
-        general_target_transform=None,
+        test_data_transform=None,
+        test_target_transform=None,
         train_data_transform=None,
         train_target_transform=None,
     ):
@@ -371,8 +377,8 @@ class CIFAR100(BaseDataset):
         self.data = torch.cat([train_data, test_data])
         self.targets = torch.cat([train_targets, test_targets])
         self.classes = train_part.classes
-        self.general_data_transform = general_data_transform
-        self.general_target_transform = general_target_transform
+        self.test_data_transform = test_data_transform
+        self.test_target_transform = test_target_transform
         self.train_data_transform = train_data_transform
         self.train_target_transform = train_target_transform
         super_class = None
@@ -420,8 +426,8 @@ class TinyImagenet(BaseDataset):
         self,
         root,
         args=None,
-        general_data_transform=None,
-        general_target_transform=None,
+        test_data_transform=None,
+        test_target_transform=None,
         train_data_transform=None,
         train_target_transform=None,
     ):
@@ -472,8 +478,8 @@ class TinyImagenet(BaseDataset):
 
         self.data = torch.load(root / "data.pt")
         self.targets = torch.load(root / "targets.pt")
-        self.general_data_transform = general_data_transform
-        self.general_target_transform = general_target_transform
+        self.test_data_transform = test_data_transform
+        self.test_target_transform = test_target_transform
         self.train_data_transform = train_data_transform
         self.train_target_transform = train_target_transform
 
@@ -483,8 +489,8 @@ class CINIC10(BaseDataset):
         self,
         root,
         args=None,
-        general_data_transform=None,
-        general_target_transform=None,
+        test_data_transform=None,
+        test_target_transform=None,
         train_data_transform=None,
         train_target_transform=None,
     ):
@@ -528,8 +534,8 @@ class CINIC10(BaseDataset):
 
         self.data = torch.load(root / "data.pt")
         self.targets = torch.load(root / "targets.pt")
-        self.general_data_transform = general_data_transform
-        self.general_target_transform = general_target_transform
+        self.test_data_transform = test_data_transform
+        self.test_target_transform = test_target_transform
         self.train_data_transform = train_data_transform
         self.train_target_transform = train_target_transform
 
@@ -539,8 +545,8 @@ class DomainNet(BaseDataset):
         self,
         root,
         args=None,
-        general_data_transform=None,
-        general_target_transform=None,
+        test_data_transform=None,
+        test_target_transform=None,
         train_data_transform=None,
         train_target_transform=None,
     ) -> None:
@@ -576,22 +582,18 @@ class DomainNet(BaseDataset):
                 transforms.ToTensor(),
             ]
         )
-        self.general_data_transform = general_data_transform
-        self.general_target_transform = general_target_transform
+        self.test_data_transform = test_data_transform
+        self.test_target_transform = test_target_transform
         self.train_data_transform = train_data_transform
         self.train_target_transform = train_target_transform
 
     def __getitem__(self, index):
         data = self.pre_transform(Image.open(self.filename_list[index]).convert("RGB"))
         targets = self.targets[index]
-        if self.enable_train_transform and self.train_data_transform is not None:
-            data = self.train_data_transform(data)
-        if self.enable_train_transform and self.train_target_transform is not None:
-            targets = self.train_target_transform(targets)
-        if self.general_data_transform is not None:
-            data = self.general_data_transform(data)
-        if self.general_target_transform is not None:
-            targets = self.general_target_transform(targets)
+        if self.data_transform is not None:
+            data = self.data_transform(data)
+        if self.target_transform is not None:
+            targets = self.target_transform(targets)
         return data, targets
 
 

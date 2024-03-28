@@ -94,6 +94,8 @@ class FedRoDClient(FedAvgClient):
             )
 
     def fit(self):
+        self.model.train()
+        self.dataset.train()
         label_counts = torch.tensor(
             count_labels(self.dataset, self.trainset.indices), device=self.device
         )
@@ -115,7 +117,6 @@ class FedRoDClient(FedAvgClient):
                 .clone()
             )
 
-        self.model.train()
         for _ in range(self.local_epoch):
             for x, y in self.trainloader:
                 if len(x) <= 1:
@@ -149,6 +150,7 @@ class FedRoDClient(FedAvgClient):
 
     def finetune(self):
         self.model.train()
+        self.dataset.train()
         for _ in range(self.args.finetune_epoch):
             for x, y in self.trainloader:
                 if len(x) <= 1:

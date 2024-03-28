@@ -15,10 +15,12 @@ class ADCOLClient(FedAvgClient):
         self.discriminator = discriminator
         self.discriminator.to(self.device)
         self.client_num = client_num
+        self.featrure_list = []
 
     def fit(self):
         self.model.train()
         self.discriminator.eval()
+        self.dataset.train()
         self.featrure_list = []
         for i in range(self.local_epoch):
             for x, y in self.trainloader:
