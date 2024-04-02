@@ -38,7 +38,8 @@ class FedAvgClient:
         except:
             raise FileNotFoundError(f"Please partition {args.dataset} first.")
 
-        self.data_indices: List[List[int]] = partition["data_indices"]
+        # [0: {"train": [...], "val": [...], "test": [...]}, ...]
+        self.data_indices: List[Dict[str, List[int]]] = partition["data_indices"]
 
         # --------- you can define your custom data preprocessing strategy here ------------
         test_data_transform = transforms.Compose(
@@ -311,7 +312,7 @@ class FedAvgClient:
         Returns:
             Dict[str, Dict[str, Metrics]]: the evalutaion metrics stats.
         """
-        self.test_flag = True
+        self.testing = True
         self.client_id = client_id
         self.load_dataset()
         self.set_parameters(new_parameters)
@@ -327,7 +328,8 @@ class FedAvgClient:
             self.finetune()
             results["after"] = self.evaluate()
             self.model.load_state_dict(frz_params_dict)
-        self.test_flag = False
+            
+        self.testing = False
         return results
 
     def finetune(self):

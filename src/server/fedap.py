@@ -139,7 +139,7 @@ class FedAPServer(FedAvgServer):
             if (E + 1) % self.args.verbose_gap == 0:
                 self.logger.log(" " * 30, f"TRAINING EPOCH: {E + 1}", " " * 30)
 
-            if (E + 1) % self.args.test_gap == 0:
+            if (E + 1) % self.args.test_interval == 0:
                 self.test()
 
             self.selected_clients = self.client_sample_stream[E]

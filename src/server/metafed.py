@@ -64,7 +64,7 @@ class MetaFedServer(FedAvgServer):
             if (E + 1) % self.args.verbose_gap == 0:
                 self.logger.log("-" * 26, f"TRAINING EPOCH: {E + 1}", "-" * 26)
 
-            if (E + 1) % self.args.test_gap == 0:
+            if (E + 1) % self.args.test_interval == 0:
                 self.test()
 
             client_params_cache = []

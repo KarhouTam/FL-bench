@@ -47,7 +47,7 @@ def get_fedavg_argparser() -> ArgumentParser:
     parser.add_argument("-ge", "--global_epoch", type=int, default=100)
     parser.add_argument("-le", "--local_epoch", type=int, default=5)
     parser.add_argument("-fe", "--finetune_epoch", type=int, default=0)
-    parser.add_argument("-tg", "--test_gap", type=int, default=100)
+    parser.add_argument("-ti", "--test_interval", type=int, default=100)
     parser.add_argument("--eval_test", type=int, default=1)
     parser.add_argument("--eval_val", type=int, default=0)
     parser.add_argument("--eval_train", type=int, default=0)
@@ -175,7 +175,7 @@ class FedAvgServer:
         self.epoch_test = [
             epoch
             for epoch in range(0, self.args.global_epoch)
-            if (epoch + 1) % self.args.test_gap == 0
+            if (epoch + 1) % self.args.test_interval == 0
         ]
         # For controlling behaviors of some specific methods while testing (not used by all methods)
         self.test_flag = False
@@ -237,7 +237,7 @@ class FedAvgServer:
             if (E + 1) % self.args.verbose_gap == 0:
                 self.logger.log("-" * 26, f"TRAINING EPOCH: {E + 1}", "-" * 26)
 
-            if (E + 1) % self.args.test_gap == 0:
+            if (E + 1) % self.args.test_interval == 0:
                 self.test()
 
             self.selected_clients = self.client_sample_stream[E]
@@ -259,15 +259,13 @@ class FedAvgServer:
         weight_cache = []
         for client_id in self.selected_clients:
             client_local_params = self.generate_client_params(client_id)
-            (
-                delta,
-                weight,
-                self.client_metrics[client_id][self.current_epoch],
-            ) = self.trainer.train(
-                client_id=client_id,
-                local_epoch=self.clients_local_epoch[client_id],
-                new_parameters=client_local_params,
-                verbose=((self.current_epoch + 1) % self.args.verbose_gap) == 0,
+            (delta, weight, self.client_metrics[client_id][self.current_epoch]) = (
+                self.trainer.train(
+                    client_id=client_id,
+                    local_epoch=self.clients_local_epoch[client_id],
+                    new_parameters=client_local_params,
+                    verbose=((self.current_epoch + 1) % self.args.verbose_gap) == 0,
+                )
             )
 
             delta_cache.append(delta)

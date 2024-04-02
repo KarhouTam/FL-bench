@@ -112,12 +112,12 @@ class ADCOLServer(FedAvgServer):
 
     def train_and_test_discriminator(self):
         self.generate_client_index()
-        if (self.current_epoch + 1) % self.args.test_gap == 0:
+        if (self.current_epoch + 1) % self.args.test_interval == 0:
             acc_before = self.test_discriminator()
 
         self.train_discriminator()
 
-        if (self.current_epoch + 1) % self.args.test_gap == 0:
+        if (self.current_epoch + 1) % self.args.test_interval == 0:
             acc_after = self.test_discriminator()
             if (self.current_epoch + 1) % self.args.verbose_gap == 0:
                 self.logger.log(
