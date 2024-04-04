@@ -28,7 +28,10 @@
 
 ## Methods 🧬
 
-### Traditional FL Methods
+
+
+<details>
+<summary><b>Traditional FL Methods</b></summary>
 
 - ***FedAvg*** -- [Communication-Efficient Learning of Deep Networks from Decentralized Data](https://arxiv.org/abs/1602.05629) (AISTATS'17)
 
@@ -51,8 +54,10 @@
 - ***FedOpt*** -- [Adaptive Federated Optimization](https://arxiv.org/abs/2003.00295) (ICLR'21)
 
 - ***Elastic Aggregation*** -- [Elastic Aggregation for Federated Optimization](https://openaccess.thecvf.com/content/CVPR2023/html/Chen_Elastic_Aggregation_for_Federated_Optimization_CVPR_2023_paper.html) (CVPR'23)
+</details>
 
-### Personalized FL Methods
+<details>
+<summary><b>Personalized FL Methods</b></summary>
 
 - ***pFedSim (My Work⭐)*** -- [pFedSim: Similarity-Aware Model Aggregation Towards Personalized Federated Learning](https://arxiv.org/abs/2305.15706) (ArXiv'23)
 
@@ -96,7 +101,11 @@
 
 - ***FedProto*** -- [FedProto: Federated prototype learning across heterogeneous clients](https://arxiv.org/abs/2105.00243) (AAAI'22)
 
-### FL Domain Generalization Methods
+</details>
+
+
+<details>
+<summary><b>FL Domain Generalization Methods</b></summary>
 
 - ***FedSR*** -- [FedSR: A Simple and Effective Domain Generalization Method for Federated Learning](https://openreview.net/forum?id=mrt90D00aQX) (NIPS'22)
   
@@ -104,7 +113,11 @@
   
 - ***FedIIR*** -- [Out-of-Distribution Generalization of Federated Learning via Implicit Invariant Relationships](https://openreview.net/pdf?id=JC05k0E2EM) (ICML'23)
 
+</details>
+
 ## Environment Preparation 🧩
+
+Just select one of them.
 
 ### PyPI 🐍
 ```sh
@@ -134,7 +147,7 @@ docker pull registry.cn-hangzhou.aliyuncs.com/karhoutam/fl-bench:master
 
 # For those oversea users
 docker pull ghcr.io/karhoutam/fl-bench:master
-or
+# or
 docker pull docker.io/karhoutam/fl-bench:master
 
 # An example for building container
@@ -146,64 +159,95 @@ docker run -it --name fl-bench --privileged -p 8097:8097 --gpus all ghcr.io/karh
 
 ALL classes of methods are inherited from `FedAvgServer` and `FedAvgClient`. If you wanna figure out the entire workflow and detail of variable settings, go check [`src/server/fedavg.py`](src/server/fedavg.py) and [`src/client/fedavg.py`](src/client/fedavg.py).
 
-
+### Step 1. Generate FL Dataset
 ```shell
 # partition the CIFAR-10 according to Dir(0.1) for 100 clients
 python generate_data.py -d cifar10 -a 0.1 -cn 100
-
-# run FedAvg on CIFAR-10 with default settings.
-# Use main.py like python main.py <method> [args ...]
-# ❗ Method name should be identical to the `.py` file name in `src/server`.
-python main.py fedavg -d cifar10
 ```
-
 About methods of generating federated dastaset, go check [`data/README.md`](data/#readme) for full details.
 
 
-### Monitor 📈 (recommended 👍)
+### Step 2. Run Experiment
+`python main.py <method> <your_config_file.yml> [method_args...]`
+
+❗ Method name should be identical to the `.py` file name in `src/server`.
+
+```
+# run FedAvg on CIFAR-10 with default settings.
+python main.py fedavg config/your_config.yml
+```
+
+
+### How To Customize Experiment Arguments 🤖
+- By modifying config file
+- By explicitly setting in CLI, e.g., `python main.py fedprox config/my_cfg.yml --mu 0.01`.
+- By modifying the default value in `src/utils/constants.py/DEFAULT_COMMON_ARGS` or `src/server/<method>.py/get_<method>_args()`
+
+⚠ For the same FL method argument, the priority of argument setting is **CLI > Config file > Default value**. 
+
+For example, the default value of `fedprox.mu` is `1`, 
+```python
+def get_fedprox_args(args_list=None) -> Namespace:
+    parser = ArgumentParser()
+    parser.add_argument("--mu", type=float, default=1.0)
+    return parser.parse_args(args_list)
+```
+and you set
+```yaml
+# your_config.yml
+fedprox:
+  mu: 0.1
+```
+in your config file. If you run
+```shell
+python main.py fedprox your_config.yml --mu 10   # fedprox.mu = 10
+python main.py fedprox your_config.yml           # fedprox.mu = 0.01
+``` 
+
+
+### Monitor 📈
 1. Run `python -m visdom.server` on terminal.
-2. Run `python main.py <method> --visible 1`
+2. Set `visible` as `True`.
 3. Go check `localhost:8097` on your browser.
-## Generic Arguments 🔧
 
-📢 All generic arguments have their default value. Go check `get_fedavg_argparser()` in [`FL-bench/src/server/fedavg.py`](src/server/fedavg.py) for full details of generic arguments. 
+## Common Arguments 🔧
 
-You can also write your own `.yaml` config file. I offer you a [template](config/template.yaml) in `config` and recommend you to save your config files there also. 
+All common arguments have their default value. Go check [`DEFAULT_COMMON_ARGS`](src/utils/constants.py) in `src/utils/constants.py` for full details of common arguments. 
 
-One example: `python main.py fedavg -cfg config/template.yaml`
+⚠ Common arguments cannot be set via CLI.
 
-About the default values and hyperparameters of advanced FL methods, go check corresponding `FL-bench/src/server/<method>.py` for full details.
-| Argument                       | Description                                                                                                                                                                                                                                                                                                                               |
-| ------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `--dataset`                    | The name of dataset that experiment run on.                                                                                                                                                                                                                                                                                               |
-| `--model`                      | The model backbone experiment used.                                                                                                                                                                                                                                                                                                       |
-| `--seed`                       | Random seed for running experiment.                                                                                                                                                                                                                                                                                                       |
-| `--join_ratio`                 | Ratio for (client each round) / (client num in total).                                                                                                                                                                                                                                                                                    |
-| `--global_epoch`               | Global epoch, also called communication round.                                                                                                                                                                                                                                                                                            |
-| `--local_epoch`                | Local epoch for client local training.                                                                                                                                                                                                                                                                                                    |
-| `--finetune_epoch`             | Epoch for clients fine-tunning their models before test.                                                                                                                                                                                                                                                                                  |
-| `--test_gap`                   | Interval round of performing test on clients.                                                                                                                                                                                                                                                                                             |
-| `--eval_test`                  | Non-zero value for performing evaluation on joined clients' testset before and after local training.                                                                                                                                                                                                                                      |
-| `--eval_val`                  | Non-zero value for performing evaluation on joined clients' valset before and after local training.                                                                                                                                                                                                                                      |
-| `--eval_train`                 | Non-zero value for performing evaluation on joined clients' trainset before and after local training.                                                                                                                                                                                                                                     |
-| `-op, --optimizer` | Client local optimizer, selected from `[sgd, adam]` |
-| `--local_lr`                   | Learning rate for client local training.                                                                                                                                                                                                                                                                                                  |
-| `--momentum`                   | Momentum for client local opitimizer.                                                                                                                                                                                                                                                                                                     |
-| `--weight_decay`               | Weight decay for client local optimizer.                                                                                                                                                                                                                                                                                                  |
-| `--verbose_gap`                | Interval round of displaying clients training performance on terminal.                                                                                                                                                                                                                                                                    |
-| `--batch_size`                 | Data batch size for client local training.                                                                                                                                                                                                                                                                                                |
-| `--use_cuda`                   | Non-zero value indicates that tensors are in gpu.                                                                                                                                                                                                                                                                                         |
-| `--visible`                    | Non-zero value for using Visdom to monitor algorithm performance on `localhost:8097`.                                                                                                                                                                                                                                                     |
-| `--straggler_ratio`            | The ratio of stragglers (set in `[0, 1]`). Stragglers would not perform full-epoch local training as normal clients. Their local epoch would be randomly selected from range `[--straggler_min_local_epoch, --local_epoch)`.                                                                                                              |
-| `--straggler_min_local_epoch`  | The minimum value of local epoch for stragglers.                                                                                                                                                                                                                                                                                          |
-| `--external_model_params_file` | The relative file path of external model parameters. Please confirm whether the shape of parameters compatible with the model by yourself. ⚠ This feature is enabled only when `unique_model=False`, which is pre-defined by each FL method.                          |
-| `--save_log`                   | Non-zero value for saving algorithm running log in `out/<method>/<start_time>`.                                                                                                                                                                                                                                                               |
-| `--save_model`                 | Non-zero value for saving output model(s) parameters in `out/<method>/<start_time>`.pt`.                                                                                                                                                                                 |
-| `--save_fig`                   | Non-zero value for saving the accuracy curves showed on Visdom into a `.pdf` file at `out/<method>/<start_time>`.                                                                                                                                                                                                                            |
-| `--save_metrics`               | Non-zero value for saving metrics stats into a `.csv` file at `out/<method>/<start_time>`.                                                                                                                                                                                                                                                    |
-| `--viz_win_name`               | Custom visdom window name (active when setting `--visible` as a non-zero value).                                                                                                                                                                                                                                                          |
-| `--config_file`                | Relative file path of custom config `.yaml` file.                                                                                                                                                                                                                                                                                         |
-| `--check_convergence`          | Non-zero value for checking convergence after training.                                                                                                                                                                                                                                                                                   |
+You can also write your own `.yml` config file. I offer you a [template](config/template.yml) in `config` and recommend you to save your config files there also. 
+
+One example: `python main.py fedavg config/template.yaml [cli_method_args...]`
+
+About the default values of specific FL method arguments, go check corresponding `FL-bench/src/server/<method>.py` for the full details.
+| Arguments                    | Type    | Description                                                                                                                                                                                                                                  |
+| ---------------------------- | ------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `dataset`                    | `str`   | The name of dataset that experiment run on.                                                                                                                                                                                                  |
+| `model`                      | `str`   | The model backbone experiment used.                                                                                                                                                                                                          |
+| `seed`                       | `int`   | Random seed for running experiment.                                                                                                                                                                                                          |
+| `join_ratio`                 | `float` | Ratio for (client each round) / (client num in total).                                                                                                                                                                                       |
+| `global_epoch`               | `int`   | Global epoch, also called communication round.                                                                                                                                                                                               |
+| `local_epoch`                | `int`   | Local epoch for client local training.                                                                                                                                                                                                       |
+| `finetune_epoch`             | `int`   | Epoch for clients fine-tunning their models before test.                                                                                                                                                                                     |
+| `test_interval`              | `int`   | Interval round of performing test on clients.                                                                                                                                                                                                |
+| `eval_test`                  | `bool`  | Non-zero value for performing evaluation on joined clients' testset before and after local training.                                                                                                                                         |
+| `eval_val`                   | `bool`  | Non-zero value for performing evaluation on joined clients' valset before and after local training.                                                                                                                                          |
+| `eval_train`                 | `bool`  | Non-zero value for performing evaluation on joined clients' trainset before and after local training.                                                                                                                                        |
+| `optimizer`                  | `dict`  | Client-side optimizer.  Argument request is the same as Optimizers in `torch.optim`.                                                                                                                                                         |
+| `verbose_gap`                | `int`   | Interval round of displaying clients training performance on terminal.                                                                                                                                                                       |
+| `batch_size`                 | `int`   | Data batch size for client local training.                                                                                                                                                                                                   |
+| `use_cuda`                   | `bool`  | Non-zero value indicates that tensors are in gpu.                                                                                                                                                                                            |
+| `visible`                    | `bool`  | Non-zero value for using Visdom to monitor algorithm performance on `localhost:8097`.                                                                                                                                                        |
+| `straggler_ratio`            | `float` | The ratio of stragglers (set in `[0, 1]`). Stragglers would not perform full-epoch local training as normal clients. Their local epoch would be randomly selected from range `[straggler_min_local_epoch, local_epoch)`.                     |
+| `straggler_min_local_epoch`  | `int`   | The minimum value of local epoch for stragglers.                                                                                                                                                                                             |
+| `external_model_params_file` | `str`   | The relative file path of external model parameters. Please confirm whether the shape of parameters compatible with the model by yourself. ⚠ This feature is enabled only when `unique_model=False`, which is pre-defined by each FL method. |
+| `save_log`                   | `bool`  | Non-zero value for saving algorithm running log in `out/<method>/<start_time>`.                                                                                                                                                              |
+| `save_model`                 | `bool`  | Non-zero value for saving output model(s) parameters in `out/<method>/<start_time>`.pt`.                                                                                                                                                     |
+| `save_fig`                   | `bool`  | Non-zero value for saving the accuracy curves showed on Visdom into a `.pdf` file at `out/<method>/<start_time>`.                                                                                                                            |
+| `save_metrics`               | `bool`  | Non-zero value for saving metrics stats into a `.csv` file at `out/<method>/<start_time>`.                                                                                                                                                   |
+| `viz_win_name`               | `str`   | Custom visdom window name (active when setting `visible` as a non-zero value).                                                                                                                                                               |
+| `check_convergence`          | `bool`  | Non-zero value for checking convergence after training.                                                                                                                                                                                      |
 
 ## Supported Models 🚀
 
@@ -216,7 +260,7 @@ This benchmark supports bunch of models that common and integrated in Torchvisio
 - LeNet5
 ...
 
-🤗 You can define your own custom model by filling the `CustomModel` class in [`src/utils/models.py`](src/utils/models.py) and use it by specifying `--model custom` when running.
+🤗 You can define your own custom model by filling the `CustomModel` class in [`src/utils/models.py`](src/utils/models.py) and use it by setting `model` to `custom` when running.
 
 ## Supported Datasets 🎨
 
@@ -257,6 +301,25 @@ Medical Image Datasets
 - [*COVID-19*](https://www.researchgate.net/publication/344295900_Curated_Dataset_for_COVID-19_Posterior-Anterior_Chest_Radiography_Images_X-Rays) (3 x 244 x 224, 4 classes)
 
 - [*Organ-S/A/CMNIST*](https://medmnist.com/) (1 x 28 x 28, 11 classes)
+
+## Extension Tips 💡
+
+### New FL Method
+
+- Inherit your method class from `FedAvgServer` and `FedAvgClient`, which are the base classes of FL-bench and ALL other method classes are inherited from them.
+
+- Override the `train_one_round()` in `FedAvgServer` for your custom server-side process.
+
+- Override the `fit()` or `train()` in `FedAvgClient()` for your custom client-side process.
+
+### New Dataset
+
+- Inherit your dataset class from [`BaseDataset` in `data/utils/datasets.py`](data/utils/dataset.py) and add your class in dict `DATASETS`.
+
+### New Model
+
+- I offer the `CustomModel` class in [`src/utils/models.py`](src/utils/models.py) and you just need to define your model arch.
+- No matter how complicated your model is, always define `base` and `classifier` in your model class. (Tips: You can define one of them as `torch.nn.Identity()`)
 
 ## Citation 🧐
 

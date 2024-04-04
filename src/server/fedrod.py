@@ -1,4 +1,4 @@
-from argparse import Namespace
+from argparse import ArgumentParser, Namespace
 from collections import OrderedDict
 from copy import deepcopy
 from typing import List, OrderedDict
@@ -6,41 +6,41 @@ from typing import List, OrderedDict
 import torch
 import torch.nn as nn
 
-from fedavg import FedAvgServer, get_fedavg_argparser
+from fedavg import FedAvgServer
 from src.client.fedrod import FedRoDClient
-from src.utils.tools import trainable_params
+from src.utils.tools import trainable_params, NestedNamespace
 from src.utils.constants import NUM_CLASSES
 
 
-def get_fedrod_argparser():
-    parser = get_fedavg_argparser()
+def get_fedrod_args(args_list=None) -> Namespace:
+    parser = ArgumentParser()
     parser.add_argument("--gamma", type=float, default=1)
     parser.add_argument("--hyper", type=int, default=0)
     parser.add_argument("--hyper_lr", type=float, default=0.1)
     parser.add_argument("--hyper_hidden_dim", type=int, default=32)
     parser.add_argument("--eval_per", type=int, default=1)
-    return parser
+    return parser.parse_args(args_list)
 
 
 class FedRoDServer(FedAvgServer):
     def __init__(
         self,
+        args: NestedNamespace,
         algo: str = "FedRoD",
-        args: Namespace = None,
         unique_model=False,
         default_trainer=False,
     ):
-        super().__init__(algo, args, unique_model, default_trainer)
+        super().__init__(args, algo, unique_model, default_trainer)
         self.hyper_params_dict = None
         self.hypernetwork: nn.Module = None
-        if self.args.hyper:
+        if self.args.fedrod.hyper:
             output_dim = (
                 self.model.classifier.weight.numel()
                 + self.model.classifier.bias.numel()
             )
-            input_dim = NUM_CLASSES[self.args.dataset]
+            input_dim = NUM_CLASSES[self.args.common.dataset]
             self.hypernetwork = HyperNetwork(
-                input_dim, self.args.hyper_hidden_dim, output_dim
+                input_dim, self.args.fedrod.hyper_hidden_dim, output_dim
             ).to(self.device)
             params, keys = trainable_params(
                 self.hypernetwork, detach=True, requires_name=True
@@ -70,7 +70,7 @@ class FedRoDServer(FedAvgServer):
                 local_epoch=self.clients_local_epoch[client_id],
                 new_parameters=client_local_params,
                 hyper_parameters=self.hyper_params_dict,
-                verbose=((self.current_epoch + 1) % self.args.verbose_gap) == 0,
+                verbose=((self.current_epoch + 1) % self.args.common.verbose_gap) == 0,
                 return_diff=False,
             )
 
@@ -98,7 +98,7 @@ class FedRoDServer(FedAvgServer):
             for param, diff in zip(self.global_params_dict.values(), aggregated_delta):
                 param.data -= diff
 
-            if self.args.hyper:
+            if self.args.fedrod.hyper:
                 hyper_delta_list = [list(delta.values()) for delta in delta_cache]
                 aggregated_hyper_delta = [
                     torch.sum(weights * torch.stack(diff, dim=-1), dim=-1)
@@ -118,7 +118,7 @@ class FedRoDServer(FedAvgServer):
                 )
             self.model.load_state_dict(self.global_params_dict, strict=False)
 
-            if self.args.hyper:
+            if self.args.fedrod.hyper:
                 for old_param, zipped_new_param in zip(
                     self.hyper_params_dict.values(), zip(*hyper_delta_cache)
                 ):
@@ -126,7 +126,7 @@ class FedRoDServer(FedAvgServer):
                         torch.stack(zipped_new_param, dim=-1) * weights
                     ).sum(dim=-1)
 
-        if self.args.hyper:
+        if self.args.fedrod.hyper:
             self.hypernetwork.load_state_dict(self.hyper_params_dict)
         self.model.load_state_dict(self.global_params_dict, strict=False)
 
@@ -142,5 +142,3 @@ class HyperNetwork(nn.Module):
 
     def forward(self, x):
         return self.model(x)
-
-

@@ -3,18 +3,27 @@ from collections import OrderedDict
 import torch
 
 from fedbn import FedBNClient
+from src.utils.models import DecoupledModel
+from src.utils.tools import Logger, NestedNamespace
 
 
 class FedAPClient(FedBNClient):
-    def __init__(self, model, args, logger, device):
+    def __init__(
+        self,
+        model: DecoupledModel,
+        args: NestedNamespace,
+        logger: Logger,
+        device: torch.device,
+    ):
         super(FedAPClient, self).__init__(model, args, logger, device)
+
         self.model.need_all_features()
         self.pretrain = False
 
     def load_dataset(self):
         super().load_dataset()
-        num_pretrain_samples = int(self.args.pretrain_ratio * len(self.trainset))
-        if self.args.version != "f":
+        num_pretrain_samples = int(self.args.fedap.pretrain_ratio * len(self.trainset))
+        if self.args.fedap.version != "f":
             if self.pretrain:
                 self.trainset.indices = self.trainset.indices[:num_pretrain_samples]
             else:
@@ -40,7 +49,7 @@ class FedAPClient(FedBNClient):
 
         self.save_state()
 
-        if self.args.version == "d":
+        if self.args.fedap.version == "d":
             for i, features in enumerate(features_list):
                 for j in range(len(features)):
                     if len(features[j].shape) == 4 and len(features[j + 1].shape) < 4:

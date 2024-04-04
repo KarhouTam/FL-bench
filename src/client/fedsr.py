@@ -2,10 +2,18 @@ import torch
 import torch.nn.functional as F
 
 from fedavg import FedAvgClient
+from src.utils.models import DecoupledModel
+from src.utils.tools import Logger, NestedNamespace
 
 
 class FedSRClient(FedAvgClient):
-    def __init__(self, model, args, logger, device):
+    def __init__(
+        self,
+        model: DecoupledModel,
+        args: NestedNamespace,
+        logger: Logger,
+        device: torch.device,
+    ):
         super(FedSRClient, self).__init__(model, args, logger, device)
 
     def fit(self):
@@ -30,10 +38,10 @@ class FedSRClient(FedAvgClient):
                 regL2R = torch.zeros_like(obj)
                 regCMI = torch.zeros_like(obj)
                 regNegEnt = torch.zeros_like(obj)
-                if self.args.L2R_coeff != 0.0:
+                if self.args.fedsr.L2R_coeff != 0.0:
                     regL2R = z.norm(dim=1).mean()
-                    obj = obj + self.args.L2R_coeff * regL2R
-                if self.args.CMI_coeff != 0.0:
+                    obj = obj + self.args.fedsr.L2R_coeff * regL2R
+                if self.args.fedsr.CMI_coeff != 0.0:
                     r_sigma_softplus = F.softplus(self.model.r_sigma)
                     r_mu = self.model.r_mu[y]
                     r_sigma = r_sigma_softplus[y]
@@ -47,7 +55,7 @@ class FedSRClient(FedAvgClient):
                         - 0.5
                     )
                     regCMI = regCMI.sum(1).mean()
-                    obj = obj + self.args.CMI_coeff * regCMI
+                    obj = obj + self.args.fedsr.CMI_coeff * regCMI
                 self.optimizer.zero_grad()
                 obj.backward()
                 self.optimizer.step()

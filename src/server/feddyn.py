@@ -4,29 +4,28 @@ from collections import OrderedDict
 
 import torch
 
-from fedavg import FedAvgServer, get_fedavg_argparser
+from fedavg import FedAvgServer
 from src.client.feddyn import FedDynClient
-from src.utils.tools import trainable_params, vectorize
+from src.utils.tools import trainable_params, NestedNamespace, vectorize
+from src.utils.tools import NestedNamespace
 
 
-def get_feddyn_argparser() -> ArgumentParser:
-    parser = get_fedavg_argparser()
+def get_feddyn_args(args_list=None) -> Namespace:
+    parser = ArgumentParser()
     parser.add_argument("--alpha", type=float, default=0.01)
     parser.add_argument("--max_grad_norm", type=float, default=10)
-    return parser
+    return parser.parse_args(args_list)
 
 
 class FedDynServer(FedAvgServer):
     def __init__(
         self,
+        args: NestedNamespace,
         algo: str = "FedDyn",
-        args: Namespace = None,
         unique_model=False,
         default_trainer=False,
     ):
-        if args is None:
-            args = get_feddyn_argparser().parse_args()
-        super().__init__(algo, args, unique_model, default_trainer)
+        super().__init__(args, algo, unique_model, default_trainer)
         self.trainer = FedDynClient(
             deepcopy(self.model), self.args, self.logger, self.device
         )
@@ -46,18 +45,17 @@ class FedDynServer(FedAvgServer):
         delta_cache = []
         for client_id in self.selected_clients:
             client_local_params = self.generate_client_params(client_id)
-            (
-                delta,
-                _,
-                self.client_metrics[client_id][self.current_epoch],
-            ) = self.trainer.train(
-                client_id=client_id,
-                local_epoch=self.clients_local_epoch[client_id],
-                new_parameters=client_local_params,
-                nabla=self.nabla[client_id],
-                alpha=self.args.alpha / self.weight_list[client_id],
-                return_diff=False,
-                verbose=((self.current_epoch + 1) % self.args.verbose_gap) == 0,
+            (delta, _, self.client_metrics[client_id][self.current_epoch]) = (
+                self.trainer.train(
+                    client_id=client_id,
+                    local_epoch=self.clients_local_epoch[client_id],
+                    new_parameters=client_local_params,
+                    nabla=self.nabla[client_id],
+                    alpha=self.args.feddyn.alpha / self.weight_list[client_id],
+                    return_diff=False,
+                    verbose=((self.current_epoch + 1) % self.args.common.verbose_gap)
+                    == 0,
+                )
             )
 
             delta_cache.append(delta)
@@ -75,7 +73,9 @@ class FedDynServer(FedAvgServer):
         for i, client_params in enumerate(client_params_cache):
             self.nabla[i] += vectorize(client_params) - flatten_global_params
 
-        flatten_new_params =  vectorize(avg_parameters) + torch.stack(self.nabla).mean(dim=0)
+        flatten_new_params = vectorize(avg_parameters) + torch.stack(self.nabla).mean(
+            dim=0
+        )
 
         # reshape
         new_parameters = []
@@ -86,8 +86,3 @@ class FedDynServer(FedAvgServer):
         self.global_params_dict = OrderedDict(
             zip(self.trainable_params_name, new_parameters)
         )
-
-
-if __name__ == '__main__':
-    server = FedDynServer()
-    server.run()

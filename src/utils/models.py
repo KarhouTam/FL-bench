@@ -9,8 +9,7 @@ import torch.nn.functional as F
 import torchvision.models as models
 from torch import Tensor
 
-from .tools import PROJECT_DIR
-from .constants import NUM_CLASSES, INPUT_CHANNELS
+from .constants import NUM_CLASSES, INPUT_CHANNELS, FLBENCH_ROOT
 
 
 class DecoupledModel(nn.Module):
@@ -173,7 +172,7 @@ class TwoNN(DecoupledModel):
 
         def get_synthetic_dimension():
             try:
-                with open(PROJECT_DIR / "data" / "synthetic" / "args.json", "r") as f:
+                with open(FLBENCH_ROOT / "data" / "synthetic" / "args.json", "r") as f:
                     metadata = json.load(f)
                 return metadata["dimension"]
             except:

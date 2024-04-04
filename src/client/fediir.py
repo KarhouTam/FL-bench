@@ -1,13 +1,18 @@
+from typing import Tuple
+
 import torch
 import torch.nn.functional as F
 import torch.autograd as autograd
 
 from fedavg import FedAvgClient
+from src.utils.models import DecoupledModel
+from src.utils.tools import Logger, NestedNamespace
 
 
 class FedIIRClient(FedAvgClient):
-    def __init__(self, model, args, logger, device):
+    def __init__(self, model: DecoupledModel, args: NestedNamespace, logger: Logger, device: torch.device):
         super(FedIIRClient, self).__init__(model, args, logger, device)
+        self.grad_mean: Tuple[torch.Tensor] = None
 
     def fit(self):
         self.model.train()
@@ -32,7 +37,7 @@ class FedIIRClient(FedAvgClient):
                 penalty_value = 0
                 for g_client, g_mean in zip(grad_client, self.grad_mean):
                     penalty_value += (g_client - g_mean).pow(2).sum()
-                loss = loss_erm + self.args.penalty * penalty_value
+                loss = loss_erm + self.args.fediir.penalty * penalty_value
                 self.optimizer.zero_grad()
                 loss.backward()
                 self.optimizer.step()

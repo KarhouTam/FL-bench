@@ -4,17 +4,26 @@ from typing import Dict, OrderedDict
 import torch
 
 from fedavg import FedAvgClient
-from src.utils.tools import trainable_params
+from src.utils.tools import Logger, trainable_params, NestedNamespace
+from src.utils.models import DecoupledModel
 
 
 class APFLClient(FedAvgClient):
-    def __init__(self, model, args, logger, device, client_num):
+    def __init__(
+        self,
+        model: DecoupledModel,
+        args: NestedNamespace,
+        logger: Logger,
+        device: torch.device,
+        client_num: int,
+    ):
         super().__init__(model, args, logger, device)
 
         self.alpha_list = [
-            torch.tensor(self.args.alpha, device=self.device) for _ in range(client_num)
+            torch.tensor(self.args.apfl.alpha, device=self.device)
+            for _ in range(client_num)
         ]
-        self.alpha = torch.tensor(self.args.alpha, device=self.device)
+        self.alpha = torch.tensor(self.args.apfl.alpha, device=self.device)
 
         self.local_model = deepcopy(self.model)
 
@@ -36,7 +45,10 @@ class APFLClient(FedAvgClient):
         }
 
         self.optimizer.add_param_group(
-            {"params": trainable_params(self.local_model), "lr": self.args.local_lr}
+            {
+                "params": trainable_params(self.local_model),
+                "lr": self.args.common.optimizer.lr,
+            }
         )
         self.init_opt_state_dict = deepcopy(self.optimizer.state_dict())
 
@@ -73,7 +85,7 @@ class APFLClient(FedAvgClient):
                 loss.backward()
                 self.optimizer.step()
 
-                if self.args.adaptive_alpha and i == 0:
+                if self.args.apfl.adaptive_alpha and i == 0:
                     self.update_alpha()
 
     # refers to https://github.com/MLOPTPSU/FedTorch/blob/b58da7408d783fd426872b63fbe0c0352c7fa8e4/fedtorch/comms/utils/flow_utils.py#L240
@@ -90,7 +102,7 @@ class APFLClient(FedAvgClient):
             alpha_grad += diff @ grad
 
         alpha_grad += 0.02 * self.alpha
-        self.alpha.data -= self.args.local_lr * alpha_grad
+        self.alpha.data -= self.args.common.optimizer.lr * alpha_grad
         self.alpha.clip_(0, 1.0)
 
     def evaluate(self):

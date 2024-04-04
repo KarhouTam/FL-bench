@@ -40,7 +40,7 @@ def main(args):
     partition = {"separation": None, "data_indices": [[] for _ in range(client_num)]}
     stats = {}
     dataset: BaseDataset = None
-    
+
     if args.dataset == "femnist":
         dataset = process_femnist(args, partition, stats)
     elif args.dataset == "celeba":

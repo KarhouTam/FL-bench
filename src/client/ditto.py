@@ -1,21 +1,32 @@
 from copy import deepcopy
-from typing import Dict, OrderedDict
+from typing import OrderedDict
 
 import torch
 
 from fedavg import FedAvgClient
-from src.utils.tools import trainable_params
+from src.utils.tools import Logger, NestedNamespace, trainable_params
+from src.utils.models import DecoupledModel
 
 
 class DittoClient(FedAvgClient):
-    def __init__(self, model, args, logger, device, client_num):
+    def __init__(
+        self,
+        model: DecoupledModel,
+        args: NestedNamespace,
+        logger: Logger,
+        device: torch.device,
+        client_num: int,
+    ):
         super().__init__(model, args, logger, device)
         self.pers_model = deepcopy(model)
         self.pers_model_params_dict = {
             cid: deepcopy(self.pers_model.state_dict()) for cid in range(client_num)
         }
         self.optimizer.add_param_group(
-            {"params": trainable_params(self.pers_model), "lr": self.args.local_lr}
+            {
+                "params": trainable_params(self.pers_model),
+                "lr": self.args.common.optimizer.lr,
+            }
         )
         self.init_opt_state_dict = deepcopy(self.optimizer.state_dict())
 
@@ -45,7 +56,7 @@ class DittoClient(FedAvgClient):
                 loss.backward()
                 self.optimizer.step()
 
-        for _ in range(self.args.pers_epoch):
+        for _ in range(self.args.ditto.pers_epoch):
             for x, y in self.trainloader:
                 x, y = x.to(self.device), y.to(self.device)
                 logit = self.pers_model(x)
@@ -56,7 +67,7 @@ class DittoClient(FedAvgClient):
                     trainable_params(self.pers_model),
                     trainable_params(self.global_params),
                 ):
-                    pers_param.grad.data += self.args.lamda * (
+                    pers_param.grad.data += self.args.ditto.lamda * (
                         pers_param.data - global_param.data
                     )
                 self.optimizer.step()

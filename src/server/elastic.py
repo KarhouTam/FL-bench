@@ -6,31 +6,32 @@ from typing import List, OrderedDict
 import torch
 
 from torch._tensor import Tensor
-from fedavg import FedAvgServer, get_fedavg_argparser
+from fedavg import FedAvgServer
 from src.client.elastic import ElasticClient
+from src.utils.tools import NestedNamespace
 
 
-def get_elastic_argparser() -> ArgumentParser:
-    parser = get_fedavg_argparser()
+def get_elastic_args(args_list=None) -> Namespace:
+    parser = ArgumentParser()
     parser.add_argument("--tau", type=float, default=0.5)
     parser.add_argument("--mu", type=float, default=0.95)
-    return parser
+    return parser.parse_args(args_list)
 
 
 class ElasticServer(FedAvgServer):
     def __init__(
         self,
+        args: NestedNamespace,
         algo: str = "Elastic",
-        args: Namespace = None,
         unique_model=False,
         default_trainer=False,
     ):
-        super().__init__(algo, args, unique_model, default_trainer)
+        super().__init__(args, algo, unique_model, default_trainer)
         self.trainer = ElasticClient(
             deepcopy(self.model), self.args, self.logger, self.device
         )
         self.client_lr_scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(
-            self.trainer.optimizer, self.args.global_epoch
+            self.trainer.optimizer, self.args.common.global_epoch
         )
 
     def train_one_round(self):
@@ -49,7 +50,7 @@ class ElasticServer(FedAvgServer):
                 local_epoch=self.clients_local_epoch[client_id],
                 new_parameters=client_local_params,
                 return_diff=True,
-                verbose=((self.current_epoch + 1) % self.args.verbose_gap) == 0,
+                verbose=((self.current_epoch + 1) % self.args.common.verbose_gap) == 0,
             )
 
             delta_cache.append(delta)
@@ -69,7 +70,7 @@ class ElasticServer(FedAvgServer):
         stacked_sensitivity = torch.stack(sensitivity_cache, dim=-1)
         aggregated_sensitivity = torch.sum(stacked_sensitivity * weights, dim=-1)
         max_sensitivity = stacked_sensitivity.max(dim=-1)[0]
-        zeta = 1 + self.args.tau - aggregated_sensitivity / max_sensitivity
+        zeta = 1 + self.args.elastic.tau - aggregated_sensitivity / max_sensitivity
         delta_list = [list(delta.values()) for delta in delta_cache]
         aggregated_delta = [
             torch.sum(weights * torch.stack(diff, dim=-1), dim=-1)

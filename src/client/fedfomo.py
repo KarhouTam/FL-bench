@@ -5,11 +5,25 @@ from typing import Dict, List
 import torch
 
 from fedavg import FedAvgClient
-from src.utils.tools import trainable_params, evalutate_model, vectorize
+from src.utils.tools import (
+    Logger,
+    NestedNamespace,
+    trainable_params,
+    evalutate_model,
+    vectorize,
+)
+from src.utils.models import DecoupledModel
 
 
 class FedFomoClient(FedAvgClient):
-    def __init__(self, model, args, logger, device, client_num):
+    def __init__(
+        self,
+        model: DecoupledModel,
+        args: NestedNamespace,
+        logger: Logger,
+        device: torch.device,
+        client_num: int,
+    ):
         super().__init__(model, args, logger, device)
         self.received_params = {}
         self.eval_model = deepcopy(self.model)
@@ -36,7 +50,7 @@ class FedFomoClient(FedAvgClient):
 
     def load_dataset(self):
         super().load_dataset()
-        num_val_samples = int(len(self.trainset) * self.args.valset_ratio)
+        num_val_samples = int(len(self.trainset) * self.args.fedfomo.valset_ratio)
         self.valset.indices = self.trainset.indices[:num_val_samples]
         self.trainset.indices = self.trainset.indices[num_val_samples:]
 

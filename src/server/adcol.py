@@ -1,16 +1,17 @@
-from argparse import ArgumentParser
+from argparse import ArgumentParser, Namespace
 from copy import deepcopy
 
 import torch
 import torch.nn as nn
 from torch.utils.data import Dataset, DataLoader
 
-from fedavg import FedAvgServer, get_fedavg_argparser
+from fedavg import FedAvgServer
 from src.client.adcol import ADCOLClient
+from src.utils.tools import NestedNamespace
 
 
-def get_adcol_argparser() -> ArgumentParser:
-    parser = get_fedavg_argparser()
+def get_adcol_args(args_list=None) -> Namespace:
+    parser = ArgumentParser()
     parser.add_argument("--mu", type=float, default=0.5)
     parser.add_argument(
         "--dis_lr", type=float, default=0.01, help="learning rate for discriminator"
@@ -21,7 +22,7 @@ def get_adcol_argparser() -> ArgumentParser:
         default=3,
         help="epochs for trainig discriminator. larger dis_epoch is recommende when mu is large",
     )
-    return parser
+    return parser.parse_args(args_list)
 
 
 class Discriminator(nn.Module):
@@ -64,11 +65,13 @@ class DiscriminateDataset(Dataset):
 
 class ADCOLServer(FedAvgServer):
     def __init__(
-        self, algo: str = "ADCOL", args=None, unique_model=False, default_trainer=False
+        self,
+        args: NestedNamespace,
+        algo: str = "ADCOL",
+        unique_model=False,
+        default_trainer=False,
     ):
-        if args is None:
-            args = get_adcol_argparser().parse_args()
-        super().__init__(algo, args, unique_model, default_trainer)
+        super().__init__(args, algo, unique_model, default_trainer)
         self.train_client_num = len(self.train_clients)
         self.discriminator = Discriminator(
             base_model=self.model, client_num=len(self.train_clients)
@@ -101,7 +104,7 @@ class ADCOLServer(FedAvgServer):
                 local_epoch=self.clients_local_epoch[client_id],
                 new_parameters=client_local_params,
                 new_discriminator_parameters=self.discriminator.state_dict(),
-                verbose=((self.current_epoch + 1) % self.args.verbose_gap) == 0,
+                verbose=((self.current_epoch + 1) % self.args.common.verbose_gap) == 0,
             )
 
             delta_cache.append(delta)
@@ -112,14 +115,14 @@ class ADCOLServer(FedAvgServer):
 
     def train_and_test_discriminator(self):
         self.generate_client_index()
-        if (self.current_epoch + 1) % self.args.test_interval == 0:
+        if (self.current_epoch + 1) % self.args.common.test_interval == 0:
             acc_before = self.test_discriminator()
 
         self.train_discriminator()
 
-        if (self.current_epoch + 1) % self.args.test_interval == 0:
+        if (self.current_epoch + 1) % self.args.common.test_interval == 0:
             acc_after = self.test_discriminator()
-            if (self.current_epoch + 1) % self.args.verbose_gap == 0:
+            if (self.current_epoch + 1) % self.args.common.verbose_gap == 0:
                 self.logger.log(
                     f"The accuracy of discriminator: {acc_before*100 :.2f}% -> {acc_after*100 :.2f}%"
                 )
@@ -127,11 +130,11 @@ class ADCOLServer(FedAvgServer):
     def train_discriminator(self):
         self.discriminator.train()
         self.discriminator_optimizer = torch.optim.SGD(
-            self.discriminator.parameters(), lr=self.args.dis_lr
+            self.discriminator.parameters(), lr=self.args.adcol.dis_lr
         )
         loss_func = nn.CrossEntropyLoss().to(self.device)
         # train discriminator
-        for _ in range(self.args.dis_epoch):
+        for _ in range(self.args.adcol.dis_epoch):
             for x, y in self.feature_dataloader:
                 x, y = x.to(self.device), y.to(self.device)
                 y = y.type(torch.float32)
@@ -152,7 +155,7 @@ class ADCOLServer(FedAvgServer):
                 y_pred = torch.argmax(y_pred, dim=1)
                 y = torch.argmax(y, dim=1)
                 correct = torch.sum(y_pred == y).item()
-                self.accuracy_list.append(correct / self.args.batch_size)
+                self.accuracy_list.append(correct / self.args.common.batch_size)
             accuracy = sum(self.accuracy_list) / len(self.accuracy_list)
             return accuracy
 
@@ -180,11 +183,6 @@ class ADCOLServer(FedAvgServer):
         discriminator_training_dataset = DiscriminateDataset(orgnized_features, targets)
         self.feature_dataloader = DataLoader(
             discriminator_training_dataset,
-            batch_size=self.args.batch_size,
+            batch_size=self.args.common.batch_size,
             shuffle=True,
         )
-
-
-if __name__ == "__main__":
-    server = ADCOLServer()
-    server.run()

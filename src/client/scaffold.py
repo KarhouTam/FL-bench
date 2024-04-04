@@ -5,11 +5,18 @@ import torch
 from torch.utils.data import DataLoader
 
 from fedavg import FedAvgClient
-from src.utils.tools import trainable_params
+from src.utils.tools import Logger, trainable_params, NestedNamespace
+from src.utils.models import DecoupledModel
 
 
 class SCAFFOLDClient(FedAvgClient):
-    def __init__(self, model, args, logger, device):
+    def __init__(
+        self,
+        model: DecoupledModel,
+        args: NestedNamespace,
+        logger: Logger,
+        device: torch.device,
+    ):
         super().__init__(model, args, logger, device)
         self.c_local: Dict[List[torch.Tensor]] = {}
         self.c_global: List[torch.Tensor] = []
@@ -45,7 +52,7 @@ class SCAFFOLDClient(FedAvgClient):
                 y_delta.append(y_i - x)
 
             # compute c_plus
-            coef = 1 / (self.local_epoch * self.args.local_lr)
+            coef = 1 / (self.local_epoch * self.args.common.optimizer.lr)
             for c, c_i, y_del in zip(
                 self.c_global, self.c_local[self.client_id], y_delta
             ):
@@ -62,7 +69,7 @@ class SCAFFOLDClient(FedAvgClient):
     def fit(self):
         self.model.train()
         self.dataset.train()
-        for _ in range(self.args.local_epoch):
+        for _ in range(self.args.common.local_epoch):
             x, y = self.get_data_batch()
             logits = self.model(x)
             loss = self.criterion(logits, y)

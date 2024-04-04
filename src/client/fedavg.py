@@ -1,20 +1,19 @@
+import inspect
 import pickle
-from argparse import Namespace
 from collections import OrderedDict
 from copy import deepcopy
-from typing import Dict, List, Tuple, Union
+from typing import Dict, List, Tuple, Type, Union
 from pathlib import Path
 
 import torch
 from torch.utils.data import DataLoader, Subset
 from torchvision import transforms
 
-PROJECT_DIR = Path(__file__).parent.parent.parent.absolute()
 
-from src.utils.tools import trainable_params, evalutate_model, Logger
+from src.utils.tools import NestedNamespace, trainable_params, evalutate_model, Logger
 from src.utils.metrics import Metrics
 from src.utils.models import DecoupledModel
-from src.utils.constants import DATA_MEAN, DATA_STD
+from src.utils.constants import DATA_MEAN, DATA_STD, OPTIMIZERS, FLBENCH_ROOT
 from data.utils.datasets import DATASETS, BaseDataset
 
 
@@ -22,7 +21,7 @@ class FedAvgClient:
     def __init__(
         self,
         model: DecoupledModel,
-        args: Namespace,
+        args: NestedNamespace,
         logger: Logger,
         device: torch.device,
     ):
@@ -32,11 +31,13 @@ class FedAvgClient:
 
         # load dataset and clients' data indices
         try:
-            partition_path = PROJECT_DIR / "data" / self.args.dataset / "partition.pkl"
+            partition_path = (
+                FLBENCH_ROOT / "data" / self.args.common.dataset / "partition.pkl"
+            )
             with open(partition_path, "rb") as f:
                 partition = pickle.load(f)
         except:
-            raise FileNotFoundError(f"Please partition {args.dataset} first.")
+            raise FileNotFoundError(f"Please partition {args.dataset.name} first.")
 
         # [0: {"train": [...], "val": [...], "test": [...]}, ...]
         self.data_indices: List[Dict[str, List[int]]] = partition["data_indices"]
@@ -45,28 +46,30 @@ class FedAvgClient:
         test_data_transform = transforms.Compose(
             [
                 transforms.Normalize(
-                    DATA_MEAN[self.args.dataset], DATA_STD[self.args.dataset]
+                    DATA_MEAN[self.args.common.dataset], DATA_STD[self.args.common.dataset]
                 )
             ]
-            if self.args.dataset in DATA_MEAN and self.args.dataset in DATA_STD
+            if self.args.common.dataset in DATA_MEAN
+            and self.args.common.dataset in DATA_STD
             else []
         )
         test_target_transform = transforms.Compose([])
         train_data_transform = transforms.Compose(
             [
                 transforms.Normalize(
-                    DATA_MEAN[self.args.dataset], DATA_STD[self.args.dataset]
+                    DATA_MEAN[self.args.common.dataset], DATA_STD[self.args.common.dataset]
                 )
             ]
-            if self.args.dataset in DATA_MEAN and self.args.dataset in DATA_STD
+            if self.args.common.dataset in DATA_MEAN
+            and self.args.common.dataset in DATA_STD
             else []
         )
         train_target_transform = transforms.Compose([])
         # --------------------------------------------------------------------------------
 
-        self.dataset: BaseDataset = DATASETS[self.args.dataset](
-            root=PROJECT_DIR / "data" / args.dataset,
-            args=args.dataset_args,
+        self.dataset: BaseDataset = DATASETS[self.args.common.dataset](
+            root=FLBENCH_ROOT / "data" / self.args.common.dataset,
+            args=self.args.dataset,
             test_data_transform=test_data_transform,
             test_target_transform=test_target_transform,
             train_data_transform=train_data_transform,
@@ -78,14 +81,16 @@ class FedAvgClient:
         self.valset = Subset(self.dataset, indices=[])
         self.testset = Subset(self.dataset, indices=[])
         self.trainloader = DataLoader(
-            self.trainset, batch_size=self.args.batch_size, shuffle=True
+            self.trainset, batch_size=self.args.common.batch_size, shuffle=True
         )
-        self.valloader = DataLoader(self.valset, batch_size=self.args.batch_size)
-        self.testloader = DataLoader(self.testset, batch_size=self.args.batch_size)
-        self.test_flag = False
+        self.valloader = DataLoader(self.valset, batch_size=self.args.common.batch_size)
+        self.testloader = DataLoader(
+            self.testset, batch_size=self.args.common.batch_size
+        )
+        self.testing = False
 
         self.model = model.to(self.device)
-        self.local_epoch = self.args.local_epoch
+        self.local_epoch = self.args.common.local_epoch
         self.criterion = torch.nn.CrossEntropyLoss().to(self.device)
         self.logger = logger
         self.personal_params_dict: Dict[int, Dict[str, torch.Tensor]] = {}
@@ -95,20 +100,24 @@ class FedAvgClient:
             for key, param in self.model.state_dict(keep_vars=True).items()
             if not param.requires_grad
         }
+
+        # Optimizer related
         self.opt_state_dict = {}
-        if self.args.optimizer == "sgd":
-            self.optimizer = torch.optim.SGD(
-                params=trainable_params(self.model),
-                lr=self.args.local_lr,
-                momentum=self.args.momentum,
-                weight_decay=self.args.weight_decay,
-            )
-        elif self.args.optimizer == "adam":
-            self.optimizer = torch.optim.Adam(
-                params=trainable_params(self.model),
-                lr=self.args.local_lr,
-                weight_decay=self.args.weight_decay,
-            )
+        _target_optimizer: Type[torch.optim.Optimizer] = OPTIMIZERS[
+            self.args.common.optimizer.name
+        ]
+        _required_args = inspect.getfullargspec(_target_optimizer.__init__).args
+
+        _opt_kwargs = {}
+        for key, value in vars(self.args.common.optimizer).items():
+            if key in _required_args:
+                _opt_kwargs[key] = value
+
+        self.optimizer = _target_optimizer(
+            params=trainable_params(self.model), **_opt_kwargs
+        )
+        _opt_kwargs["name"] = self.args.common.optimizer.name
+        self.args.common.optimizer = NestedNamespace(_opt_kwargs)
         self.init_opt_state_dict = deepcopy(self.optimizer.state_dict())
 
     def load_dataset(self):
@@ -137,9 +146,9 @@ class FedAvgClient:
             eval_metrics["after"] = self.evaluate()
         if verbose:
             for split, color, flag, subset in [
-                ["train", "yellow", self.args.eval_train, self.trainset],
-                ["val", "green", self.args.eval_val, self.valset],
-                ["test", "cyan", self.args.eval_test, self.testset],
+                ["train", "yellow", self.args.common.eval_train, self.trainset],
+                ["val", "green", self.args.common.eval_val, self.valset],
+                ["test", "cyan", self.args.common.eval_test, self.testset],
             ]:
                 if len(subset) > 0 and flag:
                     self.logger.log(
@@ -273,7 +282,7 @@ class FedAvgClient:
         test_metrics = Metrics()
         criterion = torch.nn.CrossEntropyLoss(reduction="sum")
 
-        if len(self.testset) > 0 and self.args.eval_test:
+        if len(self.testset) > 0 and self.args.common.eval_test:
             test_metrics = evalutate_model(
                 model=target_model,
                 dataloader=self.testloader,
@@ -281,7 +290,7 @@ class FedAvgClient:
                 device=self.device,
             )
 
-        if len(self.valset) > 0 and self.args.eval_val:
+        if len(self.valset) > 0 and self.args.common.eval_val:
             val_metrics = evalutate_model(
                 model=target_model,
                 dataloader=self.valloader,
@@ -289,7 +298,7 @@ class FedAvgClient:
                 device=self.device,
             )
 
-        if len(self.trainset) > 0 and self.args.eval_train:
+        if len(self.trainset) > 0 and self.args.common.eval_train:
             train_metrics = evalutate_model(
                 model=target_model,
                 dataloader=self.trainloader,
@@ -323,12 +332,12 @@ class FedAvgClient:
         }
 
         results["before"] = self.evaluate()
-        if self.args.finetune_epoch > 0:
+        if self.args.common.finetune_epoch > 0:
             frz_params_dict = deepcopy(self.model.state_dict())
             self.finetune()
             results["after"] = self.evaluate()
             self.model.load_state_dict(frz_params_dict)
-            
+
         self.testing = False
         return results
 
@@ -339,7 +348,7 @@ class FedAvgClient:
         """
         self.model.train()
         self.dataset.train()
-        for _ in range(self.args.finetune_epoch):
+        for _ in range(self.args.common.finetune_epoch):
             for x, y in self.trainloader:
                 if len(x) <= 1:
                     continue

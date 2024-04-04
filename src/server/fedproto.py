@@ -1,31 +1,30 @@
-from argparse import Namespace
+from argparse import ArgumentParser, Namespace
 from copy import deepcopy
 from typing import Dict, List
 
 import torch
 
-from fedavg import FedAvgServer, get_fedavg_argparser
+from fedavg import FedAvgServer
 from src.client.fedproto import FedProtoClient
 from src.utils.constants import NUM_CLASSES
+from src.utils.tools import NestedNamespace
 
 
-def get_fedproto_argparser():
-    parser = get_fedavg_argparser()
+def get_fedproto_args(args_list=None) -> Namespace:
+    parser = ArgumentParser()
     parser.add_argument("--lamda", type=float, default=1)
-    return parser
+    return parser.parse_args(args_list)
 
 
 class FedProtoServer(FedAvgServer):
     def __init__(
         self,
+        args: NestedNamespace,
         algo: str = "FedProto",
-        args: Namespace = None,
         unique_model=False,
         default_trainer=False,
     ):
-        if args is None:
-            args = get_fedproto_argparser().parse_args()
-        super().__init__(algo, args, unique_model, default_trainer)
+        super().__init__(args, algo, unique_model, default_trainer)
         self.trainer = FedProtoClient(
             deepcopy(self.model), self.args, self.logger, self.device
         )
@@ -39,7 +38,8 @@ class FedProtoServer(FedAvgServer):
                     client_id=client_id,
                     local_epoch=self.clients_local_epoch[client_id],
                     global_prototypes=self.global_prototypes,
-                    verbose=((self.current_epoch + 1) % self.args.verbose_gap) == 0,
+                    verbose=((self.current_epoch + 1) % self.args.common.verbose_gap)
+                    == 0,
                 )
             )
 
@@ -51,7 +51,7 @@ class FedProtoServer(FedAvgServer):
         self, client_prototypes_list: List[Dict[int, torch.Tensor]]
     ):
         self.global_prototypes = {}
-        for i in range(NUM_CLASSES[self.args.dataset]):
+        for i in range(NUM_CLASSES[self.args.common.dataset]):
             size = 0
             prototypes = torch.zeros(
                 self.model.classifier.in_features, device=self.device
@@ -63,8 +63,3 @@ class FedProtoServer(FedAvgServer):
 
             if size > 0:
                 self.global_prototypes[i] = prototypes / size
-
-
-if __name__ == "__main__":
-    server = FedProtoServer()
-    server.run()

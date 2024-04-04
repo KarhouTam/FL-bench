@@ -5,32 +5,31 @@ from copy import deepcopy
 import torch
 from rich.progress import track
 
-from fedavg import FedAvgServer, get_fedavg_argparser
-from src.utils.tools import trainable_params
+from fedavg import FedAvgServer
+from src.utils.tools import trainable_params, NestedNamespace
 
 
-def get_pfedsim_argparser() -> ArgumentParser:
-    parser = get_fedavg_argparser()
+def get_pfedsim_args(args_list=None) -> Namespace:
+    parser = ArgumentParser()
     parser.add_argument("-wr", "--warmup_round", type=float, default=0.5)
-    return parser
+    return parser.parse_args(args_list)
 
 
 class pFedSimServer(FedAvgServer):
-    def __init__(self, algo: str = "pFedSim", args: Namespace = None):
-        if args is None:
-            args = get_pfedsim_argparser().parse_args()
-        super().__init__(algo, args)
-        self.test_flag = False
+    def __init__(self, args: NestedNamespace, algo: str = "pFedSim"):
+        super().__init__(args, algo)
         self.weight_matrix = torch.eye(self.client_num, device=self.device)
 
         self.warmup_round = 0
-        if 0 <= self.args.warmup_round <= 1:
-            self.warmup_round = int(self.args.global_epoch * self.args.warmup_round)
-        elif 1 < self.args.warmup_round < self.args.global_epoch:
-            self.warmup_round = int(self.args.warmup_round)
+        if 0 <= self.args.pfedsim.warmup_round <= 1:
+            self.warmup_round = int(
+                self.args.common.global_epoch * self.args.pfedsim.warmup_round
+            )
+        elif 1 < self.args.pfedsim.warmup_round < self.args.common.global_epoch:
+            self.warmup_round = int(self.args.pfedsim.warmup_round)
         else:
             raise RuntimeError(
-                "args.warmup_round need to be set in the range of [0, 1) or [1, args.global_epoch)."
+                "warmup_round need to be set in the range of [0, 1) or [1, global_epoch)."
             )
 
     def train(self):
@@ -45,7 +44,7 @@ class pFedSimServer(FedAvgServer):
         # Personalization Phase
         self.unique_model = True
         pfedsim_progress_bar = track(
-            range(self.warmup_round, self.args.global_epoch),
+            range(self.warmup_round, self.args.common.global_epoch),
             "[bold green]Personalizing...",
             console=self.logger.stdout,
         )
@@ -63,10 +62,10 @@ class pFedSimServer(FedAvgServer):
         for E in pfedsim_progress_bar:
             self.current_epoch = E
 
-            if (E + 1) % self.args.verbose_gap == 0:
+            if (E + 1) % self.args.common.verbose_gap == 0:
                 self.logger.log(" " * 30, f"TRAINING EPOCH: {E + 1}", " " * 30)
 
-            if (E + 1) % self.args.test_interval == 0:
+            if (E + 1) % self.args.common.test_interval == 0:
                 self.test()
 
             self.selected_clients = self.client_sample_stream[E]
@@ -79,7 +78,7 @@ class pFedSimServer(FedAvgServer):
                         local_epoch=self.clients_local_epoch[client_id],
                         new_parameters=client_pers_params,
                         return_diff=False,
-                        verbose=((E + 1) % self.args.verbose_gap) == 0,
+                        verbose=((E + 1) % self.args.common.verbose_gap) == 0,
                     )
                 )
                 client_params_cache.append(client_params)
@@ -99,7 +98,7 @@ class pFedSimServer(FedAvgServer):
                 deepcopy(self.client_trainable_params[client_id]),
             )
         )
-        if not self.test_flag:
+        if not self.testing:
             if sum(self.weight_matrix[client_id]) > 1:
                 weights = self.weight_matrix[client_id].clone()
                 weights[client_id] = 0.9999
@@ -134,8 +133,3 @@ class pFedSimServer(FedAvgServer):
 
                 self.weight_matrix[i, j] = sim_ij
                 self.weight_matrix[j, i] = sim_ij
-
-
-if __name__ == "__main__":
-    server = pFedSimServer()
-    server.run()

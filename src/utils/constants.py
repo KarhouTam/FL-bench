@@ -1,6 +1,48 @@
 import json
+from pathlib import Path
 
-from .tools import PROJECT_DIR
+from torch import optim
+
+FLBENCH_ROOT = Path(__file__).parent.parent.parent.absolute()
+OUT_DIR = FLBENCH_ROOT / "out"
+TEMP_DIR = FLBENCH_ROOT / "temp"
+
+DEFAULT_COMMON_ARGS = {
+    "dataset": "mnist",
+    "seed": 42,
+    "model": "lenet5",
+    "join_ratio": 0.1,
+    "global_epoch": 10,
+    "local_epoch": 10,
+    "finetune_epoch": 0,
+    "batch_size": 32,
+    "test_interval": 10,
+    "straggler_ratio": 0,
+    "straggler_min_local_epoch": 0,
+    "external_model_params_file": None,
+    "optimizer": {
+        "name": "sgd",  # [sgd, adam, adamw, rmsprop, adagrad]
+        "lr": 0.01,
+        "dampening": 0,  # [sgd],
+        "weight_decay": 0,
+        "momentum": 0,  # SGD, RMSprop,
+        "alpha": 0.99,  # RMSprop,
+        "nesterov": False,  # SGD,
+        "betas": [0.9, 0.999],  # Adam, AdamW,
+    },
+    "eval_test": True,
+    "eval_val": False,
+    "eval_train": False,
+    "verbose_gap": 10,
+    "visible": False,
+    "use_cuda": True,
+    "save_log": True,
+    "save_model": False,
+    "save_fig": True,
+    "save_metrics": True,
+    "viz_win_name": None,
+    "check_convergence": True,
+}
 
 INPUT_CHANNELS = {
     "mnist": 1,
@@ -24,7 +66,7 @@ INPUT_CHANNELS = {
 
 def _get_domain_classes_num():
     try:
-        with open(PROJECT_DIR / "data" / "domain" / "metadata.json", "r") as f:
+        with open(FLBENCH_ROOT / "data" / "domain" / "metadata.json", "r") as f:
             metadata = json.load(f)
         return metadata["class_num"]
     except:
@@ -33,7 +75,7 @@ def _get_domain_classes_num():
 
 def _get_synthetic_classes_num():
     try:
-        with open(PROJECT_DIR / "data" / "synthetic" / "args.json", "r") as f:
+        with open(FLBENCH_ROOT / "data" / "synthetic" / "args.json", "r") as f:
             metadata = json.load(f)
         return metadata["class_num"]
     except:
@@ -98,4 +140,12 @@ DATA_STD = {
     "tiny_imagenet": [58.7048, 57.7551, 57.6717],
     "cinic10": [0.24205776, 0.23828046, 0.25874835],
     "domain": [0.229, 0.224, 0.225],
+}
+
+OPTIMIZERS = {
+    "sgd": optim.SGD,
+    "adam": optim.Adam,
+    "adamw": optim.AdamW,
+    "rmsprop": optim.RMSprop,
+    "adagrad": optim.Adagrad,
 }

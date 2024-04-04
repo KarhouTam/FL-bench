@@ -1,59 +1,59 @@
 import math
+import time
 from argparse import ArgumentParser, Namespace
 from collections import OrderedDict
 from copy import deepcopy
-import time
 from typing import List
 
 import torch
 import numpy as np
 from rich.progress import track
 
-from fedavg import FedAvgServer, get_fedavg_argparser
-from src.utils.tools import trainable_params
+from fedavg import FedAvgServer
+from src.utils.tools import trainable_params, NestedNamespace
 from src.client.fedap import FedAPClient
 
 
-def get_fedap_argparser() -> ArgumentParser:
-    parser = get_fedavg_argparser()
+def get_fedap_args(args_list=None) -> Namespace:
+    parser = ArgumentParser()
     parser.add_argument(
         "--version", type=str, choices=["original", "f", "d"], default="original"
     )
     parser.add_argument("--pretrain_ratio", type=float, default=0.3)
     parser.add_argument("--warmup_round", type=float, default=0.5)
     parser.add_argument("--model_momentum", type=float, default=0.5)
-    return parser
+    return parser.parse_args(args_list)
 
 
 # Codes below are modified from FedAP's official repo: https://github.com/microsoft/PersonalizedFL
 class FedAPServer(FedAvgServer):
     def __init__(
         self,
+        args: NestedNamespace,
         algo: str = None,
-        args: Namespace = None,
         unique_model=True,
         default_trainer=False,
     ):
-        if args is None:
-            args = get_fedap_argparser().parse_args()
         algo_name = {"original": "FedAP", "f": "f-FedAP", "d": "d-FedAP"}
-        algo = algo_name[args.version]
-        super().__init__(algo, args, unique_model, default_trainer)
+        algo = algo_name[args.fedap.version]
+        super().__init__(args, algo, unique_model, default_trainer)
 
         self.trainer = FedAPClient(
             deepcopy(self.model), self.args, self.logger, self.device
         )
         self.weight_matrix = torch.eye(self.client_num, device=self.device)
         self.warmup_round = 0
-        if 0 < self.args.warmup_round < 1:
-            self.warmup_round = int(self.args.global_epoch * self.args.warmup_round)
-        elif 1 <= self.args.warmup_round < self.args.global_epoch:
-            self.warmup_round = int(self.args.warmup_round)
+        if 0 < self.args.fedap.warmup_round < 1:
+            self.warmup_round = int(
+                self.args.common.global_epoch * self.args.fedap.warmup_round
+            )
+        elif 1 <= self.args.fedap.warmup_round < self.args.common.global_epoch:
+            self.warmup_round = int(self.args.fedap.warmup_round)
 
     def train(self):
         # Pre-training phase
-        if self.args.version in ["original", "d"]:
-            if 0 < self.args.pretrain_ratio < 1:
+        if self.args.fedap.version in ["original", "d"]:
+            if 0 < self.args.fedap.pretrain_ratio < 1:
                 self.trainer.pretrain = True
             else:
                 raise RuntimeError(
@@ -68,7 +68,7 @@ class FedAPServer(FedAvgServer):
         for E in warmup_progress_bar:
             self.current_epoch = E
 
-            if self.args.version == "f":
+            if self.args.fedap.version == "f":
                 self.selected_clients = self.client_sample_stream[E]
             else:
                 self.selected_clients = list(range(self.client_num))
@@ -80,9 +80,9 @@ class FedAPServer(FedAvgServer):
                     client_id=client_id,
                     local_epoch=self.clients_local_epoch[client_id],
                     new_parameters=self.global_params_dict,
-                    verbose=((E + 1) % self.args.verbose_gap) == 0,
+                    verbose=((E + 1) % self.args.common.verbose_gap) == 0,
                 )
-                if self.args.version == "f":
+                if self.args.fedap.version == "f":
                     delta_cache.append(delta)
                     weight_cache.append(weight)
                 else:
@@ -91,7 +91,7 @@ class FedAPServer(FedAvgServer):
                     ):
                         old_param.data -= diff.data
 
-            if self.args.version == "f":
+            if self.args.fedap.version == "f":
                 self.aggregate(delta_cache, weight_cache)
 
             self.log_info()
@@ -127,7 +127,7 @@ class FedAPServer(FedAvgServer):
         self.generate_weight_matrix(bn_mean_list, bn_var_list)
         # regular training
         self.train_progress_bar = track(
-            range(self.warmup_round, self.args.global_epoch),
+            range(self.warmup_round, self.args.common.global_epoch),
             "[bold green]Training...",
             console=self.logger.stdout,
         )
@@ -136,10 +136,10 @@ class FedAPServer(FedAvgServer):
         for E in self.train_progress_bar:
             begin = time.time()
             self.current_epoch = E
-            if (E + 1) % self.args.verbose_gap == 0:
+            if (E + 1) % self.args.common.verbose_gap == 0:
                 self.logger.log(" " * 30, f"TRAINING EPOCH: {E + 1}", " " * 30)
 
-            if (E + 1) % self.args.test_interval == 0:
+            if (E + 1) % self.args.common.test_interval == 0:
                 self.test()
 
             self.selected_clients = self.client_sample_stream[E]
@@ -152,7 +152,7 @@ class FedAPServer(FedAvgServer):
                     local_epoch=self.clients_local_epoch[client_id],
                     new_parameters=client_local_params,
                     return_diff=False,
-                    verbose=((E + 1) % self.args.verbose_gap) == 0,
+                    verbose=((E + 1) % self.args.common.verbose_gap) == 0,
                 )
 
                 delta_cache.append(delta)
@@ -163,7 +163,7 @@ class FedAPServer(FedAvgServer):
             avg_round_time = (avg_round_time * (self.current_epoch) + (end - begin)) / (
                 self.current_epoch + 1
             )
-            
+
         self.logger.log(
             f"{self.algo}'s average time taken by each global epoch: {int(avg_round_time // 60)} m {(avg_round_time % 60):.2f} s."
         )
@@ -177,7 +177,7 @@ class FedAPServer(FedAvgServer):
             if "running_var" in name:
                 tmp_var.append(self.model.state_dict()[name].cpu().numpy())
 
-        if self.args.version == "d":
+        if self.args.fedap.version == "d":
             tmp_mean = [tmp_mean[-1]]
             tmp_var = [tmp_var[-1]]
         return tmp_mean, tmp_var
@@ -199,9 +199,9 @@ class FedAPServer(FedAvgServer):
                         weight_m[i, j] = 1 / tmp
         weight_s = np.sum(weight_m, axis=1)
         weight_s = np.repeat(weight_s, client_num).reshape((client_num, client_num))
-        weight_m = (weight_m / weight_s) * (1 - self.args.model_momentum)
+        weight_m = (weight_m / weight_s) * (1 - self.args.fedap.model_momentum)
         for i in range(client_num):
-            weight_m[i, i] = self.args.model_momentum
+            weight_m[i, i] = self.args.fedap.model_momentum
         self.weight_matrix = torch.from_numpy(weight_m).to(self.device)
 
     def generate_client_params(self, client_id) -> OrderedDict[str, torch.Tensor]:
@@ -257,8 +257,3 @@ class metacount(object):
 
     def getvar(self):
         return self.var
-
-
-if __name__ == "__main__":
-    server = FedAPServer()
-    server.run()

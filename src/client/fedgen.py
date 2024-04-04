@@ -1,17 +1,17 @@
 from collections import OrderedDict
-from copy import deepcopy
 from typing import List
 
 import numpy as np
 import torch
 import torch.nn.functional as F
 
-from src.utils.tools import count_labels, trainable_params
+from src.utils.tools import Logger, NestedNamespace, count_labels, trainable_params
 from fedavg import FedAvgClient
+from src.utils.models import DecoupledModel
 
 
 class FedGenClient(FedAvgClient):
-    def __init__(self, model, args, logger, device):
+    def __init__(self, model: DecoupledModel, args: NestedNamespace, logger: Logger, device: torch.device):
         super().__init__(model, args, logger, device)
         self.label_counts: List[List[int]] = [
             count_labels(self.dataset, indices["train"], min_value=1)
@@ -68,8 +68,8 @@ class FedGenClient(FedAvgClient):
                 loss = self.criterion(logits, y)
 
                 if self.regularization:
-                    alpha = self.exp_coef_scheduler(self.args.generative_alpha)
-                    beta = self.exp_coef_scheduler(self.args.generative_beta)
+                    alpha = self.exp_coef_scheduler(self.args.fedgen.generative_alpha)
+                    beta = self.exp_coef_scheduler(self.args.fedgen.generative_beta)
                     generator_output, _ = self.generator(y)
                     logits_gen = self.model.classifier(generator_output).detach()
 
@@ -81,7 +81,7 @@ class FedGenClient(FedAvgClient):
 
                     sampled_y = torch.tensor(
                         np.random.choice(
-                            self.available_labels, self.args.gen_batch_size
+                            self.available_labels, self.args.fedgen.gen_batch_size
                         ),
                         dtype=torch.long,
                         device=self.device,
@@ -90,7 +90,7 @@ class FedGenClient(FedAvgClient):
                     logits = self.model.classifier(generator_output)
                     teacher_loss = alpha * self.criterion(logits, sampled_y)
 
-                    gen_ratio = self.args.gen_batch_size / self.args.batch_size
+                    gen_ratio = self.args.fedgen.gen_batch_size / self.args.common.batch_size
 
                     loss += gen_ratio * teacher_loss + latent_loss
 
@@ -103,7 +103,7 @@ class FedGenClient(FedAvgClient):
             1e-4,
             init_coef
             * (
-                self.args.coef_decay
-                ** (self.current_global_epoch // self.args.coef_decay_epoch)
+                self.args.fedgen.coef_decay
+                ** (self.current_global_epoch // self.args.fedgen.coef_decay_epoch)
             ),
         )

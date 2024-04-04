@@ -1,33 +1,27 @@
 from argparse import ArgumentParser, Namespace
 from copy import deepcopy
 
-from fedavg import FedAvgServer, get_fedavg_argparser
+from fedavg import FedAvgServer
 from src.client.apfl import APFLClient
+from src.utils.tools import NestedNamespace
 
 
-def get_apfl_argparser() -> ArgumentParser:
-    parser = get_fedavg_argparser()
+def get_apfl_args(args_list=None) -> Namespace:
+    parser = ArgumentParser()
     parser.add_argument("--alpha", type=float, default=0.5)
     parser.add_argument("--adaptive_alpha", type=int, default=1)
-    return parser
+    return parser.parse_args(args_list)
 
 
 class APFLServer(FedAvgServer):
     def __init__(
         self,
+        args: NestedNamespace,
         algo: str = "APFL",
-        args: Namespace = None,
         unique_model=False,
         default_trainer=False,
     ):
-        if args is None:
-            args = get_apfl_argparser().parse_args()
-        super().__init__(algo, args, unique_model, default_trainer)
+        super().__init__(args, algo, unique_model, default_trainer)
         self.trainer = APFLClient(
             deepcopy(self.model), self.args, self.logger, self.device, self.client_num
         )
-
-
-if __name__ == "__main__":
-    server = APFLServer()
-    server.run()

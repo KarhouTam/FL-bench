@@ -1,4 +1,3 @@
-from argparse import Namespace
 from copy import deepcopy
 from typing import Dict
 
@@ -7,7 +6,7 @@ import torch.nn.functional as F
 
 from fedavg import FedAvgClient
 from src.utils.models import DecoupledModel
-from src.utils.tools import Logger
+from src.utils.tools import Logger, NestedNamespace
 from src.utils.constants import NUM_CLASSES
 
 
@@ -15,18 +14,21 @@ class FedProtoClient(FedAvgClient):
     def __init__(
         self,
         model: DecoupledModel,
-        args: Namespace,
+        args: NestedNamespace,
         logger: Logger,
         device: torch.device,
     ):
         super().__init__(model, args, logger, device)
-        shape = (NUM_CLASSES[self.args.dataset], self.model.classifier.in_features)
+        shape = (
+            NUM_CLASSES[self.args.common.dataset],
+            self.model.classifier.in_features,
+        )
         self.global_prototypes = torch.zeros(shape, device=self.device)
         self.accumulated_features = torch.zeros(shape, device=self.device)
         self.personal_params_name = list(self.model.state_dict().keys())
         self.init_personal_params_dict = deepcopy(self.model.state_dict())
         self.label_counts = torch.zeros(
-            NUM_CLASSES[self.args.dataset], 1, device=self.device
+            NUM_CLASSES[self.args.common.dataset], 1, device=self.device
         )
 
     def train(
@@ -54,7 +56,7 @@ class FedProtoClient(FedAvgClient):
         eval_results = self.train_and_log(verbose=verbose)
 
         client_prototypes = {}
-        for i in range(NUM_CLASSES[self.args.dataset]):
+        for i in range(NUM_CLASSES[self.args.common.dataset]):
             if self.label_counts[i] > 0:
                 client_prototypes[i] = (
                     self.accumulated_features[i] / self.label_counts[i]
@@ -79,7 +81,7 @@ class FedProtoClient(FedAvgClient):
                 if len(self.global_prototypes) > 0:
                     prototype_loss = F.mse_loss(features, target_prototypes)
                 ce_loss = self.criterion(logits, y)
-                loss = ce_loss + self.args.lamda * prototype_loss
+                loss = ce_loss + self.args.fedproto.lamda * prototype_loss
 
                 self.optimizer.zero_grad()
                 loss.backward()

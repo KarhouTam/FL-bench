@@ -7,16 +7,24 @@ import faiss
 
 from fedavg import FedAvgClient
 from src.utils.metrics import Metrics
+from src.utils.models import DecoupledModel
+from src.utils.tools import Logger, NestedNamespace
 
 
 class kNNPerClient(FedAvgClient):
-    def __init__(self, model, args, logger, device):
+    def __init__(
+        self,
+        model: DecoupledModel,
+        args: NestedNamespace,
+        logger: Logger,
+        device: torch.device,
+    ):
         super().__init__(model, args, logger, device)
         self.datastore = DataStore(args, self.model.classifier.in_features)
 
     @torch.no_grad()
     def evaluate(self, model=None):
-        if self.test_flag:
+        if self.testing:
             self.dataset.eval()
             target_model = self.model if model is None else model
             target_model.eval()
@@ -52,16 +60,16 @@ class kNNPerClient(FedAvgClient):
                 self.datastore.clear()
 
                 logits = (
-                    self.args.weight * knn_logits
-                    + (1 - self.args.weight) * model_logits
+                    self.args.knnper.weight * knn_logits
+                    + (1 - self.args.knnper.weight) * model_logits
                 )
                 pred = torch.argmax(logits, dim=-1)
                 loss = criterion(logits, targets).item()
                 return Metrics(loss, pred, targets)
 
-            if len(self.testset) > 0 and self.args.eval_test:
+            if len(self.testset) > 0 and self.args.common.eval_test:
                 test_metrics = _knnper_eval(self.testloader)
-            if len(self.valset) > 0 and self.args.eval_val:
+            if len(self.valset) > 0 and self.args.common.eval_val:
                 val_metrics = _knnper_eval(self.valloader)
 
             self.dataset.enable_train_transform = True
@@ -72,9 +80,11 @@ class kNNPerClient(FedAvgClient):
 
     def get_knn_logits(self, features: torch.Tensor):
         distances, indices = self.datastore.index.search(
-            features.cpu().numpy(), self.args.k
+            features.cpu().numpy(), self.args.knnper.k
         )
-        similarities = np.exp(-distances / (features.shape[-1] * self.args.scale))
+        similarities = np.exp(
+            -distances / (features.shape[-1] * self.args.knnper.scale)
+        )
         neighbors_targets = self.datastore.targets[indices]
 
         masks = np.zeros(((len(self.dataset.classes),) + similarities.shape))
@@ -100,11 +110,11 @@ class DataStore:
         num_samples = len(features)
         features_ = torch.cat(features, dim=0).cpu().numpy()
         targets_ = torch.cat(targets, dim=0).cpu().numpy()
-        if num_samples <= self.args.capacity:
+        if num_samples <= self.args.knnper.capacity:
             self.index.add(features_)
             self.targets = targets_
         else:
-            indices = random.sample(list(range(num_samples)), self.args.capacity)
+            indices = random.sample(list(range(num_samples)), self.args.knnper.capacity)
             self.index.add(features_[indices])
             self.targets = targets_[indices]
 

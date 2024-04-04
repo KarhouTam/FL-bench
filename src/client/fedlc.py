@@ -3,10 +3,12 @@ from collections import Counter
 import torch
 
 from fedavg import FedAvgClient
+from src.utils.models import DecoupledModel
+from src.utils.tools import Logger, NestedNamespace
 
 
 class FedLCClient(FedAvgClient):
-    def __init__(self, model, args, logger, device):
+    def __init__(self, model: DecoupledModel, args: NestedNamespace, logger: Logger, device: torch.device):
         super().__init__(model, args, logger, device)
         self.label_distrib = torch.zeros(len(self.dataset.classes), device=self.device)
 
@@ -14,7 +16,7 @@ class FedLCClient(FedAvgClient):
             cal_logit = torch.exp(
                 logit
                 - (
-                    self.args.tau
+                    self.args.fedlc.tau
                     * torch.pow(self.label_distrib, -1 / 4)
                     .unsqueeze(0)
                     .expand((logit.shape[0], -1))

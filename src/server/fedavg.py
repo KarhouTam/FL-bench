@@ -1,11 +1,8 @@
 import pickle
-import sys
 import json
 import os
 import time
 import random
-from pathlib import Path
-from argparse import ArgumentParser, Namespace
 from collections import OrderedDict
 from copy import deepcopy
 from typing import Dict, List, OrderedDict
@@ -14,92 +11,46 @@ import torch
 import numpy as np
 from rich.console import Console
 from rich.progress import track
-
-from src.utils.metrics import Metrics
-
-PROJECT_DIR = Path(__file__).parent.parent.parent.absolute()
-
-sys.path.append(PROJECT_DIR.as_posix())
+from rich.json import JSON
 
 from src.utils.tools import (
-    OUT_DIR,
     Logger,
+    NestedNamespace,
     fix_random_seed,
-    parse_config_file,
     trainable_params,
     get_optimal_cuda_device,
 )
 from src.utils.models import MODELS, DecoupledModel
-from data.utils.datasets import DATASETS
+from src.utils.metrics import Metrics
 from src.client.fedavg import FedAvgClient
-
-
-def get_fedavg_argparser() -> ArgumentParser:
-    parser = ArgumentParser()
-    parser.add_argument(
-        "-m", "--model", type=str, default="lenet5", choices=MODELS.keys()
-    )
-    parser.add_argument(
-        "-d", "--dataset", type=str, choices=DATASETS.keys(), default="cifar10"
-    )
-    parser.add_argument("--seed", type=int, default=42)
-    parser.add_argument("-jr", "--join_ratio", type=float, default=0.1)
-    parser.add_argument("-ge", "--global_epoch", type=int, default=100)
-    parser.add_argument("-le", "--local_epoch", type=int, default=5)
-    parser.add_argument("-fe", "--finetune_epoch", type=int, default=0)
-    parser.add_argument("-ti", "--test_interval", type=int, default=100)
-    parser.add_argument("--eval_test", type=int, default=1)
-    parser.add_argument("--eval_val", type=int, default=0)
-    parser.add_argument("--eval_train", type=int, default=0)
-    parser.add_argument(
-        "-op", "--optimizer", type=str, default="sgd", choices=["sgd", "adam"]
-    )
-    parser.add_argument("-lr", "--local_lr", type=float, default=1e-2)
-    parser.add_argument("-mom", "--momentum", type=float, default=0.0)
-    parser.add_argument("-wd", "--weight_decay", type=float, default=0.0)
-    parser.add_argument("-vg", "--verbose_gap", type=int, default=10)
-    parser.add_argument("-bs", "--batch_size", type=int, default=32)
-    parser.add_argument("-v", "--visible", type=int, default=0)
-    parser.add_argument("--straggler_ratio", type=float, default=0)
-    parser.add_argument("--straggler_min_local_epoch", type=int, default=1)
-    parser.add_argument("--external_model_params_file", type=str, default="")
-    parser.add_argument("--use_cuda", type=int, default=1)
-    parser.add_argument("--save_log", type=int, default=1)
-    parser.add_argument("--save_model", type=int, default=0)
-    parser.add_argument("--save_fig", type=int, default=1)
-    parser.add_argument("--save_metrics", type=int, default=1)
-    parser.add_argument("--viz_win_name", type=str, required=False)
-    parser.add_argument("-cfg", "--config_file", type=str, default="")
-    parser.add_argument("--check_convergence", type=int, default=1)
-    return parser
-
+from src.utils.constants import FLBENCH_ROOT, OUT_DIR
 
 class FedAvgServer:
     def __init__(
         self,
+        args: NestedNamespace,
         algo: str = "FedAvg",
-        args: Namespace = None,
         unique_model=False,
         default_trainer=True,
     ):
-        self.args = get_fedavg_argparser().parse_args() if args is None else args
+        self.args = args
         self.algo = algo
         self.unique_model = unique_model
-        if len(self.args.config_file) > 0 and os.path.exists(
-            Path(self.args.config_file).absolute()
-        ):
-            self.args = parse_config_file(self.args)
-        fix_random_seed(self.args.seed)
-        begin_time = str(
+        fix_random_seed(self.args.common.seed)
+        start_time = str(
             time.strftime("%Y-%m-%d-%H:%M:%S", time.localtime(round(time.time())))
         )
-        self.output_dir = OUT_DIR / self.algo / begin_time
-        with open(PROJECT_DIR / "data" / self.args.dataset / "args.json", "r") as f:
-            self.args.dataset_args = json.load(f)
+        self.output_dir = OUT_DIR / self.algo / start_time
+        with open(
+            FLBENCH_ROOT / "data" / self.args.common.dataset / "args.json", "r"
+        ) as f:
+            self.args.dataset = NestedNamespace(json.load(f))
 
         # get client party info
         try:
-            partition_path = PROJECT_DIR / "data" / self.args.dataset / "partition.pkl"
+            partition_path = (
+                FLBENCH_ROOT / "data" / self.args.common.dataset / "partition.pkl"
+            )
             with open(partition_path, "rb") as f:
                 partition = pickle.load(f)
         except:
@@ -110,13 +61,13 @@ class FedAvgServer:
         self.client_num: int = partition["separation"]["total"]
 
         # init model(s) parameters
-        self.device = get_optimal_cuda_device(self.args.use_cuda)
+        self.device = get_optimal_cuda_device(self.args.common.use_cuda)
 
         # get_model_arch() would return a class depends on model's name,
         # then init the model object by indicating the dataset and calling the class.
         # Finally transfer the model object to the target device.
-        self.model: DecoupledModel = MODELS[self.args.model](
-            dataset=self.args.dataset
+        self.model: DecoupledModel = MODELS[self.args.common.model](
+            dataset=self.args.common.dataset
         ).to(self.device)
         self.model.check_avaliability()
 
@@ -133,12 +84,12 @@ class FedAvgServer:
         )
         if (
             not self.unique_model
-            and self.args.external_model_params_file
-            and os.path.isfile(self.args.external_model_params_file)
+            and self.args.common.external_model_params_file
+            and os.path.isfile(self.args.common.external_model_params_file)
         ):
             # load pretrained params
             self.global_params_dict = torch.load(
-                self.args.external_model_params_file, map_location=self.device
+                self.args.common.external_model_params_file, map_location=self.device
             )
         else:
             self.client_trainable_params = [
@@ -146,17 +97,23 @@ class FedAvgServer:
             ]
 
         # system heterogeneity (straggler) setting
-        self.clients_local_epoch: List[int] = [self.args.local_epoch] * self.client_num
+        self.clients_local_epoch: List[int] = [
+            self.args.common.local_epoch
+        ] * self.client_num
         if (
-            self.args.straggler_ratio > 0
-            and self.args.local_epoch > self.args.straggler_min_local_epoch
+            self.args.common.straggler_ratio > 0
+            and self.args.common.local_epoch
+            > self.args.common.straggler_min_local_epoch
         ):
-            straggler_num = int(self.client_num * self.args.straggler_ratio)
+            straggler_num = int(self.client_num * self.args.common.straggler_ratio)
             normal_num = self.client_num - straggler_num
-            self.clients_local_epoch = [self.args.local_epoch] * (
+            self.clients_local_epoch = [self.args.common.local_epoch] * (
                 normal_num
             ) + random.choices(
-                range(self.args.straggler_min_local_epoch, self.args.local_epoch),
+                range(
+                    self.args.common.straggler_min_local_epoch,
+                    self.args.common.local_epoch,
+                ),
                 k=straggler_num,
             )
             random.shuffle(self.clients_local_epoch)
@@ -165,39 +122,41 @@ class FedAvgServer:
         # Some algorithms' implicit operations at client side may disturb the stream if sampling happens at each FL round's beginning.
         self.client_sample_stream = [
             random.sample(
-                self.train_clients, max(1, int(self.client_num * self.args.join_ratio))
+                self.train_clients,
+                max(1, int(self.client_num * self.args.common.join_ratio)),
             )
-            for _ in range(self.args.global_epoch)
+            for _ in range(self.args.common.global_epoch)
         ]
         self.selected_clients: List[int] = []
         self.current_epoch = 0
         # epoch that need test model on test clients.
         self.epoch_test = [
             epoch
-            for epoch in range(0, self.args.global_epoch)
-            if (epoch + 1) % self.args.test_interval == 0
+            for epoch in range(0, self.args.common.global_epoch)
+            if (epoch + 1) % self.args.common.test_interval == 0
         ]
         # For controlling behaviors of some specific methods while testing (not used by all methods)
-        self.test_flag = False
+        self.testing = False
 
-        # variables for logging
         if not os.path.isdir(self.output_dir) and (
-            self.args.save_log or self.args.save_fig or self.args.save_metrics
+            self.args.common.save_log
+            or self.args.common.save_fig
+            or self.args.common.save_metrics
         ):
             os.makedirs(self.output_dir, exist_ok=True)
 
-        if self.args.visible:
+        if self.args.common.visible:
             from visdom import Visdom
 
             self.viz = Visdom()
-            if self.args.viz_win_name is not None:
-                self.viz_win_name = self.args.viz_win_name
+            if self.args.common.viz_win_name is not None:
+                self.viz_win_name = self.args.common.viz_win_name
             else:
                 self.viz_win_name = (
                     f"{self.algo}"
-                    + f"_{self.args.dataset}"
-                    + f"_{self.args.global_epoch}"
-                    + f"_{self.args.local_epoch}"
+                    + f"_{self.args.common.dataset}"
+                    + f"_{self.args.common.global_epoch}"
+                    + f"_{self.args.common.local_epoch}"
                 )
         self.client_metrics = {i: {} for i in self.train_clients}
         self.global_metrics = {
@@ -207,19 +166,18 @@ class FedAvgServer:
         stdout = Console(log_path=False, log_time=False)
         self.logger = Logger(
             stdout=stdout,
-            enable_log=self.args.save_log,
+            enable_log=self.args.common.save_log,
             logfile_path=OUT_DIR
             / self.algo
             / self.output_dir
-            / f"{self.args.dataset}_log.html",
+            / f"{self.args.common.dataset}_log.html",
         )
         self.test_results: Dict[int, Dict[str, Dict[str, Metrics]]] = {}
         self.train_progress_bar = track(
-            range(self.args.global_epoch), "[bold green]Training...", console=stdout
+            range(self.args.common.global_epoch),
+            "[bold green]Training...",
+            console=stdout,
         )
-
-        self.logger.log("=" * 20, self.algo, "=" * 20)
-        self.logger.log("Experiment Arguments:", dict(self.args._get_kwargs()))
 
         # init trainer
         self.trainer = None
@@ -228,16 +186,20 @@ class FedAvgServer:
                 deepcopy(self.model), self.args, self.logger, self.device
             )
 
+        self.logger.log("=" * 20, self.algo, "=" * 20)
+        self.logger.log("Experiment Arguments:")
+        self.logger.log(JSON(str(self.args)))
+
     def train(self):
         """The Generic FL training process"""
         avg_round_time = 0
         for E in self.train_progress_bar:
             self.current_epoch = E
 
-            if (E + 1) % self.args.verbose_gap == 0:
+            if (E + 1) % self.args.common.verbose_gap == 0:
                 self.logger.log("-" * 26, f"TRAINING EPOCH: {E + 1}", "-" * 26)
 
-            if (E + 1) % self.args.test_interval == 0:
+            if (E + 1) % self.args.common.test_interval == 0:
                 self.test()
 
             self.selected_clients = self.client_sample_stream[E]
@@ -264,7 +226,8 @@ class FedAvgServer:
                     client_id=client_id,
                     local_epoch=self.clients_local_epoch[client_id],
                     new_parameters=client_local_params,
-                    verbose=((self.current_epoch + 1) % self.args.verbose_gap) == 0,
+                    verbose=((self.current_epoch + 1) % self.args.common.verbose_gap)
+                    == 0,
                 )
             )
 
@@ -275,7 +238,7 @@ class FedAvgServer:
 
     def test(self):
         """The function for testing FL method's output (a single global model or personalized client models)."""
-        self.test_flag = True
+        self.testing = True
         client_ids = set(self.val_clients + self.test_clients)
         all_same = False
         if client_ids:
@@ -344,7 +307,7 @@ class FedAvgServer:
 
             self.test_results[self.current_epoch + 1] = results
 
-        self.test_flag = False
+        self.testing = False
 
     @torch.no_grad()
     def update_client_params(self, client_params_cache: List[List[torch.Tensor]]):
@@ -456,9 +419,9 @@ class FedAvgServer:
         """This function is for logging each selected client's training info."""
         for stage in ["before", "after"]:
             for split, flag in [
-                ("train", self.args.eval_train),
-                ("val", self.args.eval_val),
-                ("test", self.args.eval_test),
+                ("train", self.args.common.eval_train),
+                ("val", self.args.common.eval_val),
+                ("test", self.args.common.eval_test),
             ]:
                 if flag:
                     global_metrics = Metrics()
@@ -469,7 +432,7 @@ class FedAvgServer:
 
                     self.global_metrics[stage][split].append(global_metrics)
 
-                    if self.args.visible:
+                    if self.args.common.visible:
                         self.viz.line(
                             [global_metrics.accuracy],
                             [self.current_epoch],
@@ -502,9 +465,9 @@ class FedAvgServer:
             self.logger.log(f"{group}:")
             for stage in ["before", "after"]:
                 for split, flag in [
-                    ("train", self.args.eval_train),
-                    ("val", self.args.eval_val),
-                    ("test", self.args.eval_test),
+                    ("train", self.args.common.eval_train),
+                    ("val", self.args.common.eval_val),
+                    ("test", self.args.common.eval_test),
                 ]:
                     if flag:
                         metrics_list = list(
@@ -537,7 +500,7 @@ class FedAvgServer:
                 "Specify your unique trainer or set `default_trainer` as True."
             )
 
-        if self.args.visible:
+        if self.args.common.visible:
             self.viz.close(win=self.viz_win_name)
 
         self.train()
@@ -559,9 +522,9 @@ class FedAvgServer:
                             "accuracy": f"{metrics['before'][split].accuracy:.2f}% -> {metrics['after'][split].accuracy:.2f}%",
                         }
                         for split, flag in [
-                            ("train", self.args.eval_train),
-                            ("val", self.args.eval_val),
-                            ("test", self.args.eval_test),
+                            ("train", self.args.common.eval_train),
+                            ("val", self.args.common.eval_val),
+                            ("test", self.args.common.eval_test),
                         ]
                         if flag
                     }
@@ -571,12 +534,12 @@ class FedAvgServer:
             }
         )
 
-        if self.args.check_convergence:
+        if self.args.common.check_convergence:
             self.show_convergence()
         self.log_max_metrics()
         self.logger.close()
 
-        if self.args.save_fig:
+        if self.args.common.save_fig:
             import matplotlib
             from matplotlib import pyplot as plt
 
@@ -597,16 +560,19 @@ class FedAvgServer:
                             ls=linestyle[stage][split],
                         )
 
-            plt.title(f"{self.algo}_{self.args.dataset}")
+            plt.title(f"{self.algo}_{self.args.common.dataset}")
             plt.ylim(0, 100)
             plt.xlabel("Communication Rounds")
             plt.ylabel("Accuracy")
             plt.legend()
             plt.savefig(
-                OUT_DIR / self.algo / self.output_dir / f"{self.args.dataset}.pdf",
+                OUT_DIR
+                / self.algo
+                / self.output_dir
+                / f"{self.args.common.dataset}.pdf",
                 bbox_inches="tight",
             )
-        if self.args.save_metrics:
+        if self.args.common.save_metrics:
             import pandas as pd
 
             df = pd.DataFrame()
@@ -633,21 +599,14 @@ class FedAvgServer:
                 OUT_DIR
                 / self.algo
                 / self.output_dir
-                / f"{self.args.dataset}_acc_metrics.csv",
+                / f"{self.args.common.dataset}_acc_metrics.csv",
                 index=True,
                 index_label="epoch",
             )
         # save trained model(s)
-        if self.args.save_model:
-            model_name = (
-                f"{self.args.dataset}_{self.args.global_epoch}_{self.args.model}.pt"
-            )
+        if self.args.common.save_model:
+            model_name = f"{self.args.common.dataset}_{self.args.common.global_epoch}_{self.args.common.model}.pt"
             if self.unique_model:
                 torch.save(self.client_trainable_params, self.output_dir / model_name)
             else:
                 torch.save(self.global_params_dict, self.output_dir / model_name)
-
-
-if __name__ == "__main__":
-    server = FedAvgServer()
-    server.run()

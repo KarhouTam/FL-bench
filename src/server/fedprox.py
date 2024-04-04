@@ -1,32 +1,26 @@
 from argparse import ArgumentParser, Namespace
 from copy import deepcopy
 
-from fedavg import FedAvgServer, get_fedavg_argparser
+from fedavg import FedAvgServer
 from src.client.fedprox import FedProxClient
+from src.utils.tools import NestedNamespace
 
 
-def get_fedprox_argparser() -> ArgumentParser:
-    parser = get_fedavg_argparser()
+def get_fedprox_args(args_list=None) -> Namespace:
+    parser = ArgumentParser()
     parser.add_argument("--mu", type=float, default=1.0)
-    return parser
+    return parser.parse_args(args_list)
 
 
 class FedProxServer(FedAvgServer):
     def __init__(
         self,
+        args: NestedNamespace,
         algo: str = "FedProx",
-        args: Namespace = None,
         unique_model=False,
         default_trainer=False,
     ):
-        if args is None:
-            args = get_fedprox_argparser().parse_args()
-        super().__init__(algo, args, unique_model, default_trainer)
+        super().__init__(args, algo, unique_model, default_trainer)
         self.trainer = FedProxClient(
             deepcopy(self.model), self.args, self.logger, self.device
         )
-
-
-if __name__ == "__main__":
-    server = FedProxServer()
-    server.run()

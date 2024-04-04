@@ -3,28 +3,27 @@ from copy import deepcopy
 
 import torch
 
-from fedavg import FedAvgServer, get_fedavg_argparser
+from fedavg import FedAvgServer
 from src.client.fedfomo import FedFomoClient
+from src.utils.tools import NestedNamespace
 
 
-def get_fedfomo_argparser() -> ArgumentParser:
-    parser = get_fedavg_argparser()
+def get_fedfomo_args(args_list=None) -> Namespace:
+    parser = ArgumentParser()
     parser.add_argument("--M", type=int, default=5)
     parser.add_argument("--valset_ratio", type=float, default=0.2)
-    return parser
+    return parser.parse_args(args_list)
 
 
 class FedFomoServer(FedAvgServer):
     def __init__(
         self,
+        args: NestedNamespace,
         algo: str = "FedFomo",
-        args: Namespace = None,
         unique_model=True,
         default_trainer=False,
     ):
-        if args is None:
-            args = get_fedfomo_argparser().parse_args()
-        super().__init__(algo, args, unique_model, default_trainer)
+        super().__init__(args, algo, unique_model, default_trainer)
         self.trainer = FedFomoClient(
             deepcopy(self.model), self.args, self.logger, self.device, self.client_num
         )
@@ -43,7 +42,7 @@ class FedFomoServer(FedAvgServer):
                 client_id=client_id,
                 local_epoch=self.clients_local_epoch[client_id],
                 received_params=selected_params,
-                verbose=((self.current_epoch + 1) % self.args.verbose_gap) == 0,
+                verbose=((self.current_epoch + 1) % self.args.common.verbose_gap) == 0,
             )
 
             client_params_cache.append(client_params)
@@ -55,13 +54,13 @@ class FedFomoServer(FedAvgServer):
     def generate_client_params(self, client_id):
         prev_round_clients = self.client_sample_stream[self.current_epoch - 1]
         selected_params = {}
-        if not self.test_flag and self.current_epoch > 0:
+        if not self.testing and self.current_epoch > 0:
             selected_params = {
                 prev_round_clients[i]: self.client_trainable_params[
                     prev_round_clients[i]
                 ]
                 for i in torch.topk(
-                    self.P[client_id][prev_round_clients], self.args.M
+                    self.P[client_id][prev_round_clients], self.args.fedfomo.M
                 ).indices.tolist()
             }
         selected_params[client_id] = self.client_trainable_params[client_id]

@@ -1,8 +1,12 @@
+import torch
+
 from fedavg import FedAvgClient
+from src.utils.models import DecoupledModel
+from src.utils.tools import Logger, NestedNamespace
 
 
 class FedPerClient(FedAvgClient):
-    def __init__(self, model, args, logger, device):
+    def __init__(self, model: DecoupledModel, args: NestedNamespace, logger: Logger, device: torch.device):
         super().__init__(model, args, logger, device)
         self.personal_params_name = [
             name for name in self.model.state_dict().keys() if "classifier" in name
@@ -21,7 +25,7 @@ class FedPerClient(FedAvgClient):
             super().finetune()
         else:
             # fine-tune the classifier only
-            for _ in range(self.args.finetune_epoch):
+            for _ in range(self.args.common.finetune_epoch):
                 for x, y in self.trainloader:
                     if len(x) <= 1:
                         continue

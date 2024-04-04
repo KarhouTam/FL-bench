@@ -1,10 +1,10 @@
+import json
 import os
 import random
 import yaml
 from argparse import Namespace
-from copy import deepcopy
 from collections import Counter, OrderedDict
-from typing import List, Tuple, Union
+from typing import Callable, Dict, List, Sequence, Tuple, Union
 from pathlib import Path
 
 import torch
@@ -15,10 +15,7 @@ from rich.console import Console
 
 from data.utils.datasets import BaseDataset
 from src.utils.metrics import Metrics
-
-PROJECT_DIR = Path(__file__).parent.parent.parent.absolute()
-OUT_DIR = PROJECT_DIR / "out"
-TEMP_DIR = PROJECT_DIR / "temp"
+from src.utils.constants import DEFAULT_COMMON_ARGS
 
 
 def fix_random_seed(seed: int) -> None:
@@ -170,7 +167,14 @@ def count_labels(
     return [counter.get(i, min_value) for i in range(len(dataset.classes))]
 
 
-def parse_config_file(default_args: Namespace) -> Namespace:
+def parse_args(
+    config_file_path: str,
+    method_name: str,
+    get_method_args_func: Union[
+        Callable[[Union[Sequence[str], None]], Namespace], None
+    ],
+    method_args_list: List[str],
+) -> Namespace:
     """Merging default argument namespace with argument dict from custom config file.
 
     Args:
@@ -179,13 +183,40 @@ def parse_config_file(default_args: Namespace) -> Namespace:
     Returns:
         Namespace: The merged arg namespace.
     """
-    with open(Path(default_args.config_file).absolute()) as f:
-        custom = yaml.safe_load(f)
+    try:
+        with open(Path(config_file_path).absolute()) as f:
+            config_file_args = yaml.safe_load(f)
+        final_args = NestedNamespace(config_file_args)
+    except:
+        raise FileNotFoundError(
+            f"Unrecongnized config file path: {Path(config_file_path).absolute()}."
+        )
 
-    merged_args = deepcopy(vars(default_args))
-    merged_args.update(custom)
+    common_args = DEFAULT_COMMON_ARGS
+    common_args.update(config_file_args["common"])
+    final_args.__setattr__("common", NestedNamespace(common_args))
 
-    return Namespace(**merged_args)
+    if get_method_args_func is not None:
+        default_method_args = get_method_args_func([]).__dict__
+        config_file_method_args = config_file_args.get(method_name, {})
+        cli_method_args = get_method_args_func(method_args_list).__dict__
+
+        # extract arguments set explicitly set in CLI
+        for key in default_method_args.keys():
+            if default_method_args[key] == cli_method_args[key]:
+                cli_method_args.pop(key)
+
+        # For the same argument, the value setting priority is CLI > config file > defalut value
+        method_args = default_method_args
+        for key in default_method_args.keys():
+            if key in cli_method_args.keys():
+                method_args[key] = cli_method_args[key]
+            elif key in config_file_method_args.keys():
+                method_args[key] = config_file_method_args[key]
+
+        final_args.__setattr__(method_name, NestedNamespace(method_args))
+
+    return final_args
 
 
 class Logger:
@@ -216,3 +247,25 @@ class Logger:
     def close(self):
         if self.logfile_stream:
             self.logfile_stream.close()
+
+
+class NestedNamespace(Namespace):
+    def __init__(self, args_dict: Dict):
+        super().__init__(
+            **{
+                key: self._nested_namespace(value) if isinstance(value, dict) else value
+                for key, value in args_dict.items()
+            }
+        )
+
+    def _nested_namespace(self, dictionary):
+        return NestedNamespace(dictionary)
+
+    def to_dict(self):
+        return {
+            key: (value.to_dict() if isinstance(value, NestedNamespace) else value)
+            for key, value in self.__dict__.items()
+        }
+
+    def __str__(self):
+        return json.dumps(self.to_dict(), indent=4, sort_keys=False)

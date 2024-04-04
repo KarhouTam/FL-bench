@@ -3,31 +3,47 @@ import sys
 import inspect
 from pathlib import Path
 
-sys.path.append(Path(__file__).parent.joinpath("src/server").absolute().as_posix())
+FLBENCH_ROOT = Path(__file__).parent.absolute()
+if FLBENCH_ROOT not in sys.path:
+    sys.path.append(FLBENCH_ROOT.as_posix())
+
+SERVER_DIR = Path(__file__).parent.joinpath("src/server").absolute()
+if SERVER_DIR not in sys.path:
+    sys.path.append(SERVER_DIR.as_posix())
+
+from src.utils.tools import parse_args
+
 
 if __name__ == "__main__":
-    if len(sys.argv) < 2:
+    if len(sys.argv) < 3:
         raise ValueError(
-            "Need to assign a method. Run like `python main.py <method> [args ...]`, e.g., python main.py fedavg -d cifar10 -m lenet5`"
+            "No <method> or <config_file>. Run like `python main.py <method> <config_file_relative_path> [cli_method_args ...]`,\n e.g., python main.py fedavg config/template.yml`"
         )
 
-    method = sys.argv[1]
-    args_list = sys.argv[2:]
-
-    module = importlib.import_module(method)
+    method_name = sys.argv[1]
+    config_file_path = sys.argv[2]
+    cli_method_args = sys.argv[3:]
     try:
-        get_argparser = getattr(module, f"get_{method}_argparser")
+        method_module = importlib.import_module(method_name)
     except:
-        fedavg_module = importlib.import_module("fedavg")
-        get_argparser = getattr(fedavg_module, "get_fedavg_argparser")
-    parser = get_argparser()
-    module_attributes = inspect.getmembers(module, inspect.isclass)
+        raise FileNotFoundError(f"unrecongnized method: {method_name}.")
+
+    try:
+        get_method_args_func = getattr(method_module, f"get_{method_name}_args")
+    except:
+        get_method_args_func = None
+
+    module_attributes = inspect.getmembers(method_module, inspect.isclass)
     server_class = [
         attribute
         for attribute in module_attributes
-        if attribute[0].lower() == method + "server"
+        if attribute[0].lower() == method_name + "server"
     ][0][1]
 
-    server = server_class(args=parser.parse_args(args_list))
+    server = server_class(
+        args=parse_args(
+            config_file_path, method_name, get_method_args_func, cli_method_args
+        )
+    )
 
     server.run()

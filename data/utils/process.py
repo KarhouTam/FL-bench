@@ -18,7 +18,6 @@ DATA_ROOT = Path(__file__).parent.parent.absolute()
 def prune_args(args: Namespace) -> Dict:
     args_dict = {}
     # general settings
-    args_dict["dataset"] = args.dataset
     args_dict["client_num"] = args.client_num
     args_dict["test_ratio"] = args.test_ratio
     args_dict["val_ratio"] = args.val_ratio

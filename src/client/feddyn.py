@@ -3,11 +3,18 @@ from typing import OrderedDict
 import torch
 
 from fedavg import FedAvgClient
-from src.utils.tools import trainable_params, vectorize
+from src.utils.tools import Logger, NestedNamespace, trainable_params, vectorize
+from src.utils.models import DecoupledModel
 
 
 class FedDynClient(FedAvgClient):
-    def __init__(self, model, args, logger, device):
+    def __init__(
+        self,
+        model: DecoupledModel,
+        args: NestedNamespace,
+        logger: Logger,
+        device: torch.device,
+    ):
         super().__init__(model, args, logger, device)
 
         self.nabla: torch.Tensor = None
@@ -53,6 +60,7 @@ class FedDynClient(FedAvgClient):
                 self.optimizer.zero_grad()
                 loss.backward()
                 torch.nn.utils.clip_grad.clip_grad_norm_(
-                    trainable_params(self.model), max_norm=self.args.max_grad_norm
+                    trainable_params(self.model),
+                    max_norm=self.args.feddyn.max_grad_norm,
                 )
                 self.optimizer.step()

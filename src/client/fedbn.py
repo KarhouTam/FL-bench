@@ -1,10 +1,19 @@
+import torch
 from torch.nn import BatchNorm2d
 
 from fedavg import FedAvgClient
+from src.utils.models import DecoupledModel
+from src.utils.tools import Logger, NestedNamespace
 
 
 class FedBNClient(FedAvgClient):
-    def __init__(self, model, args, logger, device):
+    def __init__(
+        self,
+        model: DecoupledModel,
+        args: NestedNamespace,
+        logger: Logger,
+        device: torch.device,
+    ):
         super().__init__(model, args, logger, device)
         self.personal_params_name = []
         for module_name, module in self.model.named_modules():

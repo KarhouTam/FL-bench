@@ -6,11 +6,20 @@ import torch.nn.functional as F
 import torch.nn as nn
 
 from fedavg import FedAvgClient
-from src.utils.tools import trainable_params
+from src.utils.tools import Logger, NestedNamespace, trainable_params
+from src.utils.models import DecoupledModel
 
 
 class ADCOLClient(FedAvgClient):
-    def __init__(self, model, discriminator, args, logger, device, client_num):
+    def __init__(
+        self,
+        model: DecoupledModel,
+        discriminator: torch.nn.Module,
+        args: NestedNamespace,
+        logger: Logger,
+        device: torch.device,
+        client_num: int,
+    ):
         super(ADCOLClient, self).__init__(model, args, logger, device)
         self.discriminator = discriminator
         self.discriminator.to(self.device)
@@ -44,7 +53,7 @@ class ADCOLClient(FedAvgClient):
                 target_index_softmax = F.softmax(target_index, dim=-1)
                 kl_loss_func = nn.KLDivLoss(reduction="batchmean").to(self.device)
                 kl_loss = kl_loss_func(client_index_softmax, target_index_softmax)
-                mu = self.args.mu
+                mu = self.args.adcol.mu
 
                 loss = cross_entropy + mu * kl_loss
                 self.optimizer.zero_grad()

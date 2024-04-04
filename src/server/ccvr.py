@@ -1,4 +1,4 @@
-from argparse import Namespace
+from argparse import ArgumentParser, Namespace
 from copy import deepcopy
 from collections import OrderedDict
 from typing import List
@@ -7,27 +7,25 @@ import torch
 import numpy as np
 from torch.utils.data import Dataset, DataLoader
 
-from fedavg import FedAvgServer, get_fedavg_argparser
-from src.utils.tools import trainable_params
+from fedavg import FedAvgServer
+from src.utils.tools import trainable_params, NestedNamespace
 
 
-def get_ccvr_argparser():
-    parser = get_fedavg_argparser()
+def get_ccvr_args(args_list=None) -> Namespace:
+    parser = ArgumentParser()
     parser.add_argument("--sample_per_class", type=int, default=200)
-    return parser
+    return parser.parse_args(args_list)
 
 
 class CCVRServer(FedAvgServer):
     def __init__(
         self,
+        args: NestedNamespace,
         algo: str = "CCVR",
-        args: Namespace = None,
         unique_model=False,
         default_trainer=True,
     ):
-        if args is None:
-            args = get_ccvr_argparser().parse_args()
-        super().__init__(algo, args, unique_model, default_trainer)
+        super().__init__(args, algo, unique_model, default_trainer)
 
     def test(self):
         frz_global_params_dict = deepcopy(self.global_params_dict)
@@ -82,12 +80,14 @@ class CCVRServer(FedAvgServer):
         data, targets = [], []
         for c, (mean, cov) in enumerate(zip(classes_mean, classes_cov)):
             samples = np.random.multivariate_normal(
-                mean.cpu().numpy(), cov.cpu().numpy(), self.args.sample_per_class
+                mean.cpu().numpy(), cov.cpu().numpy(), self.args.ccvr.sample_per_class
             )
             data.append(torch.tensor(samples, dtype=torch.float, device=self.device))
             targets.append(
                 torch.ones(
-                    self.args.sample_per_class, dtype=torch.long, device=self.device
+                    self.args.ccvr.sample_per_class,
+                    dtype=torch.long,
+                    device=self.device,
                 )
                 * c
             )
@@ -113,9 +113,13 @@ class CCVRServer(FedAvgServer):
 
         self.model.train()
         dataset = RepresentationDataset(data, targets)
-        dataloader = DataLoader(dataset, batch_size=self.args.batch_size, shuffle=True)
+        dataloader = DataLoader(
+            dataset, batch_size=self.args.common.batch_size, shuffle=True
+        )
         criterion = torch.nn.CrossEntropyLoss()
-        optimizer = torch.optim.SGD(self.model.parameters(), lr=self.args.local_lr)
+        optimizer = torch.optim.SGD(
+            self.model.parameters(), lr=self.args.common.optimizer.lr
+        )
 
         self.model.load_state_dict(self.global_params_dict, strict=False)
         for x, y in dataloader:
@@ -162,8 +166,3 @@ class CCVRServer(FedAvgServer):
                     torch.zeros(feature_length, feature_length, device=self.device)
                 )
         return classes_means, classes_covs, [len(idxs) for idxs in indices]
-
-
-if __name__ == "__main__":
-    server = CCVRServer()
-    server.run()

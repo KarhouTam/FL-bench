@@ -8,6 +8,7 @@ from torch._tensor import Tensor
 from fedavg import FedAvgClient
 from src.utils.models import DecoupledModel
 from src.utils.tools import Logger, trainable_params
+from src.utils.models import DecoupledModel
 
 
 class ElasticClient(FedAvgClient):
@@ -52,8 +53,8 @@ class ElasticClient(FedAvgClient):
             ]
             for i in range(len(grads_norm)):
                 self.sensitivity[self.client_id][i] = (
-                    self.args.mu * self.sensitivity[self.client_id][i]
-                    + (1 - self.args.mu) * grads_norm[i].abs()
+                    self.args.elastic.mu * self.sensitivity[self.client_id][i]
+                    + (1 - self.args.elastic.mu) * grads_norm[i].abs()
                 )
 
         eval_results = self.train_and_log(verbose=verbose)

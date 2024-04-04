@@ -9,18 +9,18 @@ import torch.nn as nn
 import torch.nn.functional as F
 
 
-from fedavg import FedAvgServer, get_fedavg_argparser
+from fedavg import FedAvgServer
 from src.client.fedsr import FedSRClient
 from src.utils.models import DecoupledModel
 from src.utils.constants import NUM_CLASSES
-from src.utils.tools import trainable_params
+from src.utils.tools import trainable_params, NestedNamespace
 
 
-def get_fedsr_argparser() -> ArgumentParser:
-    parser = get_fedavg_argparser()
+def get_fedsr_args(args_list=None) -> Namespace:
+    parser = ArgumentParser()
     parser.add_argument("--L2R_coeff", type=float, default=1e-2)
     parser.add_argument("--CMI_coeff", type=float, default=5e-4)
-    return parser
+    return parser.parse_args(args_list)
 
 
 class FedSRModel(DecoupledModel):
@@ -58,17 +58,17 @@ class FedSRModel(DecoupledModel):
 class FedSRServer(FedAvgServer):
     def __init__(
         self,
+        args: NestedNamespace,
         algo: str = "FedSR",
-        args: Namespace = None,
         unique_model=False,
         default_trainer=False,
     ):
         if args is None:
-            args = get_fedsr_argparser().parse_args()
-        super().__init__(algo, args, unique_model, default_trainer)
+            args = get_fedsr_args().parse_args()
+        super().__init__(args, algo, unique_model, default_trainer)
 
         # reload the model
-        self.model = FedSRModel(self.model, self.args.dataset).to(self.device)
+        self.model = FedSRModel(self.model, self.args.common.dataset).to(self.device)
         self.model.check_avaliability()
         init_params, self.trainable_params_name = trainable_params(
             self.model, detach=True, requires_name=True
@@ -76,18 +76,13 @@ class FedSRServer(FedAvgServer):
         self.global_params_dict = OrderedDict(
             zip(self.trainable_params_name, init_params)
         )
-        if self.args.external_model_params_file and os.path.isfile(
-            self.args.external_model_params_file
+        if self.args.common.external_model_params_file and os.path.isfile(
+            self.args.common.external_model_params_file
         ):
             self.global_params_dict = torch.load(
-                self.args.external_model_params_file, map_location=self.device
+                self.args.common.external_model_params_file, map_location=self.device
             )
 
         self.trainer = FedSRClient(
             deepcopy(self.model), self.args, self.logger, self.device
         )
-
-
-if __name__ == "__main__":
-    server = FedSRServer()
-    server.run()

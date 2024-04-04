@@ -5,35 +5,33 @@ import torch
 import numpy as np
 from sklearn.cluster import AgglomerativeClustering
 
-from fedavg import FedAvgServer, get_fedavg_argparser
-from src.utils.tools import vectorize
+from fedavg import FedAvgServer
+from src.utils.tools import vectorize, NestedNamespace
 
 
-def get_cfl_argparser() -> ArgumentParser:
-    parser = get_fedavg_argparser()
+def get_cfl_args(args_list=None) -> Namespace:
+    parser = ArgumentParser()
     parser.add_argument("--eps_1", type=float, default=0.4)
     parser.add_argument("--eps_2", type=float, default=1.6)
     parser.add_argument("--min_cluster_size", type=int, default=2)
     parser.add_argument("--start_clustering_round", type=int, default=20)
-    return parser
+    return parser.parse_args(args_list)
 
 
 class CFLServer(FedAvgServer):
     def __init__(
         self,
+        args: NestedNamespace,
         algo: str = "CFL",
-        args: Namespace = None,
         unique_model=True,
         default_trainer=True,
     ):
-        if args is None:
-            args = get_cfl_argparser().parse_args()
-        super().__init__(algo, args, unique_model, default_trainer)
+        super().__init__(args, algo, unique_model, default_trainer)
         assert (
             len(self.train_clients) == self.client_num
         ), "CFL doesn't support `User` type split."
 
-        self.test_flag = True
+        self.testing = True
         self.delta_list = [None for _ in self.train_clients]
         self.similarity_matrix = np.eye(len(self.train_clients))
         self.client_clusters = [list(range(len(self.train_clients)))]
@@ -42,15 +40,14 @@ class CFLServer(FedAvgServer):
         for client_id in self.selected_clients:
             client_local_params = self.generate_client_params(client_id)
 
-            (
-                delta,
-                _,
-                self.client_metrics[client_id][self.current_epoch],
-            ) = self.trainer.train(
-                client_id=client_id,
-                local_epoch=self.clients_local_epoch[client_id],
-                new_parameters=client_local_params,
-                verbose=((self.current_epoch + 1) % self.args.verbose_gap) == 0,
+            (delta, _, self.client_metrics[client_id][self.current_epoch]) = (
+                self.trainer.train(
+                    client_id=client_id,
+                    local_epoch=self.clients_local_epoch[client_id],
+                    new_parameters=client_local_params,
+                    verbose=((self.current_epoch + 1) % self.args.common.verbose_gap)
+                    == 0,
+                )
             )
             self.delta_list[client_id] = [
                 -diff.detach().clone() for diff in delta.values()
@@ -63,10 +60,10 @@ class CFLServer(FedAvgServer):
             mean_norm = compute_mean_delta_norm([self.delta_list[i] for i in indices])
 
             if (
-                mean_norm < self.args.eps_1
-                and max_norm > self.args.eps_2
-                and len(indices) > self.args.min_cluster_size
-                and self.current_epoch >= self.args.start_clustering_round
+                mean_norm < self.args.cfl.eps_1
+                and max_norm > self.args.cfl.eps_2
+                and len(indices) > self.args.cfl.min_cluster_size
+                and self.current_epoch >= self.args.cfl.start_clustering_round
             ):
                 cluster_1, cluster_2 = self.cluster_clients(
                     self.similarity_matrix[indices][:, indices]

@@ -4,28 +4,27 @@ from copy import deepcopy
 import numpy as np
 import torch
 
-from fedavg import FedAvgServer, get_fedavg_argparser
+from fedavg import FedAvgServer
 from src.client.fediir import FedIIRClient
+from src.utils.tools import NestedNamespace
 
 
-def get_fediir_argparser() -> ArgumentParser:
-    parser = get_fedavg_argparser()
+def get_fediir_args(args_list=None) -> Namespace:
+    parser = ArgumentParser()
     parser.add_argument('--ema', type=float, default=0.95)
     parser.add_argument('--penalty', type=float, default=1e-3)
-    return parser
+    return parser.parse_args(args_list)
 
 
 class FedIIRServer(FedAvgServer):
     def __init__(
         self,
+        args: NestedNamespace,
         algo: str = "FedIIR",
-        args: Namespace = None,
         unique_model=False,
         default_trainer=False,
     ):
-        if args is None:
-            args = get_fediir_argparser().parse_args()
-        super().__init__(algo, args, unique_model, default_trainer)
+        super().__init__(args, algo, unique_model, default_trainer)
         self.trainer = FedIIRClient(
             deepcopy(self.model), self.args, self.logger, self.device
         )
@@ -42,15 +41,14 @@ class FedIIRServer(FedAvgServer):
         for client_id in self.selected_clients:
             client_local_params = self.generate_client_params(client_id)
             self.trainer.grad_mean = self.grad_mean
-            (
-                delta,
-                _,
-                self.client_metrics[client_id][self.current_epoch],
-            ) = self.trainer.train(
-                client_id=client_id,
-                local_epoch=self.clients_local_epoch[client_id],
-                new_parameters=client_local_params,
-                verbose=((self.current_epoch + 1) % self.args.verbose_gap) == 0,
+            (delta, _, self.client_metrics[client_id][self.current_epoch]) = (
+                self.trainer.train(
+                    client_id=client_id,
+                    local_epoch=self.clients_local_epoch[client_id],
+                    new_parameters=client_local_params,
+                    verbose=((self.current_epoch + 1) % self.args.common.verbose_gap)
+                    == 0,
+                )
             )
 
             delta_cache.append(delta)
@@ -75,11 +73,6 @@ class FedIIRServer(FedAvgServer):
             grad_sum = tuple(g1 + g2 for g1, g2 in zip(grad_sum, grad_sum_cache))
         grad_mean_new = tuple(grad / batch_total for grad in grad_sum)
         return tuple(
-            self.args.ema * g1 + (1 - self.args.ema) * g2
+            self.args.fediir.ema * g1 + (1 - self.args.fediir.ema) * g2
             for g1, g2 in zip(self.grad_mean, grad_mean_new)
         )
-
-
-if __name__ == "__main__":
-    server = FedIIRServer()
-    server.run()

@@ -1,4 +1,3 @@
-from argparse import Namespace
 from collections import OrderedDict
 from copy import deepcopy
 
@@ -7,7 +6,7 @@ import torch.nn.functional as F
 
 from fedavg import FedAvgClient
 from src.utils.models import DecoupledModel
-from src.utils.tools import Logger, count_labels, trainable_params
+from src.utils.tools import Logger, NestedNamespace, count_labels, trainable_params
 
 
 def balanced_softmax_loss(
@@ -26,17 +25,17 @@ class FedRoDClient(FedAvgClient):
         self,
         model: DecoupledModel,
         hypernetwork: torch.nn.Module,
-        args: Namespace,
+        args: NestedNamespace,
         logger: Logger,
         device: torch.device,
     ):
-        super().__init__(FedRoDModel(model, args.eval_per), args, logger, device)
+        super().__init__(FedRoDModel(model, args.fedrod.eval_per), args, logger, device)
         self.hypernetwork: torch.nn.Module = None
         self.hyper_optimizer = None
-        if self.args.hyper:
+        if self.args.fedrod.hyper:
             self.hypernetwork = hypernetwork.to(self.device)
             self.hyper_optimizer = torch.optim.SGD(
-                trainable_params(self.hypernetwork), lr=self.args.hyper_lr
+                trainable_params(self.hypernetwork), lr=self.args.fedrod.hyper_lr
             )
         self.personal_params_name.extend(
             [key for key, _ in self.model.named_parameters() if "personalized" in key]
@@ -62,7 +61,7 @@ class FedRoDClient(FedAvgClient):
         verbose=False,
     ):
         self.client_id = client_id
-        if self.args.hyper:
+        if self.args.fedrod.hyper:
             self.hypernetwork.load_state_dict(hyper_parameters, strict=False)
         self.local_epoch = local_epoch
         self.load_dataset()
@@ -77,7 +76,7 @@ class FedRoDClient(FedAvgClient):
                 delta[name] = p0 - p1
 
             hyper_delta = None
-            if self.args.hyper:
+            if self.args.fedrod.hyper:
                 hyper_delta = OrderedDict()
                 for (name, p0), p1 in zip(
                     hyper_parameters.items(), trainable_params(self.hypernetwork)
@@ -100,7 +99,7 @@ class FedRoDClient(FedAvgClient):
             count_labels(self.dataset, self.trainset.indices), device=self.device
         )
         # if using hypernetwork for generating personalized classifier parameters and client is first-time selected
-        if self.args.hyper and self.client_id not in self.personal_params_dict:
+        if self.args.fedrod.hyper and self.client_id not in self.personal_params_dict:
             label_distrib = label_counts / label_counts.sum()
             classifier_params = self.hypernetwork(label_distrib)
             clf_weight_numel = self.model.generic_model.classifier.weight.numel()
@@ -125,7 +124,7 @@ class FedRoDClient(FedAvgClient):
                 x, y = x.to(self.device), y.to(self.device)
                 logit_g, logit_p = self.model(x)
                 loss_g = balanced_softmax_loss(
-                    logit_g, y, self.args.gamma, label_counts
+                    logit_g, y, self.args.fedrod.gamma, label_counts
                 )
                 loss_p = self.criterion(logit_p, y)
                 loss = loss_g + loss_p
@@ -133,7 +132,7 @@ class FedRoDClient(FedAvgClient):
                 loss.backward()
                 self.optimizer.step()
 
-        if self.args.hyper and self.client_id not in self.personal_params_dict:
+        if self.args.fedrod.hyper and self.client_id not in self.personal_params_dict:
             # This part has no references on the FedRoD paper
             trained_classifier_params = torch.cat(
                 [
@@ -151,13 +150,13 @@ class FedRoDClient(FedAvgClient):
     def finetune(self):
         self.model.train()
         self.dataset.train()
-        for _ in range(self.args.finetune_epoch):
+        for _ in range(self.args.common.finetune_epoch):
             for x, y in self.trainloader:
                 if len(x) <= 1:
                     continue
 
                 x, y = x.to(self.device), y.to(self.device)
-                if self.args.eval_per:
+                if self.args.fedrod.eval_per:
                     _, logit_p = self.model(x)
                     loss = self.criterion(logit_p, y)
                 else:

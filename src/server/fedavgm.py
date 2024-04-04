@@ -1,30 +1,29 @@
 from argparse import ArgumentParser, Namespace
 import torch
 
-from fedavg import FedAvgServer, get_fedavg_argparser
+from fedavg import FedAvgServer
+from src.utils.tools import NestedNamespace
 
 
-def get_fedavgm_argparser() -> ArgumentParser:
-    parser = get_fedavg_argparser()
+def get_fedavgm_args(args_list=None) -> Namespace:
+    parser = ArgumentParser()
     parser.add_argument("--server_momentum", type=float, default=0.9)
-    return parser
+    return parser.parse_args(args_list)
 
 
 class FedAvgMServer(FedAvgServer):
     def __init__(
         self,
+        args: NestedNamespace,
         algo: str = "FedAvgM",
-        args: Namespace = None,
         unique_model=False,
         default_trainer=True,
     ):
-        if args is None:
-            args = get_fedavgm_argparser().parse_args()
-        super().__init__(algo, args, unique_model, default_trainer)
-        self.global_optimizer = torch.optim.SGD(
+        super().__init__(args, algo, unique_model, default_trainer)
+        self.global_optmizer = torch.optim.SGD(
             list(self.global_params_dict.values()),
             lr=1.0,
-            momentum=self.args.server_momentum,
+            momentum=self.args.fedavgm.server_momentum,
             nesterov=True,
         )
 
@@ -40,12 +39,7 @@ class FedAvgMServer(FedAvgServer):
                 torch.sum(torch.stack(layer_delta, dim=-1) * weights, dim=-1)
             )
 
-        self.global_optimizer.zero_grad()
+        self.global_optmizer.zero_grad()
         for param, diff in zip(self.global_params_dict.values(), aggregated_delta):
             param.grad = diff.data
-        self.global_optimizer.step()
-
-
-if __name__ == "__main__":
-    server = FedAvgMServer()
-    server.run()
+        self.global_optmizer.step()

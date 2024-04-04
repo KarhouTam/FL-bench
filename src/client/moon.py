@@ -6,10 +6,18 @@ import torch
 from torch.nn.functional import cosine_similarity, relu
 
 from fedavg import FedAvgClient
+from src.utils.models import DecoupledModel
+from src.utils.tools import Logger, NestedNamespace
 
 
 class MOONClient(FedAvgClient):
-    def __init__(self, model, args, logger, device):
+    def __init__(
+        self,
+        model: DecoupledModel,
+        args: NestedNamespace,
+        logger: Logger,
+        device: torch.device,
+    ):
         super().__init__(model, args, logger, device)
         self.prev_params_dict: Dict[int, OrderedDict[str, torch.Tensor]] = {}
         self.prev_model = deepcopy(self.model)
@@ -44,21 +52,21 @@ class MOONClient(FedAvgClient):
                 loss_con = -torch.log(
                     torch.exp(
                         cosine_similarity(z_curr.flatten(1), z_global.flatten(1))
-                        / self.args.tau
+                        / self.args.moon.tau
                     )
                     / (
                         torch.exp(
                             cosine_similarity(z_prev.flatten(1), z_curr.flatten(1))
-                            / self.args.tau
+                            / self.args.moon.tau
                         )
                         + torch.exp(
                             cosine_similarity(z_curr.flatten(1), z_global.flatten(1))
-                            / self.args.tau
+                            / self.args.moon.tau
                         )
                     )
                 )
 
-                loss = loss_sup + self.args.mu * torch.mean(loss_con)
+                loss = loss_sup + self.args.moon.mu * torch.mean(loss_con)
                 self.optimizer.zero_grad()
                 loss.backward()
                 self.optimizer.step()

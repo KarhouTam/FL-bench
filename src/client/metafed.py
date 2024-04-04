@@ -6,21 +6,29 @@ import torch.nn.functional as F
 
 from fedavg import FedAvgClient
 from torch.utils.data import Subset, DataLoader
-from src.utils.tools import trainable_params, evalutate_model
+from src.utils.tools import Logger, trainable_params, NestedNamespace, evalutate_model
+from src.utils.models import DecoupledModel
 
 
 class MetaFedClient(FedAvgClient):
-    def __init__(self, model, args, logger, device, client_num):
+    def __init__(
+        self,
+        model: DecoupledModel,
+        args: NestedNamespace,
+        logger: Logger,
+        device: torch.device,
+        client_num: int,
+    ):
         super().__init__(model, args, logger, device)
         self.client_flags = [False for _ in range(client_num)]
         self.valset = Subset(self.dataset, indices=[])
         self.valloader: DataLoader = None
         self.teacher = deepcopy(self.model)
-        self.lamda = self.args.lamda
+        self.lamda = self.args.metafed.lamda
 
     def load_dataset(self):
         super().load_dataset()
-        num_val_samples = int(len(self.trainset) * self.args.valset_ratio)
+        num_val_samples = int(len(self.trainset) * self.args.metafed.valset_ratio)
         self.valset.indices = self.trainset.indices[:num_val_samples]
         self.trainset.indices = self.trainset.indices[num_val_samples:]
         self.valloader = DataLoader(self.valset, 32, shuffle=True)
@@ -37,7 +45,7 @@ class MetaFedClient(FedAvgClient):
     def update_flag(self):
         metrics = evalutate_model(self.model, self.valloader, device=self.device)
         self.client_flags[self.client_id] = (
-            metrics.accuracy > self.args.threshold_1
+            metrics.accuracy > self.args.metafed.threshold_1
         )
 
     def train(
@@ -93,11 +101,13 @@ class MetaFedClient(FedAvgClient):
         )
         teacher_acc = teacher_metrics.accuracy
         student_acc = student_metrics.accuracy
-        if teacher_acc <= student_acc and teacher_acc < self.args.threshold_2:
+        if teacher_acc <= student_acc and teacher_acc < self.args.metafed.threshold_2:
             self.lamda = 0
         else:
             self.lamda = (
-                (10 ** (min(1, (teacher_acc - student_acc) * 5))) / 10 * self.args.lamda
+                (10 ** (min(1, (teacher_acc - student_acc) * 5)))
+                / 10
+                * self.args.metafed.lamda
             )
         stats = self.train_and_log(verbose)
         return trainable_params(self.model, detach=True), stats

@@ -1,32 +1,26 @@
 from argparse import ArgumentParser, Namespace
 from copy import deepcopy
 
-from fedavg import FedAvgServer, get_fedavg_argparser
+from fedavg import FedAvgServer
 from src.client.fedrep import FedRepClient
+from src.utils.tools import NestedNamespace
 
 
-def get_fedrep_argparser() -> ArgumentParser:
-    parser = get_fedavg_argparser()
+def get_fedrep_args(args_list=None) -> Namespace:
+    parser = ArgumentParser()
     parser.add_argument("--train_body_epoch", type=int, default=1)
-    return parser
+    return parser.parse_args(args_list)
 
 
 class FedRepServer(FedAvgServer):
     def __init__(
         self,
+        args: NestedNamespace,
         algo: str = "FedRep",
-        args: Namespace = None,
         unique_model=False,
         default_trainer=False,
     ):
-        if args is None:
-            args = get_fedrep_argparser().parse_args()
-        super().__init__(algo, args, unique_model, default_trainer)
+        super().__init__(args, algo, unique_model, default_trainer)
         self.trainer = FedRepClient(
             deepcopy(self.model), self.args, self.logger, self.device
         )
-
-
-if __name__ == "__main__":
-    server = FedRepServer()
-    server.run()

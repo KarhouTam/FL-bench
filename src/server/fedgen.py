@@ -8,13 +8,13 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
-from fedavg import FedAvgServer, get_fedavg_argparser
+from fedavg import FedAvgServer
 from src.client.fedgen import FedGenClient
-from src.utils.tools import trainable_params
+from src.utils.tools import trainable_params, NestedNamespace
 
 
-def get_fedgen_argparser() -> ArgumentParser:
-    parser = get_fedavg_argparser()
+def get_fedgen_args(args_list=None) -> Namespace:
+    parser = ArgumentParser()
     parser.add_argument("--ensemble_lr", type=float, default=3e-4)
     parser.add_argument("--gen_batch_size", type=int, default=32)
     parser.add_argument("--generative_alpha", type=float, default=10)
@@ -24,30 +24,30 @@ def get_fedgen_argparser() -> ArgumentParser:
     parser.add_argument("--ensemble_eta", type=float, default=0)
     parser.add_argument("--noise_dim", type=int, default=32)
     parser.add_argument("--hidden_dim", type=int, default=32)
-    parser.add_argument("--embedding", type=int, default=0)
+    parser.add_argument("--use_embedding", type=int, default=0)
     parser.add_argument("--coef_decay", type=float, default=0.98)
     parser.add_argument("--coef_decay_epoch", type=int, default=1)
     parser.add_argument("--ensemble_epoch", type=int, default=50)
     parser.add_argument("--train_generator_epoch", type=int, default=5)
     parser.add_argument("--min_samples_per_label", type=int, default=1)
-    return parser
+    return parser.parse_args(args_list)
 
 
 class FedGenServer(FedAvgServer):
     def __init__(
         self,
+        args: NestedNamespace,
         algo: str = "FedGen",
-        args: Namespace = None,
         unique_model=False,
         default_trainer=False,
     ):
-        if args is None:
-            args = get_fedgen_argparser().parse_args()
-        super().__init__(algo, args, unique_model, default_trainer)
-        self.trainer = FedGenClient(deepcopy(self.model), self.args, self.logger, self.device)
+        super().__init__(args, algo, unique_model, default_trainer)
+        self.trainer = FedGenClient(
+            deepcopy(self.model), self.args, self.logger, self.device
+        )
         self.generator = Generator(self).to(self.device)
         self.generator_optimizer = torch.optim.Adam(
-            trainable_params(self.generator), args.ensemble_lr
+            trainable_params(self.generator), args.fedgen.ensemble_lr
         )
         self.generator_lr_scheduler = torch.optim.lr_scheduler.ExponentialLR(
             self.generator_optimizer, gamma=0.98
@@ -74,7 +74,7 @@ class FedGenServer(FedAvgServer):
                 new_parameters=client_local_params,
                 generator=self.generator,
                 regularization=self.current_epoch > 0,
-                verbose=((self.current_epoch + 1) % self.args.verbose_gap) == 0,
+                verbose=((self.current_epoch + 1) % self.args.common.verbose_gap) == 0,
             )
             label_counts_cache.append(label_counts)
             client_params_cache.append(delta)
@@ -106,8 +106,8 @@ class FedGenServer(FedAvgServer):
         self.teacher_model.eval()
         self.model.eval()
         label_weights, qualified_labels = self.get_label_weights(label_counts_cache)
-        for _ in range(self.args.train_generator_epoch):
-            y_npy = np.random.choice(qualified_labels, self.args.batch_size)
+        for _ in range(self.args.fedgen.train_generator_epoch):
+            y_npy = np.random.choice(qualified_labels, self.args.common.batch_size)
             y_tensor = torch.tensor(y_npy, dtype=torch.long, device=self.device)
 
             generator_output, eps = self.generator(y_tensor)
@@ -138,9 +138,9 @@ class FedGenServer(FedAvgServer):
                 F.log_softmax(student_logits, dim=1), F.softmax(teacher_logit, dim=1)
             )
             loss = (
-                self.args.ensemble_alpha * teacher_loss
-                - self.args.ensemble_beta * student_loss
-                + self.args.ensemble_eta * diversity_loss
+                self.args.fedgen.ensemble_alpha * teacher_loss
+                - self.args.fedgen.ensemble_beta * student_loss
+                + self.args.fedgen.ensemble_eta * diversity_loss
             )
             self.generator_optimizer.zero_grad()
             loss.backward()
@@ -154,7 +154,10 @@ class FedGenServer(FedAvgServer):
         for i, label_counts in enumerate(zip(*label_counts_cache)):
             count_sum = sum(label_counts)
             label_weights.append(np.array(label_counts) / count_sum)
-            if count_sum / len(label_counts_cache) > self.args.min_samples_per_label:
+            if (
+                count_sum / len(label_counts_cache)
+                > self.args.fedgen.min_samples_per_label
+            ):
                 qualified_labels.append(i)
         label_weights = np.array(label_weights).reshape((len(self.unique_labels)), -1)
         return label_weights, qualified_labels
@@ -166,16 +169,18 @@ class Generator(nn.Module):
         # obtain the latent dim
         x = torch.zeros(1, *server.trainer.dataset[0][0].shape, device=server.device)
         self.device = server.device
-        self.use_embedding = server.args.embedding
+        self.use_embedding = server.args.fedgen.use_embedding
         self.latent_dim = server.model.base(x).shape[-1]
-        self.hidden_dim = server.args.hidden_dim
-        self.noise_dim = server.args.noise_dim
+        self.hidden_dim = server.args.fedgen.hidden_dim
+        self.noise_dim = server.args.fedgen.noise_dim
         self.class_num = len(server.trainer.dataset.classes)
 
-        if server.args.embedding:
-            self.embedding = nn.Embedding(self.class_num, server.args.noise_dim)
+        if server.args.fedgen.use_embedding:
+            self.embedding = nn.Embedding(self.class_num, server.args.fedgen.noise_dim)
         input_dim = (
-            self.noise_dim * 2 if server.args.embedding else self.noise_dim + self.class_num
+            self.noise_dim * 2
+            if server.args.fedgen.use_embedding
+            else self.noise_dim + self.class_num
         )
         self.mlp = nn.Sequential(
             nn.Linear(input_dim, self.hidden_dim),

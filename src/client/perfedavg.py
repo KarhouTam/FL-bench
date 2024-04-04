@@ -6,17 +6,24 @@ import torch
 from torch.utils.data import DataLoader
 
 from fedavg import FedAvgClient
-from src.utils.tools import trainable_params
+from src.utils.tools import Logger, trainable_params, NestedNamespace
+from src.utils.models import DecoupledModel
 
 
 class PerFedAvgClient(FedAvgClient):
-    def __init__(self, model, args, logger, device):
+    def __init__(
+        self,
+        model: DecoupledModel,
+        args: NestedNamespace,
+        logger: Logger,
+        device: torch.device,
+    ):
         super(PerFedAvgClient, self).__init__(model, args, logger, device)
         self.iter_trainloader: Iterator[DataLoader] = None
         self.meta_optimizer = torch.optim.SGD(
-            trainable_params(self.model), lr=self.args.beta
+            trainable_params(self.model), lr=self.args.perfedavg.beta
         )
-        if self.args.version == "hf":
+        if self.args.perfedavg.version == "hf":
             self.model_plus = deepcopy(self.model)
             self.model_minus = deepcopy(self.model)
 
@@ -42,7 +49,9 @@ class PerFedAvgClient(FedAvgClient):
         self.model.train()
         self.dataset.train()
         for _ in range(self.local_epoch):
-            for _ in range(len(self.trainloader) // (2 + (self.args.version == "hf"))):
+            for _ in range(
+                len(self.trainloader) // (2 + (self.args.perfedavg.version == "hf"))
+            ):
                 x0, y0 = self.get_data_batch()
                 frz_params = deepcopy(self.model.state_dict())
                 logit = self.model(x0)
@@ -57,7 +66,7 @@ class PerFedAvgClient(FedAvgClient):
                 self.meta_optimizer.zero_grad()
                 loss.backward()
 
-                if self.args.version == "hf":
+                if self.args.perfedavg.version == "hf":
                     self.model_plus.load_state_dict(frz_params)
                     self.model_minus.load_state_dict(frz_params)
 
@@ -68,8 +77,8 @@ class PerFedAvgClient(FedAvgClient):
                         trainable_params(self.model_minus),
                         trainable_params(self.model),
                     ):
-                        param_p.data += self.args.delta * param_cur.grad
-                        param_m.data -= self.args.delta * param_cur.grad
+                        param_p.data += self.args.perfedavg.delta * param_cur.grad
+                        param_m.data -= self.args.perfedavg.delta * param_cur.grad
 
                     logit_plus = self.model_plus(x2)
                     logit_minus = self.model_minus(x2)
@@ -85,9 +94,12 @@ class PerFedAvgClient(FedAvgClient):
                         trainable_params(self.model_plus),
                         trainable_params(self.model_minus),
                     ):
-                        param_cur.grad = param_cur.grad - self.args.local_lr / (
-                            2 * self.args.delta
-                        ) * (param_plus.grad - param_minus.grad)
+                        param_cur.grad = (
+                            param_cur.grad
+                            - self.args.common.optimizer.lr
+                            / (2 * self.args.perfedavg.delta)
+                            * (param_plus.grad - param_minus.grad)
+                        )
                         param_plus.grad.zero_()
                         param_minus.grad.zero_()
 

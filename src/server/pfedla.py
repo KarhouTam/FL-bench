@@ -7,46 +7,45 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
-from fedavg import FedAvgServer, get_fedavg_argparser
-from src.utils.tools import TEMP_DIR, trainable_params
+from fedavg import FedAvgServer
+from src.utils.tools import trainable_params
+from src.utils.tools import NestedNamespace
+from src.utils.constants import TEMP_DIR
 
-
-def get_pfedla_argparser() -> ArgumentParser:
-    parser = get_fedavg_argparser()
+def get_pfedla_args(args_list=None) -> Namespace:
+    parser = ArgumentParser()
     parser.add_argument("--k", type=int, default=0)
     parser.add_argument("--hn_lr", type=float, default=5e-3)
     parser.add_argument("--hn_momentum", type=float, default=0.0)
     parser.add_argument("--embedding_dim", type=int, default=100)
     parser.add_argument("--hidden_dim", type=int, default=100)
-    return parser
+    return parser.parse_args(args_list)
 
 
 class pFedLAServer(FedAvgServer):
     def __init__(
         self,
+        args: NestedNamespace,
         algo: str = None,
-        args: Namespace = None,
         unique_model=True,
         default_trainer=True,
     ):
-        if args is None:
-            args = get_pfedla_argparser().parse_args()
-        algo = "pFedLA" if args.k == 0 else "HeurpFedLA"
-        super().__init__(algo, args, unique_model, default_trainer)
+        algo = "pFedLA" if args.pfedla.k == 0 else "HeurpFedLA"
+        super().__init__(args, algo, unique_model, default_trainer)
         self.hypernet = HyperNetwork(
-            embedding_dim=self.args.embedding_dim,
+            embedding_dim=self.args.pfedla.embedding_dim,
             client_num=self.client_num,
-            hidden_dim=self.args.hidden_dim,
+            hidden_dim=self.args.pfedla.hidden_dim,
             backbone=self.model,
-            K=self.args.k,
+            K=self.args.pfedla.k,
             device=self.device,
         )
         self.hn_optimizer = torch.optim.SGD(
             self.hypernet.parameters(),
-            lr=self.args.hn_lr,
-            momentum=self.args.hn_momentum,
+            lr=self.args.pfedla.hn_lr,
+            momentum=self.args.pfedla.hn_momentum,
         )
-        self.test_flag = False
+        self.testing = False
         self.layers_name = [
             name
             for name, module in self.model.named_modules()
@@ -58,15 +57,14 @@ class pFedLAServer(FedAvgServer):
     def train_one_round(self) -> None:
         for client_id in self.selected_clients:
             client_local_params = self.generate_client_params(client_id)
-            (
-                delta,
-                _,
-                self.client_metrics[client_id][self.current_epoch],
-            ) = self.trainer.train(
-                client_id=client_id,
-                local_epoch=self.clients_local_epoch[client_id],
-                new_parameters=client_local_params,
-                verbose=((self.current_epoch + 1) % self.args.verbose_gap) == 0,
+            (delta, _, self.client_metrics[client_id][self.current_epoch]) = (
+                self.trainer.train(
+                    client_id=client_id,
+                    local_epoch=self.clients_local_epoch[client_id],
+                    new_parameters=client_local_params,
+                    verbose=((self.current_epoch + 1) % self.args.common.verbose_gap)
+                    == 0,
+                )
             )
 
             self.update_hn(client_id, delta)
@@ -85,7 +83,7 @@ class pFedLAServer(FedAvgServer):
         aggregated_params = OrderedDict(
             zip(self.trainable_params_name, self.client_trainable_params[client_id])
         )
-        if not self.test_flag:
+        if not self.testing:
             layer_params_dict = dict(
                 zip(
                     self.trainable_params_name, list(zip(*self.client_trainable_params))
@@ -231,8 +229,3 @@ class HyperNetwork(nn.Module):
     def clean(self):
         if os.path.isdir(self.cache_dir):
             os.system(f"rm -rf {self.cache_dir}")
-
-
-if __name__ == "__main__":
-    server = pFedLAServer()
-    server.run()

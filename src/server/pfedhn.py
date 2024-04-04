@@ -5,13 +5,13 @@ from copy import deepcopy
 import torch
 import torch.nn as nn
 
-from fedavg import FedAvgServer, get_fedavg_argparser
+from fedavg import FedAvgServer
 from src.client.fedper import FedPerClient
-from src.utils.tools import trainable_params
+from src.utils.tools import trainable_params, NestedNamespace
 
 
-def get_pfedhn_argparser() -> ArgumentParser:
-    parser = get_fedavg_argparser()
+def get_pfedhn_args(args_list=None) -> Namespace:
+    parser = ArgumentParser()
     parser.add_argument(
         "--version", type=str, choices=["pfedhn", "pfedhn_pc"], default="pfedhn"
     )
@@ -23,30 +23,30 @@ def get_pfedhn_argparser() -> ArgumentParser:
     parser.add_argument("--hidden_dim", type=int, default=100)
     parser.add_argument("--hidden_num", type=int, default=3)
     parser.add_argument("--norm_clip", type=int, default=50)
-    return parser
+    return parser.parse_args(args_list)
 
 
 class pFedHNServer(FedAvgServer):
     def __init__(
         self,
+        args: NestedNamespace,
         algo: str = None,
-        args: Namespace = None,
         unique_model=True,
         default_trainer=True,
     ):
-        if args is None:
-            args = get_pfedhn_argparser().parse_args()
-        algo = "pFedHN" if args.version == "pfedhn" else "pFedHN-PC"
-        default_trainer = True if args.version == "pfedhn" else False
-        super().__init__(algo, args, unique_model, default_trainer)
-        if args.version == "pfedhn_pc":
+        algo = "pFedHN" if args.pfedhn.version == "pfedhn" else "pFedHN-PC"
+        default_trainer = True if args.pfedhn.version == "pfedhn" else False
+        super().__init__(args, algo, unique_model, default_trainer)
+        if args.pfedhn.version == "pfedhn_pc":
             self.trainer = FedPerClient(
                 deepcopy(self.model), self.args, self.logger, self.device
             )
 
-        self.hn = HyperNetwork(self.model, self.args, self.client_num).to(self.device)
+        self.hn = HyperNetwork(self.model, self.args.pfedhn, self.client_num).to(self.device)
         embed_lr = (
-            self.args.embed_lr if self.args.embed_lr is not None else self.args.hn_lr
+            self.args.pfedhn.embed_lr
+            if self.args.pfedhn.embed_lr is not None
+            else self.args.pfedhn.hn_lr
         )
         self.hn_optimizer = torch.optim.SGD(
             [
@@ -66,9 +66,9 @@ class pFedHNServer(FedAvgServer):
                     "lr": embed_lr,
                 },
             ],
-            lr=self.args.hn_lr,
-            momentum=self.args.hn_momentum,
-            weight_decay=self.args.hn_weight_decay,
+            lr=self.args.pfedhn.hn_lr,
+            momentum=self.args.pfedhn.hn_momentum,
+            weight_decay=self.args.pfedhn.hn_weight_decay,
         )
 
     def train_one_round(self):
@@ -76,17 +76,16 @@ class pFedHNServer(FedAvgServer):
         weight_cache = []
         for client_id in self.selected_clients:
             client_local_params = self.generate_client_params(client_id)
-            (
-                delta,
-                weight,
-                self.client_metrics[client_id][self.current_epoch],
-            ) = self.trainer.train(
-                client_id=client_id,
-                local_epoch=self.clients_local_epoch[client_id],
-                new_parameters=client_local_params,
-                verbose=((self.current_epoch + 1) % self.args.verbose_gap) == 0,
+            (delta, weight, self.client_metrics[client_id][self.current_epoch]) = (
+                self.trainer.train(
+                    client_id=client_id,
+                    local_epoch=self.clients_local_epoch[client_id],
+                    new_parameters=client_local_params,
+                    verbose=((self.current_epoch + 1) % self.args.common.verbose_gap)
+                    == 0,
+                )
             )
-            if self.args.version == "pfedhn_pc":
+            if self.args.pfedhn.version == "pfedhn_pc":
                 for name, diff in delta.items():
                     # set diff to all-zero can stop HN's nn.Linear modules that responsible for the classifier from updating.
                     if "classifier" in name:
@@ -104,7 +103,7 @@ class pFedHNServer(FedAvgServer):
         self.update_hn(weight_cache, hn_grads_cache)
 
     def generate_client_params(self, client_id) -> OrderedDict[str, torch.Tensor]:
-        if not self.test_flag:
+        if not self.testing:
             self.client_trainable_params[client_id] = self.hn(
                 torch.tensor(client_id, device=self.device)
             )
@@ -122,7 +121,7 @@ class pFedHNServer(FedAvgServer):
         for param, grad in zip(self.hn.parameters(), hn_grads):
             if grad is not None:
                 param.grad = grad
-        torch.nn.utils.clip_grad_norm_(self.hn.parameters(), self.args.norm_clip)
+        torch.nn.utils.clip_grad_norm_(self.hn.parameters(), self.args.pfedhn.norm_clip)
         self.hn_optimizer.step()
 
 
@@ -160,8 +159,3 @@ class HyperNetwork(nn.Module):
         ]
 
         return parameters
-
-
-if __name__ == "__main__":
-    server = pFedHNServer()
-    server.run()

@@ -1,9 +1,18 @@
+import torch
+
 from fedavg import FedAvgClient
-from src.utils.tools import trainable_params
+from src.utils.tools import Logger, trainable_params, NestedNamespace
+from src.utils.models import DecoupledModel
 
 
 class FedProxClient(FedAvgClient):
-    def __init__(self, model, args, logger, device):
+    def __init__(
+        self,
+        model: DecoupledModel,
+        args: NestedNamespace,
+        logger: Logger,
+        device: torch.device,
+    ):
         super(FedProxClient, self).__init__(model, args, logger, device)
 
     def fit(self):
@@ -21,5 +30,5 @@ class FedProxClient(FedAvgClient):
                 self.optimizer.zero_grad()
                 loss.backward()
                 for w, w_t in zip(trainable_params(self.model), global_params):
-                    w.grad.data += self.args.mu * (w.data - w_t.data)
+                    w.grad.data += self.args.fedprox.mu * (w.data - w_t.data)
                 self.optimizer.step()

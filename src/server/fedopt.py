@@ -1,17 +1,17 @@
-from argparse import Namespace, ArgumentParser
+from argparse import ArgumentParser, Namespace
 from copy import deepcopy
 from typing import List
 from collections import OrderedDict
 
 import torch
 
-from fedavg import FedAvgServer, get_fedavg_argparser
-from src.utils.tools import trainable_params
+from fedavg import FedAvgServer
+from src.utils.tools import trainable_params, NestedNamespace
 from src.utils.models import DecoupledModel
 
 
-def get_fedopt_argparser() -> ArgumentParser:
-    parser = get_fedavg_argparser()
+def get_fedopt_args(args_list=None) -> Namespace:
+    parser = ArgumentParser()
     parser.add_argument(
         "--type", choices=["adagrad", "yogi", "adam"], type=str, default="adam"
     )
@@ -19,7 +19,7 @@ def get_fedopt_argparser() -> ArgumentParser:
     parser.add_argument("--beta2", type=float, default=0.999)
     parser.add_argument("--server_lr", type=float, default=1e-1)
     parser.add_argument("--tau", type=float, default=1e-3)
-    return parser
+    return parser.parse_args(args_list)
 
 
 ALGO_NAMES = {"adagrad": "FedAdagrad", "yogi": "FedYogi", "adam": "FedAdam"}
@@ -28,22 +28,20 @@ ALGO_NAMES = {"adagrad": "FedAdagrad", "yogi": "FedYogi", "adam": "FedAdam"}
 class FedOptServer(FedAvgServer):
     def __init__(
         self,
+        args: NestedNamespace,
         algo: str = "FedAvg",
-        args: Namespace = None,
         unique_model=False,
         default_trainer=True,
     ):
-        if args is None:
-            args = get_fedopt_argparser().parse_args()
-        algo = ALGO_NAMES[args.type]
-        super().__init__(algo, args, unique_model, default_trainer)
+        algo = ALGO_NAMES[args.fedopt.type]
+        super().__init__(args, algo, unique_model, default_trainer)
         self.adaptive_optimizer = AdaptiveOptimizer(
-            optimizer_type=self.args.type,
+            optimizer_type=self.args.fedopt.type,
             model=self.model,
-            beta1=self.args.beta1,
-            beta2=self.args.beta2,
-            lr=self.args.server_lr,
-            tau=self.args.tau,
+            beta1=self.args.fedopt.beta1,
+            beta2=self.args.fedopt.beta2,
+            lr=self.args.fedopt.server_lr,
+            tau=self.args.fedopt.tau,
         )
 
     def train_one_round(self):
@@ -56,7 +54,8 @@ class FedOptServer(FedAvgServer):
                     client_id=client_id,
                     local_epoch=self.clients_local_epoch[client_id],
                     new_parameters=client_local_params,
-                    verbose=((self.current_epoch + 1) % self.args.verbose_gap) == 0,
+                    verbose=((self.current_epoch + 1) % self.args.common.verbose_gap)
+                    == 0,
                 )
             )
 
@@ -136,8 +135,3 @@ class AdaptiveOptimizer:
     def _update_adam(self, delta_list):
         for v, delta in zip(self.velocities, delta_list):
             v.data = self.beta2 * v + (1 - self.beta2) * delta**2
-
-
-if __name__ == "__main__":
-    server = FedOptServer()
-    server.run()

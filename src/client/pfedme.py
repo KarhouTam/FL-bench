@@ -6,19 +6,26 @@ import torch
 from torch.optim import Optimizer
 
 from fedavg import FedAvgClient
-from src.utils.tools import trainable_params
+from src.utils.tools import Logger, trainable_params, NestedNamespace
+from src.utils.models import DecoupledModel
 
 
 class pFedMeClient(FedAvgClient):
-    def __init__(self, model, args, logger, device):
+    def __init__(
+        self,
+        model: DecoupledModel,
+        args: NestedNamespace,
+        logger: Logger,
+        device: torch.device,
+    ):
         super(pFedMeClient, self).__init__(model, args, logger, device)
         self.local_parameters: List[torch.Tensor] = None
         self.personalized_params_dict: Dict[str, OrderedDict[str, torch.Tensor]] = {}
         self.optimzier = pFedMeOptimizer(
             trainable_params(self.model),
-            self.args.pers_lr,
-            self.args.lamda,
-            self.args.mu,
+            self.args.pfedme.pers_lr,
+            self.args.pfedme.lamda,
+            self.args.pfedme.mu,
         )
 
     def train(
@@ -45,13 +52,13 @@ class pFedMeClient(FedAvgClient):
     def fit(self):
         self.model.train()
         self.dataset.train()
-        for _ in range(self.args.local_epoch):
+        for _ in range(self.args.common.local_epoch):
             for x, y in self.trainloader:
                 if len(x) <= 1:
                     continue
 
                 x, y = x.to(self.device), y.to(self.device)
-                for _ in range(self.args.k):
+                for _ in range(self.args.pfedme.k):
                     logit = self.model(x)
                     loss = self.criterion(logit, y)
                     self.optimzier.zero_grad()
@@ -63,8 +70,8 @@ class pFedMeClient(FedAvgClient):
                 ):
                     param_l.data = (
                         param_l.data
-                        - self.args.lamda
-                        * self.args.local_lr
+                        - self.args.pfedme.lamda
+                        * self.args.common.optimizer.lr
                         * (param_l.data - param_p.data)
                     )
 
