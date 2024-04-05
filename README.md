@@ -161,7 +161,7 @@ ALL classes of methods are inherited from `FedAvgServer` and `FedAvgClient`. If 
 
 ### Step 1. Generate FL Dataset
 ```shell
-# partition the CIFAR-10 according to Dir(0.1) for 100 clients
+# Partition the CIFAR-10 according to Dir(0.1) for 100 clients
 python generate_data.py -d cifar10 -a 0.1 -cn 100
 ```
 About methods of generating federated dastaset, go check [`data/README.md`](data/#readme) for full details.
@@ -173,8 +173,8 @@ About methods of generating federated dastaset, go check [`data/README.md`](data
 ❗ Method name should be identical to the `.py` file name in `src/server`.
 
 ```
-# run FedAvg on CIFAR-10 with default settings.
-python main.py fedavg config/your_config.yml
+# Run FedAvg with default settings. 
+python main.py fedavg
 ```
 
 
@@ -195,19 +195,21 @@ def get_fedprox_args(args_list=None) -> Namespace:
 and you set
 ```yaml
 # your_config.yml
+...
 fedprox:
   mu: 0.1
 ```
 in your config file. If you run
 ```shell
-python main.py fedprox your_config.yml --mu 10   # fedprox.mu = 10
+python main.py fedprox                           # fedprox.mu = 1
 python main.py fedprox your_config.yml           # fedprox.mu = 0.01
+python main.py fedprox your_config.yml --mu 10   # fedprox.mu = 10
 ``` 
 
 
 ### Monitor 📈
 1. Run `python -m visdom.server` on terminal.
-2. Set `visible` as `True`.
+2. Set `visible` as `true`.
 3. Go check `localhost:8097` on your browser.
 
 ## Common Arguments 🔧
@@ -306,15 +308,15 @@ Medical Image Datasets
 
 ### New FL Method
 
-- Inherit your method class from `FedAvgServer` and `FedAvgClient`, which are the base classes of FL-bench and ALL other method classes are inherited from them.
+- Inherit your method class from [`FedAvgServer`](src/server/fedavg.py) and [`FedAvgClient`](src/client/fedavg.py), which are the base classes of FL-bench and ALL other method classes are inherited from them.
 
-- Override the `train_one_round()` in `FedAvgServer` for your custom server-side process.
+- Override the `train_one_round()` in [`FedAvgServer`](src/server/fedavg.py) for your custom server-side process.
 
-- Override the `fit()` or `train()` in `FedAvgClient()` for your custom client-side process.
+- Override the `fit()` or `train()` in [`FedAvgClient`](src/client/fedavg.py) for your custom client-side process.
 
 ### New Dataset
 
-- Inherit your dataset class from [`BaseDataset` in `data/utils/datasets.py`](data/utils/dataset.py) and add your class in dict `DATASETS`.
+- Inherit your dataset class from `BaseDataset` in [`data/utils/datasets.py`](data/utils/datasets.py) and add your class in dict `DATASETS`.
 
 ### New Model
 

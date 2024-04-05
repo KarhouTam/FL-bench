@@ -15,14 +15,19 @@ from src.utils.tools import parse_args
 
 
 if __name__ == "__main__":
-    if len(sys.argv) < 3:
-        raise ValueError(
-            "No <method> or <config_file>. Run like `python main.py <method> <config_file_relative_path> [cli_method_args ...]`,\n e.g., python main.py fedavg config/template.yml`"
+    if len(sys.argv) < 2:
+        raise RuntimeError(
+            "No method is specified. Run like `python main.py <method> [config_file_relative_path] [cli_method_args ...]`,\n e.g., python main.py fedavg config/template.yml`"
         )
 
     method_name = sys.argv[1]
-    config_file_path = sys.argv[2]
-    cli_method_args = sys.argv[3:]
+
+    config_file_path = None
+    cli_method_args = []
+    if len(sys.argv) > 2:
+        config_file_path = sys.argv[2]
+        cli_method_args = sys.argv[3:]
+
     try:
         method_module = importlib.import_module(method_name)
     except:

@@ -13,14 +13,15 @@ common:
   straggler_min_local_epoch: 0
   external_model_params_file: null
   optimizer:
-    name: sgd # [sgd, adam, adamw, rmsprop, adagrad]
+    name: "sgd" # [sgd, adam, adamw, rmsprop, adagrad]
     lr: 0.01
-    dampening: 0 # [sgd]
+    dampening: 0 # SGD
     weight_decay: 0
-    momentum: 0 # SGD, RMSprop
-    alpha: 0.99 # RMSprop
-    nesterov: false # SGD
-    betas: [0.9, 0.999] # Adam, AdamW
+    momentum: 0 # SGD, RMSprop,
+    alpha: 0.99 # RMSprop,
+    nesterov: false # SGD,
+    betas: [0.9, 0.999] # Adam, AdamW,
+    amsgrad: false # Adam, AdamW
 
   eval_test: true
   eval_val: false
@@ -35,17 +36,14 @@ common:
   save_metrics: true
   viz_win_name: null
   check_convergence: true
-
-
 # You can set specific arguments for FL methods also
 # FL-bench uses FL method arguments by args.<method>.<arg>
 # e.g.,
 # fedprox:
 #   mu: 0.01
-# 
+#
 # pfedsim:
 #   warmup_round: 0.7
 # ...
-
 
 # NOTE: For those unmentioned arguments, the default values are set in `get_<method>_args()` in `src/server/<method>.py`

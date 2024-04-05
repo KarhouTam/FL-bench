@@ -183,18 +183,21 @@ def parse_args(
     Returns:
         Namespace: The merged arg namespace.
     """
-    try:
-        with open(Path(config_file_path).absolute()) as f:
-            config_file_args = yaml.safe_load(f)
-        final_args = NestedNamespace(config_file_args)
-    except:
-        raise FileNotFoundError(
-            f"Unrecongnized config file path: {Path(config_file_path).absolute()}."
-        )
+    final_args = NestedNamespace({"common": DEFAULT_COMMON_ARGS})
+    config_file_args = {}
+    if config_file_path is not None:
+        try:
+            with open(Path(config_file_path).absolute()) as f:
+                config_file_args = yaml.safe_load(f)
+            final_args = NestedNamespace(config_file_args)
 
-    common_args = DEFAULT_COMMON_ARGS
-    common_args.update(config_file_args["common"])
-    final_args.__setattr__("common", NestedNamespace(common_args))
+            common_args = DEFAULT_COMMON_ARGS
+            common_args.update(config_file_args["common"])
+            final_args.__setattr__("common", NestedNamespace(common_args))
+        except:
+            Warning(
+                f"Unrecongnized config file path: {Path(config_file_path).absolute()}. All common arguments are rolled back to their defaults."
+            )
 
     if get_method_args_func is not None:
         default_method_args = get_method_args_func([]).__dict__
