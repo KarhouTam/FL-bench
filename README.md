@@ -151,7 +151,7 @@ docker pull ghcr.io/karhoutam/fl-bench:master
 docker pull docker.io/karhoutam/fl-bench:master
 
 # An example for building container
-docker run -it --name fl-bench --privileged -p 8097:8097 --gpus all ghcr.io/karhoutam/fl-bench:master
+docker run -it --name fl-bench -v path/to/FL-bench:/root/FL-bench --privileged --gpus all ghcr.io/karhoutam/fl-bench:master
 ```
 
 
@@ -161,14 +161,14 @@ ALL classes of methods are inherited from `FedAvgServer` and `FedAvgClient`. If 
 
 ### Step 1. Generate FL Dataset
 ```shell
-# Partition the CIFAR-10 according to Dir(0.1) for 100 clients
-python generate_data.py -d cifar10 -a 0.1 -cn 100
+# Partition the MNIST according to Dir(0.1) for 100 clients
+python generate_data.py -d mnist -a 0.1 -cn 100
 ```
 About methods of generating federated dastaset, go check [`data/README.md`](data/#readme) for full details.
 
 
 ### Step 2. Run Experiment
-`python main.py <method> <your_config_file.yml> [method_args...]`
+`python main.py <method> [your_config_file.yml] [method_args...]`
 
 ❗ Method name should be identical to the `.py` file name in `src/server`.
 

@@ -7,11 +7,11 @@ RUN apt update && \
 
 WORKDIR /root
 
-RUN git clone https://github.com/KarhouTam/FL-bench.git
+COPY .environment/requirements.txt /tmp
 
-WORKDIR /root/FL-bench
+RUN pip install --upgrade pip && \
+    pip install -r /tmp/requirements.txt
 
-RUN pip install -r .environment/requirements.txt
 
 # port for visdom
 EXPOSE 8097
