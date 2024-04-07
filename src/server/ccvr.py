@@ -57,7 +57,7 @@ class CCVRServer(FedAvgServer):
                 means_ = torch.stack(means, dim=-1)
                 classes_mean[c] = torch.sum(means_ * weights, dim=-1)
         for c in range(num_classes):
-            if classes_mean[c] is not None:
+            if classes_mean[c] is not None and labels_count[c] > 1:
                 for k in self.train_clients:
                     if classes_cov[c] is None:
                         classes_cov[c] = torch.zeros_like(features_covs[k][c])
