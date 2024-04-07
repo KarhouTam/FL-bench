@@ -197,7 +197,7 @@ and you set
 # your_config.yml
 ...
 fedprox:
-  mu: 0.1
+  mu: 0.01
 ```
 in your config file. If you run
 ```shell
@@ -266,9 +266,6 @@ This benchmark supports bunch of models that common and integrated in Torchvisio
 
 ## Supported Datasets 🎨
 
-This benchmark only supports to solve image classification task for now.
-
-
 Regular Image Datasets
 
 - *MNIST* (1 x 28 x 28, 10 classes)
@@ -304,24 +301,24 @@ Medical Image Datasets
 
 - [*Organ-S/A/CMNIST*](https://medmnist.com/) (1 x 28 x 28, 11 classes)
 
-## Extension Tips 💡
+## Customization Tips 💡
 
-### New FL Method
+### Implementing FL Method
 
-- Inherit your method class from [`FedAvgServer`](src/server/fedavg.py) and [`FedAvgClient`](src/client/fedavg.py), which are the base classes of FL-bench and ALL other method classes are inherited from them.
+- I recommend you to inherit your method classes from [`FedAvgServer`](src/server/fedavg.py) and [`FedAvgClient`](src/client/fedavg.py) for maximum utilizing FL-bench's workflow.
 
-- Override the `train_one_round()` in [`FedAvgServer`](src/server/fedavg.py) for your custom server-side process.
+- For customizing your server-side process, consider to override the `train_one_round()` and `aggregate()` in [`FedAvgServer`](src/server/fedavg.py).
 
-- Override the `fit()` or `train()` in [`FedAvgClient`](src/client/fedavg.py) for your custom client-side process.
+- For customizing your client-side training, consider to override the `fit()` or `train()` in [`FedAvgClient`](src/client/fedavg.py).
 
-### New Dataset
+### Integrating Dataset
 
-- Inherit your dataset class from `BaseDataset` in [`data/utils/datasets.py`](data/utils/datasets.py) and add your class in dict `DATASETS`.
+- Inherit your own dataset class from `BaseDataset` in [`data/utils/datasets.py`](data/utils/datasets.py) and add your class in dict `DATASETS`.
 
-### New Model
+### Customizing Model
 
 - I offer the `CustomModel` class in [`src/utils/models.py`](src/utils/models.py) and you just need to define your model arch.
-- No matter how complicated your model is, always define `base` and `classifier` in your model class. (Tips: You can define one of them as `torch.nn.Identity()`)
+- If you want to use your customized model within FL-bench's workflow, the `base` and `classifier` must be defined. (Tips: You can define one of them as `torch.nn.Identity()` for bypassing it.)
 
 ## Citation 🧐
 
