@@ -43,8 +43,10 @@ def main(args):
 
     if args.dataset == "femnist":
         dataset = process_femnist(args, partition, stats)
+        partition["val"] = []
     elif args.dataset == "celeba":
         dataset = process_celeba(args, partition, stats)
+        partition["val"] = []
     elif args.dataset == "synthetic":
         dataset = generate_synthetic_data(args, partition, stats)
     else:  # MEDMNIST, COVID, MNIST, CIFAR10, ...

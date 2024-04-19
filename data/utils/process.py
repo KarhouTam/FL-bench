@@ -3,7 +3,6 @@ import os
 from argparse import Namespace
 from collections import Counter
 from pathlib import Path
-from typing import Dict, Set
 
 
 import numpy as np
@@ -15,7 +14,7 @@ from data.utils.datasets import FEMNIST, CelebA, Synthetic
 DATA_ROOT = Path(__file__).parent.parent.absolute()
 
 
-def prune_args(args: Namespace) -> Dict:
+def prune_args(args: Namespace) -> dict:
     args_dict = {}
     # general settings
     args_dict["client_num"] = args.client_num
@@ -72,7 +71,7 @@ def prune_args(args: Namespace) -> Dict:
     return args_dict
 
 
-def process_femnist(args, partition: Dict, stats: Dict):
+def process_femnist(args, partition: dict, stats: dict):
     train_dir = DATA_ROOT / "femnist" / "data" / "train"
     test_dir = DATA_ROOT / "femnist" / "data" / "test"
     client_cnt = 0
@@ -106,6 +105,7 @@ def process_femnist(args, partition: Dict, stats: Dict):
                 all_targets.append(np.array(targets))
                 data_indices[client_cnt] = {
                     "train": list(range(data_cnt, data_cnt + len(train_data))),
+                    "val": [],
                     "test": list(
                         range(data_cnt + len(train_data), data_cnt + len(data))
                     ),
@@ -139,6 +139,7 @@ def process_femnist(args, partition: Dict, stats: Dict):
                 all_targets.append(np.array(targets))
                 data_indices[client_cnt] = {
                     "train": list(range(data_cnt, data_cnt + len(data))),
+                    "val": [],
                     "test": [],
                 }
                 stats["train"][client_cnt]["x"] = len(data)
@@ -169,6 +170,7 @@ def process_femnist(args, partition: Dict, stats: Dict):
                 all_targets.append(np.array(targets))
                 data_indices[client_cnt] = {
                     "train": [],
+                    "val": [],
                     "test": list(range(data_cnt, data_cnt + len(data))),
                 }
                 stats["test"][client_cnt]["x"] = len(data)
@@ -192,6 +194,7 @@ def process_femnist(args, partition: Dict, stats: Dict):
 
     partition["separation"] = {
         "train": clients_4_train,
+        "val": [],
         "test": clients_4_test,
         "total": client_cnt,
     }
@@ -200,14 +203,14 @@ def process_femnist(args, partition: Dict, stats: Dict):
     return FEMNIST(
         root=DATA_ROOT / "femnist",
         args=None,
-        general_data_transform=None,
-        general_target_transform=None,
+        test_data_transform=None,
+        test_target_transform=None,
         train_data_transform=None,
         train_target_transform=None,
     )
 
 
-def process_celeba(args, partition: Dict, stats: Dict):
+def process_celeba(args, partition: dict, stats: dict):
     train_dir = DATA_ROOT / "celeba" / "data" / "train"
     test_dir = DATA_ROOT / "celeba" / "data" / "test"
     raw_data_dir = DATA_ROOT / "celeba" / "data" / "raw" / "img_align_celeba"
@@ -260,6 +263,7 @@ def process_celeba(args, partition: Dict, stats: Dict):
                 all_targets = np.concatenate([all_targets, targets])
             data_indices[client_cnt] = {
                 "train": list(range(data_cnt, data_cnt + len(train_data))),
+                "val": [],
                 "test": list(range(data_cnt + len(train_data), data_cnt + len(data))),
             }
             stats[client_cnt]["x"] = (
@@ -301,6 +305,7 @@ def process_celeba(args, partition: Dict, stats: Dict):
                 all_targets = np.concatenate([all_targets, targets])
             data_indices[client_cnt] = {
                 "train": list(range(data_cnt, data_cnt + len(data))),
+                "val": [],
                 "test": [],
             }
             stats[client_cnt]["x"] = train["num_samples"][client_cnt]
@@ -341,6 +346,7 @@ def process_celeba(args, partition: Dict, stats: Dict):
                 all_targets = np.concatenate([all_targets, targets])
             partition["data_indices"][client_cnt] = {
                 "train": [],
+                "val": [],
                 "test": list(range(data_cnt, data_cnt + len(data))),
             }
             stats["test"][client_cnt]["x"] = test["num_samples"][client_cnt]
@@ -364,6 +370,7 @@ def process_celeba(args, partition: Dict, stats: Dict):
 
     partition["separation"] = {
         "train": clients_4_train,
+        "val": [],
         "test": clients_4_test,
         "total": client_cnt,
     }
@@ -372,14 +379,14 @@ def process_celeba(args, partition: Dict, stats: Dict):
     return CelebA(
         root=DATA_ROOT / "celeba",
         args=None,
-        general_data_transform=None,
-        general_target_transform=None,
+        test_data_transform=None,
+        test_target_transform=None,
         train_data_transform=None,
         train_target_transform=None,
     )
 
 
-def generate_synthetic_data(args, partition: Dict, stats: Dict):
+def generate_synthetic_data(args, partition: dict, stats: dict):
     def softmax(x):
         ex = np.exp(x)
         sum_ex = np.sum(np.exp(x))
@@ -463,11 +470,11 @@ def generate_synthetic_data(args, partition: Dict, stats: Dict):
 def exclude_domain(
     client_num: int,
     targets: np.ndarray,
-    domain_map: Dict[str, int],
-    domain_indices_bound: Dict,
-    ood_domains: Set[str],
-    partition: Dict,
-    stats: Dict,
+    domain_map: dict[str, int],
+    domain_indices_bound: dict,
+    ood_domains: set[str],
+    partition: dict,
+    stats: dict,
 ):
     ood_domain_num = 0
     data_indices = np.arange(len(targets), dtype=np.int64)
