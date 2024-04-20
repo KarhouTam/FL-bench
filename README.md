@@ -17,10 +17,13 @@
   </a>
 </p>
 <h4 align="center"><i>
-Evaluating Federated Learning Methods
+  
+Evaluating Federated Learning Methods.
 
-Realizing Your Brilliant Ideas
-Having Fun with Federated Learning
+Realizing Your Brilliant Ideas.
+
+Having Fun with Federated Learning.
+
 </i></h4>
 
 <h5 align="center"><i>🎉 FL-bench now can perform FL training in parallel (with the help of <a href https://github.com/ray-project/ray>ray</a>)！ 🎉</i></h5> 
