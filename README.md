@@ -26,7 +26,7 @@ Having Fun with Federated Learning.
 
 </i></h4>
 
-<h5 align="center"><i>🎉 FL-bench now can perform FL training in parallel (with the help of <a href https://github.com/ray-project/ray>ray</a>)！ 🎉</i></h5> 
+<h5 align="center"><i>🎉 FL-bench now can perform FL training in parallel (with the help of <a href=https://github.com/ray-project/ray>ray</a>)！ 🎉</i></h5> 
 
 
 
@@ -215,7 +215,7 @@ python main.py fedprox your_config.yml --mu 10   # fedprox.mu = 10
 2. Set `visible` as `true`.
 3. Go check `localhost:8097` on your browser.
 
-### Using `Ray` for Parallel Training
+### Using `Ray` for Parallel Training 
 You need to set
 ```yaml
 # your_config_file.yml
