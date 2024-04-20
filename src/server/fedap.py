@@ -2,15 +2,13 @@ import math
 import time
 from argparse import ArgumentParser, Namespace
 from collections import OrderedDict
-from copy import deepcopy
-from typing import List
 
 import torch
 import numpy as np
 from rich.progress import track
 
-from fedavg import FedAvgServer
-from src.utils.tools import trainable_params, NestedNamespace
+from src.server.fedavg import FedAvgServer
+from src.utils.tools import NestedNamespace
 from src.client.fedap import FedAPClient
 
 
@@ -31,37 +29,42 @@ class FedAPServer(FedAvgServer):
         self,
         args: NestedNamespace,
         algo: str = None,
-        unique_model=True,
-        default_trainer=False,
+        unique_model=False,
+        use_fedavg_client_cls=False,
+        return_diff=False,
     ):
         algo_name = {"original": "FedAP", "f": "f-FedAP", "d": "d-FedAP"}
         algo = algo_name[args.fedap.version]
-        super().__init__(args, algo, unique_model, default_trainer)
+        super().__init__(args, algo, unique_model, use_fedavg_client_cls, return_diff)
 
-        self.trainer = FedAPClient(
-            deepcopy(self.model), self.args, self.logger, self.device
-        )
-        self.weight_matrix = torch.eye(self.client_num, device=self.device)
-        self.warmup_round = 0
+        self.init_trainer(FedAPClient)
+        self.weight_matrix = torch.eye(self.client_num)
+        self.pretrain_round = 0
         if 0 < self.args.fedap.warmup_round < 1:
-            self.warmup_round = int(
+            self.pretrain_round = int(
                 self.args.common.global_epoch * self.args.fedap.warmup_round
             )
         elif 1 <= self.args.fedap.warmup_round < self.args.common.global_epoch:
-            self.warmup_round = int(self.args.fedap.warmup_round)
+            self.pretrain_round = int(self.args.fedap.warmup_round)
 
-    def train(self):
-        # Pre-training phase
+        self.pretrain = True
         if self.args.fedap.version in ["original", "d"]:
-            if 0 < self.args.fedap.pretrain_ratio < 1:
-                self.trainer.pretrain = True
-            else:
+            if not 0 < self.args.fedap.pretrain_ratio < 1:
                 raise RuntimeError(
                     "FedAP or d-FedAP need `pretrain_ratio` in the range of [0, 1]."
                 )
 
+    def package(self, client_id: int):
+        server_package = super().package(client_id)
+        if self.pretrain:
+            server_package["local_epoch"] = 1
+        server_package["pretrain"] = self.pretrain
+        return server_package
+
+    def train(self):
+        # Pre-training phase
         warmup_progress_bar = track(
-            range(self.warmup_round),
+            range(self.pretrain_round),
             "[bold green]Warming-up...",
             console=self.logger.stdout,
         )
@@ -71,51 +74,37 @@ class FedAPServer(FedAvgServer):
             if self.args.fedap.version == "f":
                 self.selected_clients = self.client_sample_stream[E]
             else:
-                self.selected_clients = list(range(self.client_num))
-
-            delta_cache = []
-            weight_cache = []
-            for client_id in self.selected_clients:
-                (delta, weight, self.client_metrics[client_id][E]) = self.trainer.train(
-                    client_id=client_id,
-                    local_epoch=self.clients_local_epoch[client_id],
-                    new_parameters=self.global_params_dict,
-                    verbose=((E + 1) % self.args.common.verbose_gap) == 0,
-                )
-                if self.args.fedap.version == "f":
-                    delta_cache.append(delta)
-                    weight_cache.append(weight)
-                else:
-                    for old_param, diff in zip(
-                        self.global_params_dict.values(), delta.values()
-                    ):
-                        old_param.data -= diff.data
+                self.selected_clients = self.train_clients
 
             if self.args.fedap.version == "f":
-                self.aggregate(delta_cache, weight_cache)
-
-            self.log_info()
+                clients_package = self.trainer.train()
+                self.aggregate(clients_package)
+            else:
+                # FedAP and d-FedAP needs one-by-one training this phase
+                selected_clients_this_round = self.selected_clients
+                for client_id in selected_clients_this_round:
+                    self.selected_clients = [client_id]
+                    client_package = self.trainer.train()
+                    self.global_model_params = client_package[client_id][
+                        "regular_model_params"
+                    ]
 
         # update clients params to pretrain params
-        self.client_trainable_params = [
-            trainable_params(self.global_params_dict, detach=True)
-            for _ in self.train_clients
-        ]
+        for client_id in self.train_clients:
+            self.clients_personal_model_params[client_id].update(
+                self.global_model_params
+            )
 
         # generate weight matrix
         bn_mean_list, bn_var_list = [], []
-        for client_id in track(
-            self.train_clients,
-            "[bold cyan]Generating weight matrix...",
-            console=self.logger.stdout,
-        ):
+        clients_package = self.trainer.exec("get_all_features", self.train_clients)
+        for client_id in self.train_clients:
             avgmeta = metacount(self.get_form()[0])
-            client_local_params = self.generate_client_params(client_id)
-            features_list, batch_size_list = self.trainer.get_all_features(
-                client_id, client_local_params
-            )
             with torch.no_grad():
-                for features, batchsize in zip(features_list, batch_size_list):
+                for features, batchsize in zip(
+                    clients_package[client_id]["features_list"],
+                    clients_package[client_id]["batch_size_list"],
+                ):
                     tm, tv = [], []
                     for item in features:
                         if len(item.shape) == 4:
@@ -125,18 +114,19 @@ class FedAPServer(FedAvgServer):
             bn_mean_list.append(avgmeta.getmean())
             bn_var_list.append(avgmeta.getvar())
         self.generate_weight_matrix(bn_mean_list, bn_var_list)
+
         # regular training
+        self.pretrain = False
         self.train_progress_bar = track(
-            range(self.warmup_round, self.args.common.global_epoch),
+            range(self.pretrain_round, self.args.common.global_epoch),
             "[bold green]Training...",
             console=self.logger.stdout,
         )
-        self.trainer.pretrain = False
         avg_round_time = 0
         for E in self.train_progress_bar:
-            begin = time.time()
             self.current_epoch = E
-            if (E + 1) % self.args.common.verbose_gap == 0:
+            self.verbose = (self.current_epoch + 1) % self.args.common.verbose_gap == 0
+            if self.verbose:
                 self.logger.log(" " * 30, f"TRAINING EPOCH: {E + 1}", " " * 30)
 
             if (E + 1) % self.args.common.test_interval == 0:
@@ -144,20 +134,8 @@ class FedAPServer(FedAvgServer):
 
             self.selected_clients = self.client_sample_stream[E]
 
-            delta_cache = []
-            for client_id in self.selected_clients:
-                client_local_params = self.generate_client_params(client_id)
-                delta, _, self.client_metrics[client_id][E] = self.trainer.train(
-                    client_id=client_id,
-                    local_epoch=self.clients_local_epoch[client_id],
-                    new_parameters=client_local_params,
-                    return_diff=False,
-                    verbose=((E + 1) % self.args.common.verbose_gap) == 0,
-                )
-
-                delta_cache.append(delta)
-
-            self.update_client_params(delta_cache)
+            begin = time.time()
+            self.trainer.train()
             end = time.time()
             self.log_info()
             avg_round_time = (avg_round_time * (self.current_epoch) + (end - begin)) / (
@@ -183,7 +161,7 @@ class FedAPServer(FedAvgServer):
         return tmp_mean, tmp_var
 
     def generate_weight_matrix(
-        self, bnmlist: List[torch.Tensor], bnvlist: List[torch.Tensor]
+        self, bnmlist: list[torch.Tensor], bnvlist: list[torch.Tensor]
     ):
         client_num = len(bnmlist)
         weight_m = np.zeros((client_num, client_num))
@@ -202,18 +180,26 @@ class FedAPServer(FedAvgServer):
         weight_m = (weight_m / weight_s) * (1 - self.args.fedap.model_momentum)
         for i in range(client_num):
             weight_m[i, i] = self.args.fedap.model_momentum
-        self.weight_matrix = torch.from_numpy(weight_m).to(self.device)
+        self.weight_matrix = torch.from_numpy(weight_m)
 
-    def generate_client_params(self, client_id) -> OrderedDict[str, torch.Tensor]:
-        new_parameters = OrderedDict()
-        for name, layer_params in zip(
-            self.trainable_params_name, zip(*self.client_trainable_params)
-        ):
-            new_parameters[name] = torch.sum(
+    def get_client_model_params(self, client_id) -> OrderedDict[str, torch.Tensor]:
+        if self.pretrain:
+            return super().get_client_model_params(client_id)
+        regular_params = {}
+        personal_params = self.clients_personal_model_params[client_id]
+        for layer_name in self.trainable_params_name:
+            layer_params = [
+                model_params[layer_name]
+                for model_params in self.clients_personal_model_params.values()
+            ]
+            personal_params[layer_name] = torch.sum(
                 torch.stack(layer_params, dim=-1) * self.weight_matrix[client_id],
                 dim=-1,
             )
-        return new_parameters
+
+        return dict(
+            regular_model_params=regular_params, personal_model_params=personal_params
+        )
 
 
 def wasserstein(m1, v1, m2, v2, mode="nosquare"):

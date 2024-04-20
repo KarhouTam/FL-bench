@@ -1,11 +1,10 @@
 from argparse import ArgumentParser, Namespace
 from collections import OrderedDict
-from copy import deepcopy
 
 import torch
 import torch.nn as nn
 
-from fedavg import FedAvgServer
+from src.server.fedavg import FedAvgServer
 from src.client.fedper import FedPerClient
 from src.utils.tools import trainable_params, NestedNamespace
 
@@ -31,18 +30,20 @@ class pFedHNServer(FedAvgServer):
         self,
         args: NestedNamespace,
         algo: str = None,
-        unique_model=True,
-        default_trainer=True,
+        unique_model=False,
+        use_fedavg_client_cls=True,
+        return_diff=True,
     ):
+        if args.mode == "parallel":
+            print("pFedHN does not support paralell mode and is fallback to serial.")
+            args.mode = "serial"
         algo = "pFedHN" if args.pfedhn.version == "pfedhn" else "pFedHN-PC"
-        default_trainer = True if args.pfedhn.version == "pfedhn" else False
-        super().__init__(args, algo, unique_model, default_trainer)
-        if args.pfedhn.version == "pfedhn_pc":
-            self.trainer = FedPerClient(
-                deepcopy(self.model), self.args, self.logger, self.device
-            )
+        use_fedavg_client_cls = True if args.pfedhn.version == "pfedhn" else False
+        super().__init__(args, algo, unique_model, use_fedavg_client_cls, return_diff)
+        if self.args.pfedhn.version == "pfedhn_pc":
+            self.init_trainer(FedPerClient)
 
-        self.hn = HyperNetwork(self.model, self.args.pfedhn, self.client_num).to(self.device)
+        self.hypernet = HyperNetwork(self.model, self.args.pfedhn, self.client_num)
         embed_lr = (
             self.args.pfedhn.embed_lr
             if self.args.pfedhn.embed_lr is not None
@@ -53,14 +54,14 @@ class pFedHNServer(FedAvgServer):
                 {
                     "params": [
                         param
-                        for name, param in self.hn.named_parameters()
+                        for name, param in self.hypernet.named_parameters()
                         if "embed" not in name
                     ]
                 },
                 {
                     "params": [
                         param
-                        for name, param in self.hn.named_parameters()
+                        for name, param in self.hypernet.named_parameters()
                         if "embed" in name
                     ],
                     "lr": embed_lr,
@@ -72,57 +73,44 @@ class pFedHNServer(FedAvgServer):
         )
 
     def train_one_round(self):
-        hn_grads_cache = []
-        weight_cache = []
-        for client_id in self.selected_clients:
-            client_local_params = self.generate_client_params(client_id)
-            (delta, weight, self.client_metrics[client_id][self.current_epoch]) = (
-                self.trainer.train(
-                    client_id=client_id,
-                    local_epoch=self.clients_local_epoch[client_id],
-                    new_parameters=client_local_params,
-                    verbose=((self.current_epoch + 1) % self.args.common.verbose_gap)
-                    == 0,
-                )
-            )
+        selected_clients_this_round = self.selected_clients
+        for client_id in selected_clients_this_round:
+            self.selected_clients = [client_id]
+            clients_package = self.trainer.train()
+
             if self.args.pfedhn.version == "pfedhn_pc":
-                for name, diff in delta.items():
+                for name, diff in clients_package[client_id][
+                    "model_params_diff"
+                ].items():
                     # set diff to all-zero can stop HN's nn.Linear modules that responsible for the classifier from updating.
                     if "classifier" in name:
                         diff.zero_()
-            weight_cache.append(weight)
-            hn_grads_cache.append(
-                torch.autograd.grad(
-                    outputs=list(client_local_params.values()),
-                    inputs=self.hn.parameters(),
-                    grad_outputs=list(delta.values()),
-                    allow_unused=True,
-                )
+
+            hn_grads = torch.autograd.grad(
+                outputs=self.hypernet.outputs,
+                inputs=self.hypernet.parameters(),
+                grad_outputs=list(
+                    clients_package[client_id]["model_params_diff"].values()
+                ),
+                allow_unused=True,
             )
 
-        self.update_hn(weight_cache, hn_grads_cache)
-
-    def generate_client_params(self, client_id) -> OrderedDict[str, torch.Tensor]:
-        if not self.testing:
-            self.client_trainable_params[client_id] = self.hn(
-                torch.tensor(client_id, device=self.device)
+            self.hn_optimizer.zero_grad()
+            for param, grad in zip(self.hypernet.parameters(), hn_grads):
+                if grad is not None:
+                    param.grad = grad
+            torch.nn.utils.clip_grad_norm_(
+                self.hypernet.parameters(), self.args.pfedhn.norm_clip
             )
-        return OrderedDict(
-            zip(self.trainable_params_name, self.client_trainable_params[client_id])
+            self.hn_optimizer.step()
+
+    def get_client_model_params(self, client_id) -> OrderedDict[str, torch.Tensor]:
+        return dict(
+            regular_model_params=OrderedDict(
+                zip(self.trainable_params_name, self.hypernet(torch.tensor(client_id)))
+            ),
+            personal_model_params=self.clients_personal_model_params[client_id],
         )
-
-    def update_hn(self, weight_cache, hn_grads_cache):
-        weights = torch.tensor(weight_cache, device=self.device) / sum(weight_cache)
-        hn_grads = []
-        for grads in zip(*hn_grads_cache):
-            hn_grads.append(torch.sum(torch.stack(grads, dim=-1) * weights, dim=-1))
-
-        self.hn_optimizer.zero_grad()
-        for param, grad in zip(self.hn.parameters(), hn_grads):
-            if grad is not None:
-                param.grad = grad
-        torch.nn.utils.clip_grad_norm_(self.hn.parameters(), self.args.pfedhn.norm_clip)
-        self.hn_optimizer.step()
 
 
 class HyperNetwork(nn.Module):
@@ -148,6 +136,7 @@ class HyperNetwork(nn.Module):
             self.params_generator[name] = nn.Linear(
                 args.hidden_dim, len(param.flatten())
             )
+        self.outputs: list[torch.Tensor] = []
 
     def forward(self, client_id):
         emd = self.embedding(client_id)
@@ -157,5 +146,5 @@ class HyperNetwork(nn.Module):
             self.params_generator[name](features).reshape(self.params_shape[name])
             for name in self.params_name
         ]
-
-        return parameters
+        self.outputs = parameters
+        return [params.detach().clone().cpu() for params in parameters]

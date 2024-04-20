@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "fl-bench"
-version = "0.1.0"
+version = "0.2.0"
 description = "Benchmark of federated learning that aim solving image classification tasks."
 authors = ["KarhouTam <karhoutam@qq.com>"]
 license = "GPL-2.0-or-later"
@@ -14,20 +14,21 @@ priority = "default"
 
 [tool.poetry.dependencies]
 python = ">=3.10, <3.12"
-torch = "2.1.2"
-torchvision = "0.16.2"
-torchaudio = "2.1.2"
+torch = "2.2.0"
+torchvision = "0.17.0"
+torchaudio = "2.2.0"
 rich = "13.3.5"
 numpy = "1.26.3"
-pandas = "2.0.1"
+pandas = "2.2.0"
 visdom = "0.2.4"
-Pillow = "10.0.1"
-scipy = "1.10.1"
-matplotlib = "3.7.1"
-scikit-learn = "1.2.2"
+Pillow = "10.2.0"
+scipy = "1.12.0"
+matplotlib = "3.8.2"
+scikit-learn = "1.4.0"
 faiss-cpu = "1.7.4"
 pynvml = "11.5.0"
 PyYAML = "6.0.1"
+ray = "2.10.0"
 
 [build-system]
 requires = ["poetry-core"]

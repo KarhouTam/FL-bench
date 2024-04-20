@@ -1,11 +1,10 @@
 from argparse import ArgumentParser, Namespace
 from copy import deepcopy
-from typing import List
 from collections import OrderedDict
 
 import torch
 
-from fedavg import FedAvgServer
+from src.server.fedavg import FedAvgServer
 from src.utils.tools import trainable_params, NestedNamespace
 from src.utils.models import DecoupledModel
 
@@ -31,10 +30,11 @@ class FedOptServer(FedAvgServer):
         args: NestedNamespace,
         algo: str = "FedAvg",
         unique_model=False,
-        default_trainer=True,
+        use_fedavg_client_cls=True,
+        return_diff=True,
     ):
         algo = ALGO_NAMES[args.fedopt.type]
-        super().__init__(args, algo, unique_model, default_trainer)
+        super().__init__(args, algo, unique_model, use_fedavg_client_cls, return_diff)
         self.adaptive_optimizer = AdaptiveOptimizer(
             optimizer_type=self.args.fedopt.type,
             model=self.model,
@@ -45,29 +45,19 @@ class FedOptServer(FedAvgServer):
         )
 
     def train_one_round(self):
-        delta_cache = []
-        weight_cache = []
-        for client_id in self.selected_clients:
-            client_local_params = self.generate_client_params(client_id)
-            (delta, weight, self.client_metrics[client_id][self.current_epoch]) = (
-                self.trainer.train(
-                    client_id=client_id,
-                    local_epoch=self.clients_local_epoch[client_id],
-                    new_parameters=client_local_params,
-                    verbose=((self.current_epoch + 1) % self.args.common.verbose_gap)
-                    == 0,
-                )
-            )
-
-            delta_cache.append(delta)
-            weight_cache.append(weight)
+        clients_package = self.trainer.train()
+        clients_model_params_diff = []
+        clients_weight = []
+        for package in clients_package.values():
+            clients_model_params_diff.append(package["model_params_diff"])
+            clients_weight.append(package["weight"])
 
         self.adaptive_optimizer.step(
-            delta_cache=delta_cache,
-            weights=torch.tensor(weight_cache, device=self.device) / sum(weight_cache),
+            clients_model_params_diff=clients_model_params_diff,
+            weights=torch.tensor(clients_weight) / sum(clients_weight),
         )
 
-        self.global_params_dict = OrderedDict(
+        self.global_model_params = OrderedDict(
             zip(self.trainable_params_name, trainable_params(self.model, detach=True))
         )
 
@@ -96,26 +86,29 @@ class AdaptiveOptimizer:
             torch.zeros_like(param) for param in trainable_params(self.model)
         ]
         self.velocities = deepcopy(self.momentums)
-        self.delta_list: List[torch.Tensor] = None
+        self.delta_list: list[torch.Tensor] = None
 
     @torch.no_grad()
     def step(
-        self, delta_cache: List[OrderedDict[str, torch.Tensor]], weights: torch.Tensor
+        self,
+        clients_model_params_diff: list[OrderedDict[str, torch.Tensor]],
+        weights: torch.Tensor,
     ):
         # compute weighted delta
-        list_delta_cache = [
-            [-diff for diff in delta_dict.values()] for delta_dict in delta_cache
+        list_clients_model_params_diff = [
+            [-diff for diff in diff_dict.values()]
+            for diff_dict in clients_model_params_diff
         ]
-        delta_list = []
-        for delta in zip(*list_delta_cache):
-            delta_list.append(torch.sum(torch.stack(delta, dim=-1) * weights, dim=-1))
+        params_diff = []
+        for diff in zip(*list_clients_model_params_diff):
+            params_diff.append(torch.sum(torch.stack(diff, dim=-1) * weights, dim=-1))
 
         # update momentums
-        for m, delta in zip(self.momentums, delta_list):
-            m.data = self.beta1 * m + (1 - self.beta1) * delta
+        for m, diff in zip(self.momentums, params_diff):
+            m.data = self.beta1 * m + (1 - self.beta1) * diff
 
         # update velocities according to different rules
-        self.update(delta_list)
+        self.update(params_diff)
 
         # update model parameters
         for param, m, v in zip(

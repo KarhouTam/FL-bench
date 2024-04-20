@@ -1,12 +1,12 @@
-from collections import OrderedDict
 from copy import deepcopy
+from typing import Any
 
 import torch
 import torch.nn.functional as F
 
-from fedavg import FedAvgClient
+from src.client.fedavg import FedAvgClient
 from src.utils.models import DecoupledModel
-from src.utils.tools import Logger, NestedNamespace, count_labels, trainable_params
+from src.utils.tools import count_labels, trainable_params
 
 
 def balanced_softmax_loss(
@@ -21,15 +21,11 @@ def balanced_softmax_loss(
 
 
 class FedRoDClient(FedAvgClient):
-    def __init__(
-        self,
-        model: DecoupledModel,
-        hypernetwork: torch.nn.Module,
-        args: NestedNamespace,
-        logger: Logger,
-        device: torch.device,
-    ):
-        super().__init__(FedRoDModel(model, args.fedrod.eval_per), args, logger, device)
+    def __init__(self, hypernetwork: torch.nn.Module, **commons):
+        commons["model"] = FedRoDModel(
+            commons["model"], commons["args"].fedrod.eval_per
+        )
+        super().__init__(**commons)
         self.hypernetwork: torch.nn.Module = None
         self.hyper_optimizer = None
         if self.args.fedrod.hyper:
@@ -37,60 +33,22 @@ class FedRoDClient(FedAvgClient):
             self.hyper_optimizer = torch.optim.SGD(
                 trainable_params(self.hypernetwork), lr=self.args.fedrod.hyper_lr
             )
+            self.first_time_selected = True
         self.personal_params_name.extend(
             [key for key, _ in self.model.named_parameters() if "personalized" in key]
         )
 
-    def set_parameters(self, new_generic_parameters: OrderedDict[str, torch.Tensor]):
-        personal_parameters = self.personal_params_dict.get(
-            self.client_id, self.init_personal_params_dict
-        )
-        self.optimizer.load_state_dict(
-            self.opt_state_dict.get(self.client_id, self.init_opt_state_dict)
-        )
-        self.model.generic_model.load_state_dict(new_generic_parameters, strict=False)
-        self.model.load_state_dict(personal_parameters, strict=False)
+    def set_parameters(self, package: dict[str, Any]):
+        super().set_parameters(package)
+        self.first_time_selected = package["first_time_selected"]
+        if self.args.fedrod.hyper and self.first_time_selected:
+            self.hypernetwork.load_state_dict(package["hypernet_params"])
 
-    def train(
-        self,
-        client_id: int,
-        local_epoch: int,
-        new_parameters: OrderedDict[str, torch.Tensor],
-        hyper_parameters: OrderedDict[str, torch.Tensor],
-        return_diff=False,
-        verbose=False,
-    ):
-        self.client_id = client_id
+    def package(self):
+        client_package = super().package()
         if self.args.fedrod.hyper:
-            self.hypernetwork.load_state_dict(hyper_parameters, strict=False)
-        self.local_epoch = local_epoch
-        self.load_dataset()
-        self.set_parameters(new_parameters)
-        eval_results = self.train_and_log(verbose=verbose)
-
-        if return_diff:
-            delta = OrderedDict()
-            for (name, p0), p1 in zip(
-                new_parameters.items(), trainable_params(self.model.generic_model)
-            ):
-                delta[name] = p0 - p1
-
-            hyper_delta = None
-            if self.args.fedrod.hyper:
-                hyper_delta = OrderedDict()
-                for (name, p0), p1 in zip(
-                    hyper_parameters.items(), trainable_params(self.hypernetwork)
-                ):
-                    hyper_delta[name] = p0 - p1
-
-            return delta, hyper_delta, len(self.trainset), eval_results
-        else:
-            return (
-                trainable_params(self.model.generic_model, detach=True),
-                trainable_params(self.hypernetwork, detach=True),
-                len(self.trainset),
-                eval_results,
-            )
+            client_package["hypernet_params"] = deepcopy(self.hypernetwork.state_dict())
+        return client_package
 
     def fit(self):
         self.model.train()
@@ -98,23 +56,25 @@ class FedRoDClient(FedAvgClient):
         label_counts = torch.tensor(
             count_labels(self.dataset, self.trainset.indices), device=self.device
         )
-        # if using hypernetwork for generating personalized classifier parameters and client is first-time selected
-        if self.args.fedrod.hyper and self.client_id not in self.personal_params_dict:
-            label_distrib = label_counts / label_counts.sum()
-            classifier_params = self.hypernetwork(label_distrib)
-            clf_weight_numel = self.model.generic_model.classifier.weight.numel()
-            self.model.personalized_classifier.weight.data = (
-                classifier_params[:clf_weight_numel]
-                .reshape(self.model.personalized_classifier.weight.shape)
-                .detach()
-                .clone()
-            )
-            self.model.personalized_classifier.bias.data = (
-                classifier_params[clf_weight_numel:]
-                .reshape(self.model.personalized_classifier.bias.shape)
-                .detach()
-                .clone()
-            )
+        if self.args.fedrod.hyper:
+            if self.args.fedrod.hyper and self.first_time_selected:
+                self.hypernetwork.to(self.device)
+                # if using hypernetwork for generating personalized classifier parameters and client is first-time selected
+                label_distrib = label_counts / label_counts.sum()
+                classifier_params = self.hypernetwork(label_distrib)
+                clf_weight_numel = self.model.generic_model.classifier.weight.numel()
+                self.model.personalized_classifier.weight.data = (
+                    classifier_params[:clf_weight_numel]
+                    .reshape(self.model.personalized_classifier.weight.shape)
+                    .detach()
+                    .clone()
+                )
+                self.model.personalized_classifier.bias.data = (
+                    classifier_params[clf_weight_numel:]
+                    .reshape(self.model.personalized_classifier.bias.shape)
+                    .detach()
+                    .clone()
+                )
 
         for _ in range(self.local_epoch):
             for x, y in self.trainloader:
@@ -132,7 +92,7 @@ class FedRoDClient(FedAvgClient):
                 loss.backward()
                 self.optimizer.step()
 
-        if self.args.fedrod.hyper and self.client_id not in self.personal_params_dict:
+        if self.args.fedrod.hyper and self.first_time_selected:
             # This part has no references on the FedRoD paper
             trained_classifier_params = torch.cat(
                 [
@@ -146,6 +106,7 @@ class FedRoDClient(FedAvgClient):
             self.hyper_optimizer.zero_grad()
             hyper_loss.backward()
             self.hyper_optimizer.step()
+            self.hypernetwork.cpu()
 
     def finetune(self):
         self.model.train()

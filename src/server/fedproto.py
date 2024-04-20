@@ -1,10 +1,8 @@
 from argparse import ArgumentParser, Namespace
-from copy import deepcopy
-from typing import Dict, List
 
 import torch
 
-from fedavg import FedAvgServer
+from src.server.fedavg import FedAvgServer
 from src.client.fedproto import FedProtoClient
 from src.utils.constants import NUM_CLASSES
 from src.utils.tools import NestedNamespace
@@ -22,40 +20,31 @@ class FedProtoServer(FedAvgServer):
         args: NestedNamespace,
         algo: str = "FedProto",
         unique_model=False,
-        default_trainer=False,
+        use_fedavg_client_cls=False,
+        return_diff=False,
     ):
-        super().__init__(args, algo, unique_model, default_trainer)
-        self.trainer = FedProtoClient(
-            deepcopy(self.model), self.args, self.logger, self.device
-        )
-        self.global_prototypes: Dict[int, torch.Tensor] = {}
+        super().__init__(args, algo, unique_model, use_fedavg_client_cls, return_diff)
+        self.global_prototypes: dict[int, torch.Tensor] = {}
+        self.init_trainer(FedProtoClient)
+
+    def package(self, client_id: int):
+        server_package = super().package(client_id)
+        server_package["global_prototypes"] = self.global_prototypes
+        return server_package
 
     def train_one_round(self):
-        client_prototypes = []
-        for client_id in self.selected_clients:
-            (prototypes, self.client_metrics[client_id][self.current_epoch]) = (
-                self.trainer.train(
-                    client_id=client_id,
-                    local_epoch=self.clients_local_epoch[client_id],
-                    global_prototypes=self.global_prototypes,
-                    verbose=((self.current_epoch + 1) % self.args.common.verbose_gap)
-                    == 0,
-                )
-            )
-
-            client_prototypes.append(prototypes)
-
-        self.aggregate_prototypes(client_prototypes)
+        clients_package = self.trainer.train()
+        self.aggregate_prototypes(
+            [package["prototypes"] for package in clients_package.values()]
+        )
 
     def aggregate_prototypes(
-        self, client_prototypes_list: List[Dict[int, torch.Tensor]]
+        self, client_prototypes_list: list[dict[int, torch.Tensor]]
     ):
         self.global_prototypes = {}
         for i in range(NUM_CLASSES[self.args.common.dataset]):
             size = 0
-            prototypes = torch.zeros(
-                self.model.classifier.in_features, device=self.device
-            )
+            prototypes = torch.zeros(self.model.classifier.in_features)
             for client_prototypes in client_prototypes_list:
                 if i in client_prototypes.keys():
                     prototypes += client_prototypes[i]

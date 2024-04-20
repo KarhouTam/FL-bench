@@ -1,10 +1,10 @@
 from copy import deepcopy
-from typing import List
+from typing import Any
 from argparse import ArgumentParser, Namespace
 
 import torch
 
-from fedavg import FedAvgServer
+from src.server.fedavg import FedAvgServer
 from src.client.scaffold import SCAFFOLDClient
 from src.utils.tools import trainable_params, NestedNamespace
 
@@ -21,52 +21,35 @@ class SCAFFOLDServer(FedAvgServer):
         args: NestedNamespace,
         algo: str = "SCAFFOLD",
         unique_model=False,
-        default_trainer=False,
+        use_fedavg_client_cls=False,
+        return_diff=True,
     ):
-        super().__init__(args, algo, unique_model, default_trainer)
-        self.trainer = SCAFFOLDClient(
-            deepcopy(self.model), self.args, self.logger, self.device
-        )
+        super().__init__(args, algo, unique_model, use_fedavg_client_cls, return_diff)
         self.c_global = [
             torch.zeros_like(param) for param in trainable_params(self.model)
         ]
+        self.c_local = [deepcopy(self.c_global) for _ in self.train_clients]
+        self.init_trainer(SCAFFOLDClient)
 
-    def train_one_round(self):
-        y_delta_cache = []
-        c_delta_cache = []
-        for client_id in self.selected_clients:
-            client_local_params = self.generate_client_params(client_id)
-            (y_delta, c_delta, self.client_metrics[client_id][self.current_epoch]) = (
-                self.trainer.train(
-                    client_id=client_id,
-                    local_epoch=self.clients_local_epoch[client_id],
-                    new_parameters=client_local_params,
-                    c_global=self.c_global,
-                    verbose=((self.current_epoch + 1) % self.args.common.verbose_gap)
-                    == 0,
-                )
-            )
-
-            y_delta_cache.append(y_delta)
-            c_delta_cache.append(c_delta)
-
-        self.aggregate(y_delta_cache, c_delta_cache)
+    def package(self, client_id: int):
+        server_package = super().package(client_id)
+        server_package["c_global"] = self.c_global
+        server_package["c_local"] = self.c_local[client_id]
+        return server_package
 
     @torch.no_grad()
-    def aggregate(
-        self,
-        y_delta_cache: List[List[torch.Tensor]],
-        c_delta_cache: List[List[torch.Tensor]],
-    ):
+    def aggregate(self, clients_package: dict[int, dict[str, Any]]):
+        c_delta_list = [package["c_delta"] for package in clients_package.values()]
+        y_delta_list = [package["y_delta"] for package in clients_package.values()]
         for param, y_delta in zip(
-            self.global_params_dict.values(), zip(*y_delta_cache)
+            self.global_model_params.values(), zip(*y_delta_list)
         ):
             param.data.add_(
                 self.args.scaffold.global_lr * torch.stack(y_delta, dim=-1).mean(dim=-1)
             )
 
         # update global control
-        for c_global, c_delta in zip(self.c_global, zip(*c_delta_cache)):
+        for c_global, c_delta in zip(self.c_global, zip(*c_delta_list)):
             c_global.data.add_(
                 torch.stack(c_delta, dim=-1).sum(dim=-1) / self.client_num
             )

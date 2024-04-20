@@ -1,36 +1,24 @@
-from collections import OrderedDict
-from typing import Dict, List, Tuple, Union
+from typing import Any
 
 import torch
 import torch.nn.functional as F
 import torch.nn as nn
 
-from fedavg import FedAvgClient
-from src.utils.tools import Logger, NestedNamespace, trainable_params
-from src.utils.models import DecoupledModel
+from src.client.fedavg import FedAvgClient
 
 
 class ADCOLClient(FedAvgClient):
-    def __init__(
-        self,
-        model: DecoupledModel,
-        discriminator: torch.nn.Module,
-        args: NestedNamespace,
-        logger: Logger,
-        device: torch.device,
-        client_num: int,
-    ):
-        super(ADCOLClient, self).__init__(model, args, logger, device)
-        self.discriminator = discriminator
-        self.discriminator.to(self.device)
+    def __init__(self, discriminator: torch.nn.Module, client_num: int, **commons):
+        super(ADCOLClient, self).__init__(**commons)
+        self.discriminator = discriminator.to(self.device)
         self.client_num = client_num
-        self.featrure_list = []
+        self.features_list = []
 
     def fit(self):
         self.model.train()
         self.discriminator.eval()
         self.dataset.train()
-        self.featrure_list = []
+        self.features_list = []
         for i in range(self.local_epoch):
             for x, y in self.trainloader:
                 if len(x) <= 1:
@@ -61,40 +49,18 @@ class ADCOLClient(FedAvgClient):
                 self.optimizer.step()
                 # collect features in the last epoch
                 if i == self.local_epoch - 1:
-                    self.featrure_list.append(features.detach().clone().cpu())
+                    self.features_list.append(features.detach().clone().cpu())
 
-        self.feature_list = torch.cat(self.featrure_list, dim=0)
+            if self.lr_scheduler is not None:
+                self.lr_scheduler.step()
 
-    def train(
-        self,
-        client_id: int,
-        local_epoch: int,
-        new_parameters: OrderedDict[str, torch.Tensor],
-        new_discriminator_parameters: Dict[str, torch.Tensor],
-        return_diff=True,
-        verbose=False,
-    ) -> Tuple[
-        Union[OrderedDict[str, torch.Tensor], List[torch.Tensor]], int, Dict, List
-    ]:
-        self.client_id = client_id
-        self.local_epoch = local_epoch
-        self.load_dataset()
-        self.set_parameters(new_parameters)
-        self.discriminator.load_state_dict(new_discriminator_parameters)
-        eval_stats = self.train_and_log(verbose=verbose)
+        self.feature_list = torch.cat(self.features_list, dim=0)
 
-        if return_diff:
-            delta = OrderedDict()
-            for (name, p0), p1 in zip(
-                new_parameters.items(), trainable_params(self.model)
-            ):
-                delta[name] = p0 - p1
+    def set_parameters(self, package: dict[str, Any]):
+        super().set_parameters(package)
+        self.discriminator.load_state_dict(package["new_discriminator_params"])
 
-            return delta, len(self.trainset), eval_stats, self.featrure_list
-        else:
-            return (
-                trainable_params(self.model, detach=True),
-                len(self.trainset),
-                eval_stats,
-                self.featrure_list,
-            )
+    def package(self):
+        client_package = super().package()
+        client_package["features_list"] = self.features_list
+        return client_package

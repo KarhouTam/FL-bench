@@ -45,6 +45,13 @@ DEFAULT_COMMON_ARGS = {
     "check_convergence": True,
 }
 
+DEFAULT_PARALLEL_ARGS = {
+    "ray_cluster_addr": None,
+    "num_gpus": None,
+    "num_cpus": None,
+    "num_workers": 2,
+}
+
 INPUT_CHANNELS = {
     "mnist": 1,
     "medmnistS": 1,
@@ -149,4 +156,11 @@ OPTIMIZERS = {
     "adamw": optim.AdamW,
     "rmsprop": optim.RMSprop,
     "adagrad": optim.Adagrad,
+}
+
+LR_SCHEDULERS = {
+    "step": optim.lr_scheduler.StepLR,
+    "cosine": optim.lr_scheduler.CosineAnnealingLR,
+    "constant": optim.lr_scheduler.ConstantLR,
+    "plateau": optim.lr_scheduler.ReduceLROnPlateau,
 }

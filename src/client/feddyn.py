@@ -1,43 +1,26 @@
-from typing import OrderedDict
+from typing import Any
 
 import torch
 
-from fedavg import FedAvgClient
-from src.utils.tools import Logger, NestedNamespace, trainable_params, vectorize
-from src.utils.models import DecoupledModel
+from src.client.fedavg import FedAvgClient
+from src.utils.tools import trainable_params, vectorize
 
 
 class FedDynClient(FedAvgClient):
-    def __init__(
-        self,
-        model: DecoupledModel,
-        args: NestedNamespace,
-        logger: Logger,
-        device: torch.device,
-    ):
-        super().__init__(model, args, logger, device)
+    def __init__(self, **commons):
+        super().__init__(**commons)
 
-        self.nabla: torch.Tensor = None
-        self.flatten_global_params: torch.Tensor = None
-        self.alpha: float = None
+        self.nabla: torch.Tensor
+        self.flatten_global_params: torch.Tensor
+        self.alpha: float
 
-    def train(
-        self,
-        client_id: int,
-        local_epoch: int,
-        new_parameters: OrderedDict[str, torch.Tensor],
-        nabla: torch.Tensor,
-        alpha: float,
-        return_diff=False,
-        verbose=False,
-    ):
-        self.flatten_global_params = vectorize(new_parameters, detach=True)
-        self.nabla = nabla
-        self.alpha = alpha
-        res = super().train(
-            client_id, local_epoch, new_parameters, return_diff, verbose
+    def set_parameters(self, package: dict[str, Any]):
+        super().set_parameters(package)
+        self.flatten_global_params = vectorize(
+            package["regular_model_params"], detach=True
         )
-        return res
+        self.nabla = package["nabla"]
+        self.alpha = package["alpha"]
 
     def fit(self):
         self.model.train()
@@ -54,7 +37,8 @@ class FedDynClient(FedAvgClient):
                     trainable_params(self.model), detach=False
                 )
                 loss_algo = self.alpha * torch.sum(
-                    flatten_curr_params * (-self.flatten_global_params + self.nabla)
+                    flatten_curr_params
+                    * (-self.flatten_global_params + self.nabla).to(self.device)
                 )
                 loss = loss_ce + loss_algo
                 self.optimizer.zero_grad()
@@ -64,3 +48,6 @@ class FedDynClient(FedAvgClient):
                     max_norm=self.args.feddyn.max_grad_norm,
                 )
                 self.optimizer.step()
+
+            if self.lr_scheduler is not None:
+                self.lr_scheduler.step()

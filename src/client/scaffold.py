@@ -1,70 +1,58 @@
-from collections import OrderedDict
-from typing import Dict, Iterator, List
+from typing import Any, Iterator
 
 import torch
 from torch.utils.data import DataLoader
 
-from fedavg import FedAvgClient
-from src.utils.tools import Logger, trainable_params, NestedNamespace
-from src.utils.models import DecoupledModel
+from src.client.fedavg import FedAvgClient
+from src.utils.tools import trainable_params
 
 
 class SCAFFOLDClient(FedAvgClient):
-    def __init__(
-        self,
-        model: DecoupledModel,
-        args: NestedNamespace,
-        logger: Logger,
-        device: torch.device,
-    ):
-        super().__init__(model, args, logger, device)
-        self.c_local: Dict[List[torch.Tensor]] = {}
-        self.c_global: List[torch.Tensor] = []
-        self.iter_trainloader: Iterator[DataLoader] = None
+    def __init__(self, **commons):
+        super().__init__(**commons)
+        self.iter_trainloader: Iterator[DataLoader]
+        self.c_local: list[torch.Tensor]
+        self.c_global: list[torch.Tensor]
+        self.y_delta: list[torch.Tensor]
+        self.c_delta: list[torch.Tensor]
 
-    def train(
-        self,
-        client_id: int,
-        local_epoch: int,
-        new_parameters: OrderedDict[str, torch.Tensor],
-        c_global: List[torch.Tensor],
-        verbose=False,
-    ):
-        self.client_id = client_id
-        self.local_epoch = local_epoch
-        self.load_dataset()
+    def set_parameters(self, package: dict[str, Any]):
+        super().set_parameters(package)
         self.iter_trainloader = iter(self.trainloader)
-        self.set_parameters(new_parameters)
-        self.c_global = c_global
-        if self.client_id not in self.c_local.keys():
-            self.c_local[self.client_id] = [torch.zeros_like(c) for c in c_global]
+        self.c_global = package["c_global"]
+        self.c_local = package["c_local"]
 
-        stats = self.train_and_log(verbose=verbose)
+    def train(self, server_package: dict[str, Any]):
+        self.set_parameters(server_package)
+        self.train_with_eval()
 
-        # update local control variate
         with torch.no_grad():
-            y_delta = []
+            self.y_delta = []
             c_plus = []
-            c_delta = []
+            self.c_delta = []
 
-            # compute y_delta (difference of model before and after training)
-            for x, y_i in zip(new_parameters.values(), trainable_params(self.model)):
-                y_delta.append(y_i - x)
-
-            # compute c_plus
-            coef = 1 / (self.local_epoch * self.args.common.optimizer.lr)
-            for c, c_i, y_del in zip(
-                self.c_global, self.c_local[self.client_id], y_delta
+            for x, y_i in zip(
+                server_package["regular_model_params"].values(),
+                trainable_params(self.model),
             ):
+                self.y_delta.append(y_i.cpu() - x)
+
+            coef = 1 / (self.local_epoch * self.args.common.optimizer.lr)
+            for c, c_i, y_del in zip(self.c_global, self.c_local, self.y_delta):
                 c_plus.append(c_i - c - coef * y_del)
 
-            # compute c_delta
-            for c_p, c_l in zip(c_plus, self.c_local[self.client_id]):
-                c_delta.append(c_p - c_l)
+            for c_p, c_l in zip(c_plus, self.c_local):
+                self.c_delta.append(c_p - c_l)
 
-            self.c_local[self.client_id] = c_plus
+            self.c_local = c_plus
 
-        return y_delta, c_delta, stats
+        return self.package()
+
+    def package(self):
+        client_package = super().package()
+        client_package["c_delta"] = self.c_delta
+        client_package["y_delta"] = self.y_delta
+        return client_package
 
     def fit(self):
         self.model.train()
@@ -76,12 +64,13 @@ class SCAFFOLDClient(FedAvgClient):
             self.optimizer.zero_grad()
             loss.backward()
             for param, c, c_i in zip(
-                trainable_params(self.model),
-                self.c_global,
-                self.c_local[self.client_id],
+                trainable_params(self.model), self.c_global, self.c_local
             ):
-                param.grad.data += c - c_i
+                param.grad.data += (c - c_i).to(self.device)
             self.optimizer.step()
+
+            if self.lr_scheduler is not None:
+                self.lr_scheduler.step()
 
     def get_data_batch(self):
         try:

@@ -10,8 +10,8 @@ def allocate_shards(
     label_set: Set[int],
     client_num: int,
     shard_num: int,
-    partition: Dict,
-    stats: Dict,
+    partition: dict,
+    stats: dict,
 ):
     """Refer to the mehtod used in FedAvg paper. Sort data by label first and split them into `shard_num * client_num` and allocate each client `shard_num` shards.
 

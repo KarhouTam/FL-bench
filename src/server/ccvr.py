@@ -1,13 +1,13 @@
 from argparse import ArgumentParser, Namespace
 from copy import deepcopy
 from collections import OrderedDict
-from typing import List
 
 import torch
 import numpy as np
 from torch.utils.data import Dataset, DataLoader
 
-from fedavg import FedAvgServer
+from src.client.ccvr import CCVRClient
+from src.server.fedavg import FedAvgServer
 from src.utils.tools import trainable_params, NestedNamespace
 from src.utils.constants import NUM_CLASSES
 
@@ -24,26 +24,27 @@ class CCVRServer(FedAvgServer):
         args: NestedNamespace,
         algo: str = "CCVR",
         unique_model=False,
-        default_trainer=True,
+        use_fedavg_client_cls=False,
+        return_diff=False,
     ):
-        super().__init__(args, algo, unique_model, default_trainer)
+        super().__init__(args, algo, unique_model, use_fedavg_client_cls, return_diff)
+        self.init_trainer(CCVRClient)
 
     def test(self):
-        frz_global_params_dict = deepcopy(self.global_params_dict)
+        frz_global_params_dict = deepcopy(self.global_model_params)
         self.calibrate_classifier()
         super().test()
-        self.global_params_dict = frz_global_params_dict
+        self.global_model_params = frz_global_params_dict
 
     def compute_classes_mean_cov(self):
         features_means, features_covs, features_count = [], [], []
+        clients_package = self.trainer.exec(
+            "get_classwise_feature_means_and_covs", self.train_clients
+        )
         for client_id in self.train_clients:
-            model_params = self.generate_client_params(client_id)
-            means, covs, counts = self.get_means_covs_from_client(
-                client_id, model_params
-            )
-            features_means.append(means)
-            features_covs.append(covs)
-            features_count.append(counts)
+            features_means.append(clients_package[client_id]["means"])
+            features_covs.append(clients_package[client_id]["covs"])
+            features_count.append(clients_package[client_id]["counts"])
 
         num_classes = NUM_CLASSES[self.args.common.dataset]
         labels_count = [sum(cnts) for cnts in zip(*features_count)]
@@ -78,7 +79,7 @@ class CCVRServer(FedAvgServer):
         return classes_mean, classes_cov
 
     def generate_virtual_representation(
-        self, classes_mean: List[torch.Tensor], classes_cov: List[torch.Tensor]
+        self, classes_mean: list[torch.Tensor], classes_cov: list[torch.Tensor]
     ):
         data, targets = [], []
         for c, (mean, cov) in enumerate(zip(classes_mean, classes_cov)):
@@ -119,6 +120,7 @@ class CCVRServer(FedAvgServer):
             def __len__(self):
                 return len(self.targets)
 
+        self.model.to(self.device)
         self.model.train()
         dataset = RepresentationDataset(data, targets)
         dataloader = DataLoader(
@@ -129,7 +131,7 @@ class CCVRServer(FedAvgServer):
             trainable_params(self.model.classifier), lr=self.args.common.optimizer.lr
         )
 
-        self.model.load_state_dict(self.global_params_dict, strict=False)
+        self.model.load_state_dict(self.global_model_params, strict=False)
         for x, y in dataloader:
             logits = self.model.classifier(x)
             loss = criterion(logits, y)
@@ -137,40 +139,6 @@ class CCVRServer(FedAvgServer):
             loss.backward()
             optimizer.step()
 
-        self.global_params_dict = OrderedDict(
+        self.global_model_params = OrderedDict(
             zip(self.trainable_params_name, trainable_params(self.model, detach=True))
         )
-
-    def get_means_covs_from_client(
-        self, client_id: int, global_params: OrderedDict[str, torch.Tensor]
-    ):
-        self.trainer.client_id = client_id
-        self.trainer.load_dataset()
-        self.trainer.set_parameters(global_params)
-        features = []
-        targets = []
-        feature_length = None
-        for x, y in self.trainer.trainloader:
-            x, y = x.to(self.device), y.to(self.device)
-            features.append(self.trainer.model.get_final_features(x))
-            targets.append(y)
-
-        targets = torch.cat(targets)
-        features = torch.cat(features)
-        feature_length = features.shape[-1]
-        indices = [
-            torch.where(targets == i)[0]
-            for i in range(len(self.trainer.dataset.classes))
-        ]
-        classes_features = [features[idxs] for idxs in indices]
-        classes_means, classes_covs = [], []
-        for fea in classes_features:
-            if fea.shape[0] > 0:
-                classes_means.append(fea.mean(dim=0))
-                classes_covs.append(fea.t().cov(correction=0))
-            else:
-                classes_means.append(torch.zeros(feature_length, device=self.device))
-                classes_covs.append(
-                    torch.zeros(feature_length, feature_length, device=self.device)
-                )
-        return classes_means, classes_covs, [len(idxs) for idxs in indices]

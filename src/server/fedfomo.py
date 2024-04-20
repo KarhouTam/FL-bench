@@ -1,9 +1,8 @@
 from argparse import ArgumentParser, Namespace
-from copy import deepcopy
 
 import torch
 
-from fedavg import FedAvgServer
+from src.server.fedavg import FedAvgServer
 from src.client.fedfomo import FedFomoClient
 from src.utils.tools import NestedNamespace
 
@@ -21,52 +20,34 @@ class FedFomoServer(FedAvgServer):
         args: NestedNamespace,
         algo: str = "FedFomo",
         unique_model=True,
-        default_trainer=False,
+        use_fedavg_client_cls=False,
+        return_diff=False,
     ):
-        super().__init__(args, algo, unique_model, default_trainer)
-        self.trainer = FedFomoClient(
-            deepcopy(self.model), self.args, self.logger, self.device, self.client_num
-        )
+        super().__init__(args, algo, unique_model, use_fedavg_client_cls, return_diff)
+        self.init_trainer(FedFomoClient)
         self.P = torch.eye(self.client_num, device=self.device)
 
     def train_one_round(self):
-        client_params_cache = []
-        for client_id in self.selected_clients:
-            selected_params = self.generate_client_params(client_id)
-
-            (
-                client_params,
-                weight_vector,
-                self.client_metrics[client_id][self.current_epoch],
-            ) = self.trainer.train(
-                client_id=client_id,
-                local_epoch=self.clients_local_epoch[client_id],
-                received_params=selected_params,
-                verbose=((self.current_epoch + 1) % self.args.common.verbose_gap) == 0,
-            )
-
-            client_params_cache.append(client_params)
-            self.P[client_id] += weight_vector
-
-        self.update_client_params(client_params_cache)
+        clients_package = self.trainer.train()
+        for client_id, package in clients_package.items():
+            for i, val in package["clients_weight"].items():
+                self.P[client_id][i] += val
 
     @torch.no_grad()
-    def generate_client_params(self, client_id):
+    def get_client_model_params(self, client_id):
         prev_round_clients = self.client_sample_stream[self.current_epoch - 1]
         selected_params = {}
         if not self.testing and self.current_epoch > 0:
-            selected_params = {
-                prev_round_clients[i]: self.client_trainable_params[
-                    prev_round_clients[i]
-                ]
+            similar_clients = [
+                prev_round_clients[i]
                 for i in torch.topk(
                     self.P[client_id][prev_round_clients], self.args.fedfomo.M
                 ).indices.tolist()
-            }
-        selected_params[client_id] = self.client_trainable_params[client_id]
-        return selected_params
-
-
-if __name__ == "__main__":
-    server = FedFomoServer()
-    server.run()
+            ]
+            for i in similar_clients:
+                selected_params[i] = {
+                    key: self.clients_personal_model_params[i][key]
+                    for key in self.trainable_params_name
+                }
+        selected_params[client_id] = self.clients_personal_model_params[client_id]
+        return dict(model_params_from_selected_clients=selected_params)

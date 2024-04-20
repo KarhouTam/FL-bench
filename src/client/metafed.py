@@ -1,71 +1,82 @@
+import random
 from collections import OrderedDict
 from copy import deepcopy
+from typing import Any
 
-import torch
 import torch.nn.functional as F
 
-from fedavg import FedAvgClient
+from src.client.fedavg import FedAvgClient
 from torch.utils.data import Subset, DataLoader
-from src.utils.tools import Logger, trainable_params, NestedNamespace, evalutate_model
-from src.utils.models import DecoupledModel
+from src.utils.tools import trainable_params, evalutate_model
 
 
+# FIXME: MetaFed
 class MetaFedClient(FedAvgClient):
-    def __init__(
-        self,
-        model: DecoupledModel,
-        args: NestedNamespace,
-        logger: Logger,
-        device: torch.device,
-        client_num: int,
-    ):
-        super().__init__(model, args, logger, device)
-        self.client_flags = [False for _ in range(client_num)]
-        self.valset = Subset(self.dataset, indices=[])
-        self.valloader: DataLoader = None
+    def __init__(self, **commons):
+        super().__init__(**commons)
+        self.special_valset = Subset(self.dataset, indices=[])
+        self.special_valloader = DataLoader(
+            self.special_valset, batch_size=self.args.common.batch_size
+        )
+        self.personal_params_name = list(self.model.state_dict().keys())
         self.teacher = deepcopy(self.model)
         self.lamda = self.args.metafed.lamda
 
-    def load_dataset(self):
-        super().load_dataset()
-        num_val_samples = int(len(self.trainset) * self.args.metafed.valset_ratio)
-        self.valset.indices = self.trainset.indices[:num_val_samples]
-        self.trainset.indices = self.trainset.indices[num_val_samples:]
-        self.valloader = DataLoader(self.valset, 32, shuffle=True)
+    def load_data_indices(self):
+        train_data_indices = self.data_indices[self.client_id]["train"]
+        num_special_valset_samples = int(
+            len(train_data_indices) * self.args.metafed.valset_ratio
+        )
+        random.shuffle(train_data_indices)
+        self.special_valset.indices = train_data_indices[:num_special_valset_samples]
+        self.trainset.indices = train_data_indices[num_special_valset_samples:]
+        self.valset.indices = self.data_indices[self.client_id]["val"]
+        self.testset.indices = self.data_indices[self.client_id]["test"]
 
-    def warmup(self, client_id, new_parameters):
-        self.client_id = client_id
-        self.set_parameters(new_parameters)
-        self.load_dataset()
+    def warmup(self, server_package: dict[str, Any]):
+        self.set_parameters(server_package)
         self.fit()
-        self.save_state()
-        self.update_flag()
-        return trainable_params(self.model, detach=True)
-
-    def update_flag(self):
-        metrics = evalutate_model(self.model, self.valloader, device=self.device)
-        self.client_flags[self.client_id] = (
-            metrics.accuracy > self.args.metafed.threshold_1
+        metrics = evalutate_model(
+            self.model, self.special_valloader, device=self.device
+        )
+        return dict(
+            client_model_params=OrderedDict(
+                (key, param.detach().cpu().clone())
+                for key, param in self.model.state_dict().items()
+            ),
+            client_flag=metrics.accuracy > self.args.metafed.threshold_1,
+            optimizer_state=deepcopy(self.optimizer.state_dict()),
+            lr_scheduler_state=(
+                {}
+                if self.lr_scheduler is None
+                else deepcopy(self.lr_scheduler.state_dict())
+            ),
         )
 
-    def train(
-        self,
-        client_id: int,
-        local_epoch: int,
-        student_parameters: OrderedDict[str, torch.Tensor],
-        teacher_parameters: OrderedDict[str, torch.Tensor],
-        verbose=False,
-    ):
-        self.client_id = client_id
-        self.local_epoch = local_epoch
-        if self.client_flags[self.client_id]:
-            self.set_parameters(student_parameters)
+    def set_parameters(self, package: dict[str, Any]):
+        self.client_id = package["client_id"]
+        self.local_epoch = package["local_epoch"]
+        self.load_data_indices()
+
+        if package["optimizer_state"]:
+            self.optimizer.load_state_dict(package["optimizer_state"])
         else:
-            self.set_parameters(teacher_parameters)
-        self.teacher.load_state_dict(teacher_parameters, strict=False)
-        self.load_dataset()
-        stats = self.train_and_log(verbose)
-        return trainable_params(self.model, detach=True), stats
+            self.optimizer = self.optimizer_cls(params=trainable_params(self.model))
+
+        if package["lr_scheduler_state"]:
+            self.lr_scheduler.load_state_dict(package["lr_scheduler_state"])
+        elif self.lr_scheduler_cls is not None:
+            self.lr_scheduler = self.lr_scheduler_cls(optimizer=self.optimizer)
+
+        self.client_flag = package["client_flag"]
+        self.model.load_state_dict(package["student_model_params"])
+        if not self.client_flag:
+            self.model.load_state_dict(package["teacher_model_params"], strict=False)
+
+    def package(self):
+        client_package = super().package()
+        client_package.pop("regular_model_params")
+        return client_package
 
     def fit(self):
         self.model.train()
@@ -78,26 +89,38 @@ class MetaFedClient(FedAvgClient):
                 stu_feature = self.model.get_final_features(x, detach=False)
                 logit = self.model.classifier(F.relu(stu_feature))
                 loss = self.criterion(logit, y)
-                if self.client_flags[self.client_id]:
+                if self.client_flag:
                     tea_feature = self.teacher.get_final_features(x)
                     loss += self.lamda * F.mse_loss(stu_feature, tea_feature)
                 self.optimizer.zero_grad()
                 loss.backward()
                 self.optimizer.step()
 
-    def personalize(
-        self, client_id, student_parameters, teacher_parameters, verbose=False
-    ):
-        self.client_id = client_id
-        self.set_parameters(student_parameters)
-        self.load_dataset()
-        self.teacher.load_state_dict(teacher_parameters, strict=False)
+            if self.lr_scheduler is not None:
+                self.lr_scheduler.step()
 
+    def train(self, server_package: dict[str, Any]):
+        self.set_parameters(server_package)
+        self.train_with_eval()
+        client_package = self.package()
+        metrics = evalutate_model(
+            self.model, self.special_valloader, device=self.device
+        )
+        client_package["client_flag"] = metrics.accuracy > self.args.metafed.threshold_1
+        return client_package
+
+    def personalize(self, server_package: dict[str, Any]):
+        self.set_parameters(server_package)
+        # loading buffer parameters of the student model
+        self.teacher.load_state_dict(server_package["student_model_params"])
+        self.teacher.load_state_dict(
+            server_package["teacher_model_params"], strict=False
+        )
         student_metrics = evalutate_model(
-            self.model, self.valloader, device=self.device
+            self.model, self.special_valloader, device=self.device
         )
         teacher_metrics = evalutate_model(
-            self.teacher, self.valloader, device=self.device
+            self.teacher, self.special_valloader, device=self.device
         )
         teacher_acc = teacher_metrics.accuracy
         student_acc = student_metrics.accuracy
@@ -109,5 +132,11 @@ class MetaFedClient(FedAvgClient):
                 / 10
                 * self.args.metafed.lamda
             )
-        stats = self.train_and_log(verbose)
-        return trainable_params(self.model, detach=True), stats
+        self.train_with_eval()
+        return dict(
+            client_model_params=OrderedDict(
+                (key, param.detach().cpu().clone())
+                for key, param in self.model.state_dict().items()
+            ),
+            eval_results=self.eval_results,
+        )

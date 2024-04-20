@@ -19,7 +19,7 @@ class DecoupledModel(nn.Module):
         self.all_features = []
         self.base: nn.Module = None
         self.classifier: nn.Module = None
-        self.dropout: List[nn.Module] = []
+        self.dropout: list[nn.Module] = []
 
     def need_all_features(self):
         target_modules = [
@@ -28,12 +28,12 @@ class DecoupledModel(nn.Module):
             if isinstance(module, nn.Conv2d) or isinstance(module, nn.Linear)
         ]
 
-        def get_feature_hook_fn(model, input, output):
+        def _get_feature_hook_fn(model, input, output):
             if self.need_all_features_flag:
-                self.all_features.append(output.clone().detach())
+                self.all_features.append(output.detach().clone())
 
         for module in target_modules:
-            module.register_forward_hook(get_feature_hook_fn)
+            module.register_forward_hook(_get_feature_hook_fn)
 
     def check_avaliability(self):
         if self.base is None or self.classifier is None:
@@ -54,7 +54,7 @@ class DecoupledModel(nn.Module):
             for dropout in self.dropout:
                 dropout.eval()
 
-        func = (lambda x: x.clone().detach()) if detach else (lambda x: x)
+        func = (lambda x: x.detach().clone()) if detach else (lambda x: x)
         out = self.base(x)
 
         if len(self.dropout) > 0:
@@ -63,7 +63,7 @@ class DecoupledModel(nn.Module):
 
         return func(out)
 
-    def get_all_features(self, x: Tensor) -> Optional[List[Tensor]]:
+    def get_all_features(self, x: Tensor) -> Optional[list[Tensor]]:
         feature_list = None
         if len(self.dropout) > 0:
             for dropout in self.dropout:

@@ -1,7 +1,8 @@
 from argparse import ArgumentParser, Namespace
+from typing import Any, OrderedDict
 import torch
 
-from fedavg import FedAvgServer
+from src.server.fedavg import FedAvgServer
 from src.utils.tools import NestedNamespace
 
 
@@ -17,29 +18,33 @@ class FedAvgMServer(FedAvgServer):
         args: NestedNamespace,
         algo: str = "FedAvgM",
         unique_model=False,
-        default_trainer=True,
+        use_fedavg_client_cls=True,
+        return_diff=True,
     ):
-        super().__init__(args, algo, unique_model, default_trainer)
+        super().__init__(args, algo, unique_model, use_fedavg_client_cls, return_diff)
         self.global_optmizer = torch.optim.SGD(
-            list(self.global_params_dict.values()),
+            list(self.global_model_params.values()),
             lr=1.0,
             momentum=self.args.fedavgm.server_momentum,
             nesterov=True,
         )
 
     @torch.no_grad()
-    def aggregate(self, delta_cache, weight_cache):
-        weights = torch.tensor(weight_cache, device=self.device) / sum(weight_cache)
+    def aggregate(self, clients_package: OrderedDict[int, dict[str, Any]]):
+        clients_weight = [package["weight"] for package in clients_package.values()]
+        weights = torch.tensor(clients_weight) / sum(clients_weight)
+        params_diff = [
+            list(package["model_params_diff"].values())
+            for package in clients_package.values()
+        ]
 
-        delta_list = [list(delta.values()) for delta in delta_cache]
-
-        aggregated_delta = []
-        for layer_delta in zip(*delta_list):
-            aggregated_delta.append(
-                torch.sum(torch.stack(layer_delta, dim=-1) * weights, dim=-1)
+        aggregated_diff = []
+        for layer_diff in zip(*params_diff):
+            aggregated_diff.append(
+                torch.sum(torch.stack(layer_diff, dim=-1) * weights, dim=-1)
             )
 
         self.global_optmizer.zero_grad()
-        for param, diff in zip(self.global_params_dict.values(), aggregated_delta):
+        for param, diff in zip(self.global_model_params.values(), aggregated_diff):
             param.grad = diff.data
         self.global_optmizer.step()

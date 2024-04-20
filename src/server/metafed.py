@@ -1,10 +1,11 @@
 import time
+from collections import OrderedDict
 from argparse import ArgumentParser, Namespace
-from copy import deepcopy
 
 from rich.progress import track
+from torch._tensor import Tensor
 
-from fedavg import FedAvgServer
+from src.server.fedavg import FedAvgServer
 from src.client.metafed import MetaFedClient
 from src.utils.tools import NestedNamespace
 
@@ -25,68 +26,84 @@ class MetaFedServer(FedAvgServer):
         args: NestedNamespace,
         algo: str = "MetaFed",
         unique_model=True,
-        default_trainer=False,
+        use_fedavg_client_cls=False,
+        return_diff=False,
     ):
         # NOTE: MetaFed does not support to select part of clients to train. So the join_raio is always set to 1.
         args.join_ratio = 1
-        super().__init__(args, algo, unique_model, default_trainer)
+        if args.mode == "parallel":
+            print(
+                "MetaFed does not support parallel training, so running mode is fallback to serial."
+            )
+            args.mode = "serial"
+        super().__init__(args, algo, unique_model, use_fedavg_client_cls, return_diff)
+        self.warmup = True
+        self.clients_flag = [True for _ in self.train_clients]
+        self.init_trainer(MetaFedClient)
 
-        self.trainer = MetaFedClient(
-            deepcopy(self.model), self.args, self.logger, self.device, self.client_num
+    def package(self, client_id: int):
+        server_package = super().package(client_id)
+        server_package["local_epoch"] = (
+            self.args.metafed.warmup_round
+            if self.warmup
+            else self.clients_local_epoch[client_id]
         )
-        self.warmup_progress_bar = track(self.train_clients, "[bold cyan]Warming-up...")
-        self.pers_progress_bar = track(
-            self.train_clients,
-            "[bold magenta]Personalizing...",
-            console=self.logger.stdout,
+        server_package["client_flag"] = self.clients_flag[client_id]
+        return server_package
+
+    def get_client_model_params(self, client_id: int) -> OrderedDict[str, Tensor]:
+        params_dict = dict(
+            student_model_params=self.clients_personal_model_params[client_id]
         )
+        if not self.warmup:
+            params_dict["teacher_model_params"] = OrderedDict(
+                (
+                    key,
+                    self.clients_personal_model_params[
+                        (client_id + self.client_num - 1) % self.client_num
+                    ][key],
+                )
+                for key in self.trainable_params_name
+            )
+        return params_dict
 
     def train(self):
         # warm-up phase
-
+        self.warmup = True
         # for self.update_client_params() works properly
         self.selected_clients = self.train_clients
+        warmup_progress_bar = track(
+            self.train_clients, "[bold cyan]Warming-up...", console=self.logger.stdout
+        )
 
-        client_params_cache = []
-        self.trainer.local_epoch = self.args.metafed.warmup_round
-        for client_id in self.warmup_progress_bar:
-            client_local_params = self.generate_client_params(client_id)
-            client_local_params = self.trainer.warmup(client_id, client_local_params)
-            client_params_cache.append(client_local_params)
-        self.update_client_params(client_params_cache)
+        for client_id in warmup_progress_bar:
+            client_package = self.trainer.exec("warmup", [client_id])
+            self.clients_personal_model_params[client_id].update(
+                client_package[client_id]["client_model_params"]
+            )
+            self.clients_flag[client_id] = client_package[client_id]["client_flag"]
+
+        self.warmup = False
         self.test()
 
         # client training phase
         avg_round_time = 0
-        self.trainer.local_epoch = self.args.common.local_epoch
         for E in self.train_progress_bar:
             self.current_epoch = E
-            begin = time.time()
-            if (E + 1) % self.args.common.verbose_gap == 0:
+            self.selected_clients = self.client_sample_stream[E]
+            self.verbose = (E + 1) % self.args.common.verbose_gap == 0
+            if self.verbose:
                 self.logger.log("-" * 26, f"TRAINING EPOCH: {E + 1}", "-" * 26)
 
             if (E + 1) % self.args.common.test_interval == 0:
                 self.test()
 
-            client_params_cache = []
-            for client_id in self.selected_clients:
-                student_params = self.generate_client_params(client_id)
-                # teacher is the (i-1)-th client
-                teacher_params = self.generate_client_params(
-                    (client_id + self.client_num - 1) % self.client_num
-                )
-                student_params, self.client_metrics[client_id][E] = self.trainer.train(
-                    client_id=client_id,
-                    local_epoch=self.clients_local_epoch[client_id],
-                    student_parameters=student_params,
-                    teacher_parameters=teacher_params,
-                    verbose=((E + 1) % self.args.common.verbose_gap) == 0,
-                )
-                self.trainer.update_flag()
-
-                client_params_cache.append(student_params)
-
-            self.update_client_params(client_params_cache)
+            begin = time.time()
+            selected_clients_this_round = self.selected_clients
+            for client_id in selected_clients_this_round:
+                self.selected_clients = [client_id]
+                client_package = self.trainer.train()
+                self.clients_flag[client_id] = client_package[client_id]["client_flag"]
             end = time.time()
             self.log_info()
             avg_round_time = (avg_round_time * (self.current_epoch) + (end - begin)) / (
@@ -98,25 +115,19 @@ class MetaFedServer(FedAvgServer):
         )
 
         # personalization phase
+        self.pers_progress_bar = track(
+            self.train_clients,
+            "[bold magenta]Personalizing...",
+            console=self.logger.stdout,
+        )
         self.current_epoch += 1
-        client_params_cache = []
         for client_id in self.pers_progress_bar:
-            student_params = self.generate_client_params(client_id)
-            teacher_params = self.generate_client_params(
-                (client_id + self.client_num - 1) % self.client_num
+            client_package = self.trainer.exec("personalize", [client_id])
+            self.clients_personal_model_params[client_id].update(
+                client_package[client_id]["client_model_params"]
             )
-
-            (student_params, self.client_metrics[client_id][self.current_epoch]) = (
-                self.trainer.personalize(
-                    client_id=client_id,
-                    student_parameters=student_params,
-                    teacher_parameters=teacher_params,
-                )
-            )
-
-            client_params_cache.append(student_params)
-
+            self.clients_metrics[client_id][self.current_epoch] = client_package[
+                client_id
+            ]["eval_results"]
         self.log_info()
-
-        self.update_client_params(client_params_cache)
         self.test()

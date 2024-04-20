@@ -1,24 +1,15 @@
-from copy import deepcopy
-from typing import Dict
+from typing import Any
 
 import torch
 import torch.nn.functional as F
 
-from fedavg import FedAvgClient
-from src.utils.models import DecoupledModel
-from src.utils.tools import Logger, NestedNamespace
+from src.client.fedavg import FedAvgClient
 from src.utils.constants import NUM_CLASSES
 
 
 class FedProtoClient(FedAvgClient):
-    def __init__(
-        self,
-        model: DecoupledModel,
-        args: NestedNamespace,
-        logger: Logger,
-        device: torch.device,
-    ):
-        super().__init__(model, args, logger, device)
+    def __init__(self, **commons):
+        super().__init__(**commons)
         shape = (
             NUM_CLASSES[self.args.common.dataset],
             self.model.classifier.in_features,
@@ -26,43 +17,37 @@ class FedProtoClient(FedAvgClient):
         self.global_prototypes = torch.zeros(shape, device=self.device)
         self.accumulated_features = torch.zeros(shape, device=self.device)
         self.personal_params_name = list(self.model.state_dict().keys())
-        self.init_personal_params_dict = deepcopy(self.model.state_dict())
         self.label_counts = torch.zeros(
             NUM_CLASSES[self.args.common.dataset], 1, device=self.device
         )
 
-    def train(
-        self,
-        client_id: int,
-        local_epoch: int,
-        global_prototypes: Dict[int, torch.Tensor],
-        verbose=False,
-    ):
-        self.client_id = client_id
-        self.local_epoch = local_epoch
-        self.global_prototypes = global_prototypes
+    def set_parameters(self, package: dict[str, Any]):
+        super().set_parameters(package)
+        self.global_prototypes = {
+            i: proto.to(self.device)
+            for i, proto in package["global_prototypes"].items()
+        }
         self.accumulated_features.zero_()
         self.label_counts.zero_()
-        self.load_dataset()
-        self.model.load_state_dict(
-            self.personal_params_dict.get(
-                self.client_id, self.init_personal_params_dict
-            )
-        )
-        self.optimizer.load_state_dict(
-            self.opt_state_dict.get(self.client_id, self.init_opt_state_dict)
-        )
+        self.client_prototypes = {}
 
-        eval_results = self.train_and_log(verbose=verbose)
+    def train(self, server_package: dict[str, Any]):
+        self.set_parameters(server_package)
+        self.train_with_eval()
 
-        client_prototypes = {}
         for i in range(NUM_CLASSES[self.args.common.dataset]):
             if self.label_counts[i] > 0:
-                client_prototypes[i] = (
+                self.client_prototypes[i] = (
                     self.accumulated_features[i] / self.label_counts[i]
-                )
+                ).cpu()
 
-        return (client_prototypes, eval_results)
+        return self.package()
+
+    def package(self):
+        client_package = super().package()
+        client_package["prototypes"] = self.client_prototypes
+
+        return client_package
 
     def fit(self):
         self.model.train()
@@ -86,6 +71,9 @@ class FedProtoClient(FedAvgClient):
                 self.optimizer.zero_grad()
                 loss.backward()
                 self.optimizer.step()
+
+            if self.lr_scheduler is not None:
+                self.lr_scheduler.step()
 
     @torch.no_grad()
     def process_features(self, features: torch.Tensor, y: torch.Tensor):

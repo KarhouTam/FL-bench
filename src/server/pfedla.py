@@ -1,4 +1,3 @@
-import os
 from argparse import ArgumentParser, Namespace
 from copy import deepcopy
 from collections import OrderedDict
@@ -7,10 +6,9 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
-from fedavg import FedAvgServer
-from src.utils.tools import trainable_params
+from src.server.fedavg import FedAvgServer
 from src.utils.tools import NestedNamespace
-from src.utils.constants import TEMP_DIR
+
 
 def get_pfedla_args(args_list=None) -> Namespace:
     parser = ArgumentParser()
@@ -28,125 +26,115 @@ class pFedLAServer(FedAvgServer):
         args: NestedNamespace,
         algo: str = None,
         unique_model=True,
-        default_trainer=True,
+        use_fedavg_client_cls=True,
+        return_diff=True,
     ):
+        if args.mode == "parallel":
+            print(
+                "pFedLA does not support parallel mode and is fallback to serial mode."
+            )
+            args.mode = "serial"
         algo = "pFedLA" if args.pfedla.k == 0 else "HeurpFedLA"
-        super().__init__(args, algo, unique_model, default_trainer)
+        super().__init__(args, algo, unique_model, use_fedavg_client_cls, return_diff)
         self.hypernet = HyperNetwork(
             embedding_dim=self.args.pfedla.embedding_dim,
+            layer_num=len(self.trainable_params_name),
             client_num=self.client_num,
             hidden_dim=self.args.pfedla.hidden_dim,
-            backbone=self.model,
             K=self.args.pfedla.k,
-            device=self.device,
         )
-        self.hn_optimizer = torch.optim.SGD(
+        self.clients_hypernet_params = {
+            i: deepcopy(self.hypernet.state_dict()) for i in self.train_clients
+        }
+        self.hypernet_optimizer = torch.optim.SGD(
             self.hypernet.parameters(),
             lr=self.args.pfedla.hn_lr,
             momentum=self.args.pfedla.hn_momentum,
         )
-        self.testing = False
-        self.layers_name = [
-            name
-            for name, module in self.model.named_modules()
-            if isinstance(module, nn.Conv2d)
-            or isinstance(module, nn.Linear)
-            or isinstance(module, nn.BatchNorm2d)
-        ]
+        self.pfedla_aggregated_model_params: list[torch.Tensor] = None
 
     def train_one_round(self) -> None:
-        for client_id in self.selected_clients:
-            client_local_params = self.generate_client_params(client_id)
-            (delta, _, self.client_metrics[client_id][self.current_epoch]) = (
-                self.trainer.train(
-                    client_id=client_id,
-                    local_epoch=self.clients_local_epoch[client_id],
-                    new_parameters=client_local_params,
-                    verbose=((self.current_epoch + 1) % self.args.common.verbose_gap)
-                    == 0,
-                )
+        selected_clients_this_round = self.selected_clients
+        for client_id in selected_clients_this_round:
+            self.hypernet.load_state_dict(self.clients_hypernet_params[client_id])
+            self.selected_clients = [client_id]
+            client_package = self.trainer.train()
+
+            self.hypernet_optimizer.zero_grad()
+            hn_grads = torch.autograd.grad(
+                outputs=self.pfedla_aggregated_model_params,
+                inputs=self.hypernet.parameters(),
+                grad_outputs=[
+                    -diff
+                    for diff in client_package[client_id]["model_params_diff"].values()
+                ],
+                allow_unused=True,
+            )
+            for param, grad in zip(self.hypernet.parameters(), hn_grads):
+                if grad is not None:
+                    param.grad = grad
+            self.hypernet_optimizer.step()
+            self.clients_hypernet_params[client_id] = deepcopy(
+                self.hypernet.state_dict()
             )
 
-            self.update_hn(client_id, delta)
-            self.update_client_params(client_id, delta)
+            for key in self.trainable_params_name:
+                self.clients_personal_model_params[client_id][key] -= client_package[
+                    client_id
+                ]["model_params_diff"][key].data.cpu()
 
-    @torch.no_grad()
-    def update_client_params(self, client_id, delta):
-        new_params = []
-        for param, diff in zip(
-            self.client_trainable_params[client_id], trainable_params(delta)
-        ):
-            new_params.append((param - diff.to(self.device)).detach())
-        self.client_trainable_params[client_id] = new_params
-
-    def generate_client_params(self, client_id: int) -> OrderedDict[str, torch.Tensor]:
-        aggregated_params = OrderedDict(
-            zip(self.trainable_params_name, self.client_trainable_params[client_id])
-        )
-        if not self.testing:
-            layer_params_dict = dict(
+    def get_client_model_params(self, client_id: int):
+        aggregated_params = OrderedDict()
+        layer_params_dict = OrderedDict(
+            zip(
+                self.trainable_params_name,
                 zip(
-                    self.trainable_params_name, list(zip(*self.client_trainable_params))
-                )
+                    *[
+                        [params_dict[key] for key in self.trainable_params_name]
+                        for params_dict in self.clients_personal_model_params.values()
+                    ]
+                ),
             )
-            alpha = self.hypernet(client_id)
-            default_weight = torch.zeros(
-                self.client_num, dtype=torch.float, device=self.device
-            )
-            default_weight[client_id] = 1.0
-
-            for name, params in layer_params_dict.items():
-                a = alpha[".".join(name.split(".")[:-1])]
-                if a.sum() == 0:
-                    a = default_weight
-                aggregated_params[name] = torch.sum(
-                    (a / a.sum()) * torch.stack(params, dim=-1).to(self.device), dim=-1
-                )
-            self.client_trainable_params[client_id] = list(aggregated_params.values())
-        return aggregated_params
-
-    def update_hn(self, client_id: int, delta: OrderedDict[str, torch.Tensor]) -> None:
-        # calculate gradients
-        self.hn_optimizer.zero_grad()
-        hn_grads = torch.autograd.grad(
-            outputs=self.client_trainable_params[client_id],
-            inputs=self.hypernet.parameters(),
-            grad_outputs=list(
-                map(lambda diff: (-diff).clone().detach(), list(delta.values()))
-            ),
-            allow_unused=True,
         )
-        for param, grad in zip(self.hypernet.parameters(), hn_grads):
-            if grad is not None:
-                param.grad = grad
-        self.hn_optimizer.step()
-        self.hypernet.save_hn()
+        alpha = self.hypernet(client_id)
+        default_weights = torch.zeros(
+            self.client_num, dtype=torch.float, device=self.device
+        )
+        default_weights[client_id] = 1.0
 
-    def run(self):
-        super().run()
-        self.hypernet.clean()  # clean out all HNs
+        for i, (name, params) in enumerate(layer_params_dict.items()):
+            weights = alpha[i]
+            if weights.sum() == 0:
+                weights = default_weights
+            aggregated_params[name] = torch.sum(
+                (weights / weights.sum()) * torch.stack(params, dim=-1), dim=-1
+            )
+        self.pfedla_aggregated_model_params = list(aggregated_params.values())
+        detached = {
+            key: param.detach().clone() for key, param in aggregated_params.items()
+        }
+        self.clients_personal_model_params[client_id].update(detached)
+
+        return dict(
+            regular_model_params=detached,
+            personal_model_params=self.clients_personal_model_params[client_id],
+        )
 
 
 class HyperNetwork(nn.Module):
     def __init__(
         self,
         embedding_dim: int,
+        layer_num: int,
         client_num: int,
         hidden_dim: int,
-        backbone: nn.Module,
         K: int,
-        device: torch.device,
     ):
         super(HyperNetwork, self).__init__()
         self.K = K
+        self.layer_num = layer_num
         self.client_num = client_num
-        self.device = device
-        self.embedding = nn.Embedding(client_num, embedding_dim, device=self.device)
-        # for tracking the current client's hn parameters
-        self.client_id: int = None
-        self.cache_dir = TEMP_DIR / "pfedla_hn_weight"
-        if not os.path.isdir(self.cache_dir):
-            os.makedirs(self.cache_dir, exist_ok=True)
+        self.embedding = nn.Embedding(client_num, embedding_dim)
 
         def uniform_init_linear(in_features, out_features):
             linear = nn.Linear(in_features, out_features)
@@ -154,13 +142,6 @@ class HyperNetwork(nn.Module):
             torch.nn.init.zeros_(linear.bias)
             return linear
 
-        self.layers_name = [
-            name
-            for name, module in backbone.named_modules()
-            if isinstance(module, nn.Conv2d)
-            or isinstance(module, nn.Linear)
-            or isinstance(module, nn.BatchNorm2d)
-        ]
         self.mlp = nn.Sequential(
             nn.Linear(embedding_dim, hidden_dim),
             nn.ReLU(),
@@ -168,64 +149,27 @@ class HyperNetwork(nn.Module):
             nn.ReLU(),
             nn.Linear(hidden_dim, hidden_dim),
             nn.ReLU(),
-        ).to(self.device)
-        self.fc_layers = nn.ParameterList(
-            [
-                uniform_init_linear(hidden_dim, client_num).to(self.device)
-                for _ in range(len(self.layers_name))
-            ]
         )
-        if os.listdir(self.cache_dir) == []:
-            for client_id in range(client_num):
-                torch.save(
-                    {
-                        "mlp": deepcopy(self.mlp.state_dict()),
-                        "fc": deepcopy(self.fc_layers.state_dict()),
-                    },
-                    self.cache_dir / f"{client_id}.pt",
-                )
+        self.fc_layers = nn.ParameterList(
+            uniform_init_linear(hidden_dim, client_num) for _ in range(self.layer_num)
+        )
 
     def forward(self, client_id: int):
-        self.client_id = client_id
-        emd = self.embedding(
-            torch.tensor(client_id, dtype=torch.long, device=self.device)
-        )
-        self.load_hn()
+        emd = self.embedding(torch.tensor(client_id, dtype=torch.long))
         feature = self.mlp(emd)
-        alpha = [F.relu(fc(feature)) for fc in self.fc_layers]
+        weights = [F.relu(fc(feature)) for fc in self.fc_layers]
 
         if self.K > 0:  # HeurpFedLA
-            default_weight = torch.zeros(
-                self.client_num, dtype=torch.float, device=self.device
-            )
+            default_weight = torch.zeros(self.client_num, dtype=torch.float)
             default_weight[client_id] = 1.0
 
-            self_weights = torch.zeros(len(alpha), device=self.device)
-            for i, weight in enumerate(alpha):
+            self_weights = torch.zeros(len(weights))
+            for i, weight in enumerate(weights):
                 self_weights[i] = weight[client_id].data
 
             topk_weights_idx = torch.topk(self_weights, self.K, sorted=False)[1]
 
             for i in topk_weights_idx:
-                alpha[i] = (alpha[i] * default_weight).detach().requires_grad_(True)
+                weights[i] = (weights[i] * default_weight).detach().requires_grad_(True)
 
-        return {layer: a for layer, a in zip(self.layers_name, alpha)}
-
-    def save_hn(self):
-        torch.save(
-            {
-                "mlp": deepcopy(self.mlp.state_dict()),
-                "fc": deepcopy(self.fc_layers.state_dict()),
-            },
-            self.cache_dir / f"{self.client_id}.pt",
-        )
-        self.client_id = None
-
-    def load_hn(self):
-        weights = torch.load(self.cache_dir / f"{self.client_id}.pt")
-        self.mlp.load_state_dict(weights["mlp"])
-        self.fc_layers.load_state_dict(weights["fc"])
-
-    def clean(self):
-        if os.path.isdir(self.cache_dir):
-            os.system(f"rm -rf {self.cache_dir}")
+        return weights

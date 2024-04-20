@@ -1,4 +1,4 @@
-from fedavg import FedAvgServer
+from src.server.fedavg import FedAvgServer
 from src.utils.tools import NestedNamespace
 
 
@@ -8,24 +8,7 @@ class LocalServer(FedAvgServer):
         args: NestedNamespace,
         algo: str = "Local-only",
         unique_model=True,
-        default_trainer=True,
+        use_fedavg_client_cls=True,
+        return_diff=False,
     ):
-        super().__init__(args, algo, unique_model, default_trainer)
-
-    def train_one_round(self):
-        client_params_cache = []
-        for client_id in self.selected_clients:
-            client_local_params = self.generate_client_params(client_id)
-
-            (client_params, _, self.client_metrics[client_id][self.current_epoch]) = (
-                self.trainer.train(
-                    client_id=client_id,
-                    local_epoch=self.clients_local_epoch[client_id],
-                    new_parameters=client_local_params,
-                    return_diff=False,
-                    verbose=((self.current_epoch + 1) % self.args.common.verbose_gap) == 0,
-                )
-            )
-            client_params_cache.append(client_params)
-
-        self.update_client_params(client_params_cache)
+        super().__init__(args, algo, unique_model, use_fedavg_client_cls, return_diff)

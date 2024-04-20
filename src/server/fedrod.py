@@ -1,12 +1,11 @@
 from argparse import ArgumentParser, Namespace
 from collections import OrderedDict
-from copy import deepcopy
-from typing import List, OrderedDict
+from typing import Any
 
 import torch
 import torch.nn as nn
 
-from fedavg import FedAvgServer
+from src.server.fedavg import FedAvgServer
 from src.client.fedrod import FedRoDClient
 from src.utils.tools import trainable_params, NestedNamespace
 from src.utils.constants import NUM_CLASSES
@@ -28,9 +27,10 @@ class FedRoDServer(FedAvgServer):
         args: NestedNamespace,
         algo: str = "FedRoD",
         unique_model=False,
-        default_trainer=False,
+        use_fedavg_client_cls=False,
+        return_diff=False,
     ):
-        super().__init__(args, algo, unique_model, default_trainer)
+        super().__init__(args, algo, unique_model, use_fedavg_client_cls, return_diff)
         self.hyper_params_dict = None
         self.hypernetwork: nn.Module = None
         if self.args.fedrod.hyper:
@@ -41,94 +41,48 @@ class FedRoDServer(FedAvgServer):
             input_dim = NUM_CLASSES[self.args.common.dataset]
             self.hypernetwork = HyperNetwork(
                 input_dim, self.args.fedrod.hyper_hidden_dim, output_dim
-            ).to(self.device)
+            )
             params, keys = trainable_params(
                 self.hypernetwork, detach=True, requires_name=True
             )
             self.hyper_params_dict = OrderedDict(zip(keys, params))
-        self.trainer = FedRoDClient(
-            model=deepcopy(self.model),
-            hypernetwork=deepcopy(self.hypernetwork),
-            args=self.args,
-            logger=self.logger,
-            device=self.device,
-        )
+        self.first_time_selected = [True for _ in self.train_clients]
+        self.init_trainer(FedRoDClient, hypernetwork=self.hypernetwork)
 
-    def train_one_round(self):
-        delta_cache = []
-        weight_cache = []
-        hyper_delta_cache = []
-        for client_id in self.selected_clients:
-            client_local_params = self.generate_client_params(client_id)
-            (
-                delta,
-                hyper_delta,
-                weight,
-                self.client_metrics[client_id][self.current_epoch],
-            ) = self.trainer.train(
-                client_id=client_id,
-                local_epoch=self.clients_local_epoch[client_id],
-                new_parameters=client_local_params,
-                hyper_parameters=self.hyper_params_dict,
-                verbose=((self.current_epoch + 1) % self.args.common.verbose_gap) == 0,
-                return_diff=False,
-            )
-
-            delta_cache.append(delta)
-            weight_cache.append(weight)
-            hyper_delta_cache.append(hyper_delta)
-
-        self.aggregate(delta_cache, hyper_delta_cache, weight_cache)
+    def package(self, client_id: int):
+        server_package = super().package(client_id)
+        server_package["first_time_selected"] = self.first_time_selected[client_id]
+        server_package["hypernet_params"] = self.hyper_params_dict
+        return server_package
 
     @torch.no_grad()
-    def aggregate(
-        self,
-        delta_cache: List[OrderedDict[str, torch.Tensor]],
-        hyper_delta_cache: List[OrderedDict[str, torch.Tensor]],
-        weight_cache: List[int],
-        return_diff=False,
-    ):
-        weights = torch.tensor(weight_cache, device=self.device) / sum(weight_cache)
-        if return_diff:
-            delta_list = [list(delta.values()) for delta in delta_cache]
-            aggregated_delta = [
-                torch.sum(weights * torch.stack(diff, dim=-1), dim=-1)
-                for diff in zip(*delta_list)
+    def aggregate(self, clients_package: dict[int, dict[str, Any]]):
+        for client_id in clients_package.keys():
+            self.first_time_selected[client_id] = False
+        clients_weight = [package["weight"] for package in clients_package.values()]
+        weights = torch.tensor(clients_weight) / sum(clients_weight)
+        clients_model_params_list = [
+            list(package["regular_model_params"].values())
+            for package in clients_package.values()
+        ]
+        for old_param, zipped_new_param in zip(
+            self.global_model_params.values(), zip(*clients_model_params_list)
+        ):
+            old_param.data = (torch.stack(zipped_new_param, dim=-1) * weights).sum(
+                dim=-1
+            )
+
+        if self.args.fedrod.hyper:
+            clients_hypernet_params_list = [
+                list(package["hypernet_params"].values())
+                for package in clients_package.values()
             ]
-            for param, diff in zip(self.global_params_dict.values(), aggregated_delta):
-                param.data -= diff
-
-            if self.args.fedrod.hyper:
-                hyper_delta_list = [list(delta.values()) for delta in delta_cache]
-                aggregated_hyper_delta = [
-                    torch.sum(weights * torch.stack(diff, dim=-1), dim=-1)
-                    for diff in zip(*hyper_delta_list)
-                ]
-                for param, diff in zip(
-                    self.hyper_params_dict.values(), aggregated_hyper_delta
-                ):
-                    param.data -= diff
-
-        else:
             for old_param, zipped_new_param in zip(
-                self.global_params_dict.values(), zip(*delta_cache)
+                self.hyper_params_dict.values(), zip(*clients_hypernet_params_list)
             ):
                 old_param.data = (torch.stack(zipped_new_param, dim=-1) * weights).sum(
                     dim=-1
                 )
-            self.model.load_state_dict(self.global_params_dict, strict=False)
-
-            if self.args.fedrod.hyper:
-                for old_param, zipped_new_param in zip(
-                    self.hyper_params_dict.values(), zip(*hyper_delta_cache)
-                ):
-                    old_param.data = (
-                        torch.stack(zipped_new_param, dim=-1) * weights
-                    ).sum(dim=-1)
-
-        if self.args.fedrod.hyper:
-            self.hypernetwork.load_state_dict(self.hyper_params_dict)
-        self.model.load_state_dict(self.global_params_dict, strict=False)
 
 
 class HyperNetwork(nn.Module):

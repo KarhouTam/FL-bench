@@ -1,11 +1,10 @@
 from argparse import ArgumentParser, Namespace
-from typing import List
 
 import torch
 import numpy as np
 from sklearn.cluster import AgglomerativeClustering
 
-from fedavg import FedAvgServer
+from src.server.fedavg import FedAvgServer
 from src.utils.tools import vectorize, NestedNamespace
 
 
@@ -24,40 +23,36 @@ class CFLServer(FedAvgServer):
         args: NestedNamespace,
         algo: str = "CFL",
         unique_model=True,
-        default_trainer=True,
+        use_fedavg_client_cls=True,
+        return_diff=True,
     ):
-        super().__init__(args, algo, unique_model, default_trainer)
+        super().__init__(args, algo, unique_model, use_fedavg_client_cls, return_diff)
         assert (
             len(self.train_clients) == self.client_num
         ), "CFL doesn't support `User` type split."
 
-        self.testing = True
-        self.delta_list = [None for _ in self.train_clients]
+        self.clients_model_params_diff = [None for _ in self.train_clients]
         self.similarity_matrix = np.eye(len(self.train_clients))
         self.client_clusters = [list(range(len(self.train_clients)))]
 
     def train_one_round(self):
-        for client_id in self.selected_clients:
-            client_local_params = self.generate_client_params(client_id)
+        clients_package = self.trainer.train()
 
-            (delta, _, self.client_metrics[client_id][self.current_epoch]) = (
-                self.trainer.train(
-                    client_id=client_id,
-                    local_epoch=self.clients_local_epoch[client_id],
-                    new_parameters=client_local_params,
-                    verbose=((self.current_epoch + 1) % self.args.common.verbose_gap)
-                    == 0,
-                )
-            )
-            self.delta_list[client_id] = [
-                -diff.detach().clone() for diff in delta.values()
+        for client_id in self.selected_clients:
+            self.clients_model_params_diff[client_id] = [
+                -diff
+                for diff in clients_package[client_id]["model_params_diff"].values()
             ]
 
         self.compute_pairwise_similarity()
         client_clusters_new = []
         for indices in self.client_clusters:
-            max_norm = compute_max_delta_norm([self.delta_list[i] for i in indices])
-            mean_norm = compute_mean_delta_norm([self.delta_list[i] for i in indices])
+            max_norm = compute_max_diff_norm(
+                [self.clients_model_params_diff[i] for i in indices]
+            )
+            mean_norm = compute_mean_diff_norm(
+                [self.clients_model_params_diff[i] for i in indices]
+            )
 
             if (
                 mean_norm < self.args.cfl.eps_1
@@ -79,11 +74,11 @@ class CFLServer(FedAvgServer):
     @torch.no_grad()
     def compute_pairwise_similarity(self):
         self.similarity_matrix = np.eye(len(self.train_clients))
-        for i, delta_a in enumerate(self.delta_list):
-            for j, delta_b in enumerate(self.delta_list[i + 1 :], i + 1):
-                if delta_a is not None and delta_b is not None:
+        for i, diff_a in enumerate(self.clients_model_params_diff):
+            for j, diff_b in enumerate(self.clients_model_params_diff[i + 1 :], i + 1):
+                if diff_a is not None and diff_b is not None:
                     score = torch.cosine_similarity(
-                        vectorize(delta_a), vectorize(delta_b), dim=0, eps=1e-12
+                        vectorize(diff_a), vectorize(diff_b), dim=0, eps=1e-12
                     ).item()
                     self.similarity_matrix[i, j] = score
                     self.similarity_matrix[j, i] = score
@@ -100,54 +95,53 @@ class CFLServer(FedAvgServer):
     @torch.no_grad()
     def aggregate_clusterwise(self):
         for cluster in self.client_clusters:
-            delta_list = [
-                self.delta_list[i] for i in cluster if self.delta_list[i] is not None
+            model_params_diff_list = [
+                self.clients_model_params_diff[i]
+                for i in cluster
+                if self.clients_model_params_diff[i] is not None
             ]
-            aggregated_delta = [
-                torch.stack(diff).mean(dim=0) for diff in zip(*delta_list)
+            aggregated_diff = [
+                torch.stack(diff).mean(dim=0) for diff in zip(*model_params_diff_list)
             ]
             for i in cluster:
-                for param, diff in zip(
-                    self.client_trainable_params[i], aggregated_delta
-                ):
-                    param.data += diff
+                for key, diff in zip(self.trainable_params_name, aggregated_diff):
+                    self.clients_personal_model_params[i][key].data += diff
 
-        self.delta_list = [None for _ in self.train_clients]
+        self.clients_model_params_diff = [None for _ in self.train_clients]
 
 
 @torch.no_grad()
-def compute_max_delta_norm(delta_list: List[List[torch.Tensor]]):
+def compute_max_diff_norm(model_params_diff: list[list[torch.Tensor]]):
     flag = False
-    for delta in delta_list:
-        if delta is not None:
+    for diff in model_params_diff:
+        if diff is not None:
             flag = True
+            break
     if flag:
         return max(
             [
-                vectorize(delta).norm().item()
-                for delta in delta_list
-                if delta is not None
+                vectorize(diff).norm().item()
+                for diff in model_params_diff
+                if diff is not None
             ]
         )
     return 0
 
 
 @torch.no_grad()
-def compute_mean_delta_norm(delta_list: List[List[torch.Tensor]]):
+def compute_mean_diff_norm(model_params_diff: list[list[torch.Tensor]]):
     flag = False
-    for delta in delta_list:
-        if delta is not None:
+    for diff in model_params_diff:
+        if diff is not None:
             flag = True
+            break
     if flag:
         return (
-            torch.stack([vectorize(delta) for delta in delta_list if delta is not None])
+            torch.stack(
+                [vectorize(diff) for diff in model_params_diff if diff is not None]
+            )
             .mean(dim=0)
             .norm()
             .item()
         )
     return 0
-
-
-if __name__ == "__main__":
-    server = CFLServer()
-    server.run()

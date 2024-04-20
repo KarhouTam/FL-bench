@@ -1,15 +1,14 @@
-from collections import Counter
+from copy import deepcopy
 
 import torch
 
-from fedavg import FedAvgClient
-from src.utils.models import DecoupledModel
-from src.utils.tools import Logger, NestedNamespace
+from src.client.fedavg import FedAvgClient
+from src.utils.tools import count_labels
 
 
 class FedLCClient(FedAvgClient):
-    def __init__(self, model: DecoupledModel, args: NestedNamespace, logger: Logger, device: torch.device):
-        super().__init__(model, args, logger, device)
+    def __init__(self, **commons):
+        super().__init__(**commons)
         self.label_distrib = torch.zeros(len(self.dataset.classes), device=self.device)
 
         def logit_calibrated_loss(logit, y):
@@ -28,9 +27,9 @@ class FedLCClient(FedAvgClient):
 
         self.criterion = logit_calibrated_loss
 
-    def load_dataset(self):
-        super().load_dataset()
-        label_counter = Counter(self.dataset.targets[self.trainset.indices].tolist())
+    def load_data_indices(self):
+        super().load_data_indices()
+        label_counts = count_labels(self.dataset, self.trainset.indices)
         self.label_distrib.zero_()
-        for cls, count in label_counter.items():
+        for cls, count in enumerate(label_counts):
             self.label_distrib[cls] = max(1e-8, count)

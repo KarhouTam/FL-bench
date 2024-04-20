@@ -1,26 +1,17 @@
 import random
-from typing import List
 
 import torch
 import numpy as np
 import faiss
 
-from fedavg import FedAvgClient
+from src.client.fedavg import FedAvgClient
 from src.utils.metrics import Metrics
-from src.utils.models import DecoupledModel
-from src.utils.tools import Logger, NestedNamespace
 
 
 class kNNPerClient(FedAvgClient):
-    def __init__(
-        self,
-        model: DecoupledModel,
-        args: NestedNamespace,
-        logger: Logger,
-        device: torch.device,
-    ):
-        super().__init__(model, args, logger, device)
-        self.datastore = DataStore(args, self.model.classifier.in_features)
+    def __init__(self, **commons):
+        super().__init__(**commons)
+        self.datastore = DataStore(self.args, self.model.classifier.in_features)
 
     @torch.no_grad()
     def evaluate(self, model=None):
@@ -106,7 +97,7 @@ class DataStore:
         self.index = faiss.IndexFlatL2(dimension)
         self.targets = None
 
-    def build(self, features: List[torch.Tensor], targets: List[torch.Tensor]):
+    def build(self, features: list[torch.Tensor], targets: list[torch.Tensor]):
         num_samples = len(features)
         features_ = torch.cat(features, dim=0).cpu().numpy()
         targets_ = torch.cat(targets, dim=0).cpu().numpy()

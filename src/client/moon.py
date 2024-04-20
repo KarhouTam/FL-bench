@@ -1,37 +1,23 @@
-from collections import OrderedDict
 from copy import deepcopy
-from typing import Dict
+from typing import Any
 
 import torch
 from torch.nn.functional import cosine_similarity, relu
 
-from fedavg import FedAvgClient
-from src.utils.models import DecoupledModel
-from src.utils.tools import Logger, NestedNamespace
+from src.client.fedavg import FedAvgClient
 
 
 class MOONClient(FedAvgClient):
-    def __init__(
-        self,
-        model: DecoupledModel,
-        args: NestedNamespace,
-        logger: Logger,
-        device: torch.device,
-    ):
-        super().__init__(model, args, logger, device)
-        self.prev_params_dict: Dict[int, OrderedDict[str, torch.Tensor]] = {}
+    def __init__(self, **commons):
+        super().__init__(**commons)
         self.prev_model = deepcopy(self.model)
         self.global_model = deepcopy(self.model)
 
-    def save_state(self):
-        super().save_state()
-        self.prev_params_dict[self.client_id] = deepcopy(self.model.state_dict())
-
-    def set_parameters(self, new_parameters):
-        super().set_parameters(new_parameters)
+    def set_parameters(self, package: dict[str, Any]):
+        super().set_parameters(package)
         self.global_model.load_state_dict(self.model.state_dict())
-        if self.client_id in self.prev_params_dict.keys():
-            self.prev_model.load_state_dict(self.prev_params_dict[self.client_id])
+        if package["prev_model_params"]:
+            self.prev_model.load_state_dict(package["prev_model_params"])
         else:
             self.prev_model.load_state_dict(self.model.state_dict())
 
@@ -70,3 +56,6 @@ class MOONClient(FedAvgClient):
                 self.optimizer.zero_grad()
                 loss.backward()
                 self.optimizer.step()
+
+            if self.lr_scheduler is not None:
+                self.lr_scheduler.step()

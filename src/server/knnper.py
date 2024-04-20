@@ -1,7 +1,6 @@
 from argparse import ArgumentParser, Namespace
-from copy import deepcopy
 
-from fedavg import FedAvgServer
+from src.server.fedavg import FedAvgServer
 from src.client.knnper import kNNPerClient
 from src.utils.tools import NestedNamespace
 
@@ -21,11 +20,8 @@ class kNNPerServer(FedAvgServer):
         args: NestedNamespace,
         algo: str = "kNN-Per",
         unique_model=False,
-        default_trainer=False,
+        use_fedavg_client_cls=False,
+        return_diff=False,
     ):
-        if args is None:
-            args = get_knnper_args().parse_args()
-        super().__init__(args, algo, unique_model, default_trainer)
-        self.trainer = kNNPerClient(
-            deepcopy(self.model), self.args, self.logger, self.device
-        )
+        super().__init__(args, algo, unique_model, use_fedavg_client_cls, return_diff)
+        self.init_trainer(kNNPerClient)

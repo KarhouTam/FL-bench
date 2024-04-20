@@ -1,24 +1,16 @@
-from collections import OrderedDict
 from copy import deepcopy
 from typing import Iterator
 
 import torch
 from torch.utils.data import DataLoader
 
-from fedavg import FedAvgClient
-from src.utils.tools import Logger, trainable_params, NestedNamespace
-from src.utils.models import DecoupledModel
+from src.client.fedavg import FedAvgClient
+from src.utils.tools import trainable_params
 
 
 class PerFedAvgClient(FedAvgClient):
-    def __init__(
-        self,
-        model: DecoupledModel,
-        args: NestedNamespace,
-        logger: Logger,
-        device: torch.device,
-    ):
-        super(PerFedAvgClient, self).__init__(model, args, logger, device)
+    def __init__(self, **commons):
+        super(PerFedAvgClient, self).__init__(**commons)
         self.iter_trainloader: Iterator[DataLoader] = None
         self.meta_optimizer = torch.optim.SGD(
             trainable_params(self.model), lr=self.args.perfedavg.beta
@@ -27,27 +19,15 @@ class PerFedAvgClient(FedAvgClient):
             self.model_plus = deepcopy(self.model)
             self.model_minus = deepcopy(self.model)
 
-    def train(
-        self,
-        client_id: int,
-        local_epoch: int,
-        new_parameters: OrderedDict[str, torch.Tensor],
-        return_diff=True,
-        verbose=False,
-    ):
-        delta, _, stats = super().train(
-            client_id, local_epoch, new_parameters, return_diff, verbose
-        )
-        # Per-FedAvg's model aggregation doesn't need weight.
-        return delta, 1.0, stats
-
-    def load_dataset(self):
-        super().load_dataset()
-        self.iter_trainloader = iter(self.trainloader)
+    def package(self):
+        client_package = super().package()
+        client_package["weight"] = 1
+        return client_package
 
     def fit(self):
         self.model.train()
         self.dataset.train()
+        self.iter_trainloader = iter(self.trainloader)
         for _ in range(self.local_epoch):
             for _ in range(
                 len(self.trainloader) // (2 + (self.args.perfedavg.version == "hf"))

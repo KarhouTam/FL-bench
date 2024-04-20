@@ -70,8 +70,8 @@ def semantic_partition(
     gmm_max_iter: int,
     gmm_init_params: str,
     use_cuda: bool,
-    partition: Dict,
-    stats: Dict,
+    partition: dict,
+    stats: dict,
 ):
     device = get_optimal_cuda_device(use_cuda)
     client_ids = list(range(client_num))

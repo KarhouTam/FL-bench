@@ -10,8 +10,8 @@ def dirichlet(
     client_num: int,
     alpha: float,
     least_samples: int,
-    partition: Dict,
-    stats: Dict,
+    partition: dict,
+    stats: dict,
 ):
     """Partition dataset according to Dirichlet with concentration parameter `alpha`.
 

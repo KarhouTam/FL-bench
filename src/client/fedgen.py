@@ -1,55 +1,36 @@
-from collections import OrderedDict
-from typing import List
+from copy import deepcopy
+from typing import Any
 
 import numpy as np
 import torch
 import torch.nn.functional as F
 
-from src.utils.tools import Logger, NestedNamespace, count_labels, trainable_params
-from fedavg import FedAvgClient
-from src.utils.models import DecoupledModel
+from src.utils.tools import count_labels
+from src.client.fedavg import FedAvgClient
 
 
 class FedGenClient(FedAvgClient):
-    def __init__(self, model: DecoupledModel, args: NestedNamespace, logger: Logger, device: torch.device):
-        super().__init__(model, args, logger, device)
-        self.label_counts: List[List[int]] = [
+    def __init__(self, generator: torch.nn.Module, **commons):
+        super().__init__(**commons)
+        self.generator = deepcopy(generator).to(self.device)
+        self.label_counts: list[list[int]] = [
             count_labels(self.dataset, indices["train"], min_value=1)
             for indices in self.data_indices
         ]
-        self.lr_scheduler = torch.optim.lr_scheduler.ExponentialLR(
-            optimizer=self.optimizer, gamma=0.99
-        )
+        self.regularization: bool
+        self.available_labels: torch.Tensor
+        self.current_global_epoch: int
 
-    def train(
-        self,
-        client_id: int,
-        local_epoch: int,
-        current_global_epoch: int,
-        new_parameters: OrderedDict[str, torch.Tensor],
-        generator: torch.nn.Module,
-        regularization: bool,
-        verbose=False,
-    ):
-        self.client_id = client_id
-        self.local_epoch = local_epoch
-        self.current_global_epoch = current_global_epoch
-        self.generator = generator
-        self.regularization = regularization
-        self.load_dataset()
-        self.set_parameters(new_parameters)
+    def package(self):
+        client_package = super().package()
+        client_package["label_counts"] = self.label_counts[self.client_id]
+        return client_package
 
-        eval_stats = self.train_and_log(verbose)
-
-        return (
-            trainable_params(self.model, detach=True),
-            len(self.trainset),
-            self.label_counts[self.client_id],
-            eval_stats,
-        )
-
-    def set_parameters(self, new_parameters: OrderedDict[str, torch.Tensor]):
-        super().set_parameters(new_parameters)
+    def set_parameters(self, package: dict[str, Any]):
+        super().set_parameters(package)
+        self.current_global_epoch = package["current_global_epoch"]
+        self.regularization = package["regularization"]
+        self.generator.load_state_dict(package["generator_params"])
         self.available_labels = torch.unique(
             self.dataset.targets[self.trainset.indices]
         ).tolist()
@@ -90,13 +71,18 @@ class FedGenClient(FedAvgClient):
                     logits = self.model.classifier(generator_output)
                     teacher_loss = alpha * self.criterion(logits, sampled_y)
 
-                    gen_ratio = self.args.fedgen.gen_batch_size / self.args.common.batch_size
+                    gen_ratio = (
+                        self.args.fedgen.gen_batch_size / self.args.common.batch_size
+                    )
 
                     loss += gen_ratio * teacher_loss + latent_loss
 
                 self.optimizer.zero_grad()
                 loss.backward()
                 self.optimizer.step()
+
+            if self.lr_scheduler is not None:
+                self.lr_scheduler.step()
 
     def exp_coef_scheduler(self, init_coef):
         return max(

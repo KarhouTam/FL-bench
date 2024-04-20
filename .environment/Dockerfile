@@ -14,4 +14,4 @@ RUN pip install --upgrade pip && \
 
 
 # port for visdom
-EXPOSE 8097
+EXPOSE 8097 8265

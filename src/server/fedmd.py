@@ -1,12 +1,14 @@
 from argparse import ArgumentParser, Namespace
-from copy import deepcopy
-from typing import List
 
 import torch
+from torchvision import transforms
+from torch.utils.data import DataLoader
 
-from fedavg import FedAvgServer
+from src.server.fedavg import FedAvgServer
 from src.client.fedmd import FedMDClient
-from src.utils.tools import NestedNamespace
+from src.utils.tools import NestedNamespace, trainable_params
+from src.utils.constants import DATA_MEAN, DATA_STD, FLBENCH_ROOT
+from data.utils.datasets import DATASETS
 
 
 def get_fedmd_args(args_list=None) -> Namespace:
@@ -34,68 +36,107 @@ class FedMDServer(FedAvgServer):
         args: NestedNamespace,
         algo: str = "FedMD",
         unique_model=True,
-        default_trainer=False,
+        use_fedavg_client_cls=False,
+        return_diff=False,
     ):
-        super().__init__(args, algo, unique_model, default_trainer)
-        if (
-            self.args.fedmd.public_dataset == "mnist"
-            and self.args.common.dataset not in ["femnist", "emnist"]
-        ):
+        if args.fedmd.public_dataset == "mnist" and args.common.dataset not in [
+            "femnist",
+            "emnist",
+        ]:
             raise NotImplementedError(
                 "The public dataset is mnist and the --dataset should be in [femnist, emnist] (now: {})".format(
-                    self.args.common.dataset
+                    args.common.dataset
                 )
             )
         elif (
-            self.args.fedmd.public_dataset == "cifar10"
-            and self.args.common.dataset != "cifar100"
+            args.fedmd.public_dataset == "cifar10" and args.common.dataset != "cifar100"
         ):
             raise NotImplementedError(
-                "The public dataset is cifar10 and the --dataset should be cifar100 (now: {})".format(
-                    self.args.common.dataset
+                "The public dataset is cifar10 and the dataset should be cifar100 (now: {})".format(
+                    args.common.dataset
                 )
             )
-        self.trainer = FedMDClient(
-            model=deepcopy(self.model),
-            args=self.args,
-            logger=self.logger,
-            device=self.device,
+        super().__init__(args, algo, unique_model, use_fedavg_client_cls, return_diff)
+        test_data_transform = transforms.Compose(
+            [
+                transforms.Normalize(
+                    DATA_MEAN[self.args.common.dataset],
+                    DATA_STD[self.args.common.dataset],
+                )
+            ]
+            if self.args.common.dataset in DATA_MEAN
+            and self.args.common.dataset in DATA_STD
+            else []
         )
+        test_target_transform = transforms.Compose([])
+        train_data_transform = transforms.Compose(
+            [
+                transforms.Normalize(
+                    DATA_MEAN[self.args.common.dataset],
+                    DATA_STD[self.args.common.dataset],
+                )
+            ]
+            if self.args.common.dataset in DATA_MEAN
+            and self.args.common.dataset in DATA_STD
+            else []
+        )
+        train_target_transform = transforms.Compose([])
+
+        self.public_dataset = DATASETS[self.args.fedmd.public_dataset](
+            root=FLBENCH_ROOT / "data" / self.args.fedmd.public_dataset,
+            args=None,
+            train_data_transform=train_data_transform,
+            train_target_transform=train_target_transform,
+            test_data_transform=test_data_transform,
+            test_target_transform=test_target_transform,
+        )
+        self.public_dataset_loader = DataLoader(
+            self.public_dataset, self.args.fedmd.public_batch_size, shuffle=True
+        )
+        self.iter_public_loader = iter(self.public_dataset_loader)
+        self.public_data: list[torch.Tensor] = []
+        self.consensus: list[torch.Tensor] = []
+
+        self.optimizer = self.get_client_optimizer()(
+            params=trainable_params(self.model)
+        )
+        self.init_trainer(FedMDClient)
+
+    def load_public_data_batches(self):
+        for _ in range(self.args.fedmd.public_batch_num):
+            try:
+                x, _ = next(self.iter_public_loader)
+                if len(x) <= 1:
+                    x, _ = next(self.iter_public_loader)
+            except StopIteration:
+                self.iter_public_loader = iter(self.public_dataset_loader)
+                x, _ = next(self.iter_public_loader)
+            self.public_data.append(x)
+
+    @torch.no_grad()
+    def get_scores(self, client_id):
+        self.client_id = client_id
+        self.model.load_state_dict(self.clients_personal_model_params[client_id])
+        self.model.eval()
+        return [self.model(x).clone() for x in self.public_data]
+
+    def package(self, client_id: int):
+        server_package = super().package(client_id)
+        server_package["consensus"] = self.consensus
+        server_package["public_data"] = self.public_data
+        return server_package
 
     def train_one_round(self):
-        self.trainer.load_public_data_batches()
-        scores_cache = []
+        self.load_public_data_batches()
+        batches_scores = []
         for client_id in self.selected_clients:
-            client_params = self.generate_client_params(client_id)
-            scores_cache.append(self.trainer.get_scores(client_id, client_params))
+            batches_scores.append(self.get_scores(client_id))
+        self.compute_consensus(batches_scores)
+        self.trainer.train()
 
-        # aggregate
-        self.trainer.consensus = self.aggregate(scores_cache)
-
-        # digest & revisit
-        client_params_cache = []
-        for client_id in self.selected_clients:
-            client_params = self.generate_client_params(client_id)
-            (client_params, self.client_metrics[client_id][self.current_epoch]) = (
-                self.trainer.train(
-                    client_id=client_id,
-                    local_epoch=self.clients_local_epoch[client_id],
-                    new_parameters=client_params,
-                    verbose=((self.current_epoch + 1) % self.args.common.verbose_gap)
-                    == 0,
-                )
-            )
-            client_params_cache.append(client_params)
-
-        self.update_client_params(client_params_cache)
-
-    def aggregate(self, scores_cache: List[torch.Tensor]) -> List[torch.Tensor]:
-        consensus = []
-        for scores in zip(*scores_cache):
-            consensus.append(torch.stack(scores, dim=-1).mean(dim=-1))
-        return consensus
-
-
-if __name__ == "__main__":
-    server = FedMDServer()
-    server.run()
+    def compute_consensus(
+        self, batches_scores: list[torch.Tensor]
+    ) -> list[torch.Tensor]:
+        self.consensus = []
+        for scores in zip(*batches_scores):
+            self.consensus.append(torch.stack(scores, dim=-1).mean(dim=-1).cpu())

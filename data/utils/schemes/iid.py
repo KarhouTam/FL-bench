@@ -9,8 +9,8 @@ def iid_partition(
     targets: np.ndarray,
     label_set: Set[int],
     client_num: int,
-    partition: Dict,
-    stats: Dict,
+    partition: dict,
+    stats: dict,
 ):
     indices = [i for i in range(len(targets)) if targets[i] in label_set]
     random.shuffle(indices)

@@ -1,26 +1,19 @@
 from collections import OrderedDict
 from copy import deepcopy
-from typing import Dict, List
+from typing import Any
 
 import torch
 from torch.optim import Optimizer
 
-from fedavg import FedAvgClient
-from src.utils.tools import Logger, trainable_params, NestedNamespace
-from src.utils.models import DecoupledModel
+from src.client.fedavg import FedAvgClient
+from src.utils.tools import trainable_params
 
 
 class pFedMeClient(FedAvgClient):
-    def __init__(
-        self,
-        model: DecoupledModel,
-        args: NestedNamespace,
-        logger: Logger,
-        device: torch.device,
-    ):
-        super(pFedMeClient, self).__init__(model, args, logger, device)
-        self.local_parameters: List[torch.Tensor] = None
-        self.personalized_params_dict: Dict[str, OrderedDict[str, torch.Tensor]] = {}
+    def __init__(self, **commons):
+        super(pFedMeClient, self).__init__(**commons)
+        self.local_parameters: list[torch.Tensor] = None
+        self.personalized_params_dict: dict[str, OrderedDict[str, torch.Tensor]] = {}
         self.optimzier = pFedMeOptimizer(
             trainable_params(self.model),
             self.args.pfedme.pers_lr,
@@ -28,26 +21,18 @@ class pFedMeClient(FedAvgClient):
             self.args.pfedme.mu,
         )
 
-    def train(
-        self,
-        client_id: int,
-        local_epoch: int,
-        new_parameters: OrderedDict[str, torch.Tensor],
-        verbose=False,
-    ):
-        self.client_id = client_id
-        self.local_epoch = local_epoch
-        self.load_dataset()
-        self.set_parameters(new_parameters)
-        self.local_parameters = trainable_params(new_parameters, detach=True)
-        stats = self.train_and_log(verbose=verbose)
-        return (deepcopy(self.local_parameters), len(self.trainset), stats)
+    def set_parameters(self, package: dict[str, Any]):
+        super().set_parameters(package)
+        self.local_parameters = deepcopy(list(package["regular_model_params"].values()))
+        self.personalized_params_dict = package["personalized_model_params"]
 
-    def save_state(self):
-        super().save_state()
-        self.personalized_params_dict[self.client_id] = deepcopy(
-            self.model.state_dict()
-        )
+    def package(self):
+        client_package = super().package()
+        client_package["personalized_model_params"] = {
+            key: param.cpu() for key, param in self.personalized_params_dict.items()
+        }
+        client_package["local_model_params"] = self.local_parameters
+        return client_package
 
     def fit(self):
         self.model.train()
@@ -72,14 +57,16 @@ class pFedMeClient(FedAvgClient):
                         param_l.data
                         - self.args.pfedme.lamda
                         * self.args.common.optimizer.lr
-                        * (param_l.data - param_p.data)
+                        * (param_l.data - param_p.data.cpu())
                     )
 
+            if self.lr_scheduler is not None:
+                self.lr_scheduler.step()
+
     @torch.no_grad()
-    def evaluate(self) -> Dict[str, Dict[str, float]]:
+    def evaluate(self):
         frz_model_params = deepcopy(self.model.state_dict())
-        if self.client_id in self.personalized_params_dict.keys():
-            self.model.load_state_dict(self.personalized_params_dict[self.client_id])
+        self.model.load_state_dict(self.personalized_params_dict)
         res = super().evaluate()
         self.model.load_state_dict(frz_model_params)
         return res
@@ -91,12 +78,12 @@ class pFedMeOptimizer(Optimizer):
         super(pFedMeOptimizer, self).__init__(params, defaults)
 
     @torch.no_grad()
-    def step(self, local_parameters: List[torch.nn.Parameter]):
+    def step(self, local_parameters: list[torch.Tensor]):
         group = None
         for group in self.param_groups:
             for param_p, param_l in zip(group["params"], local_parameters):
                 param_p.data = param_p.data - group["lr"] * (
                     param_p.grad.data
-                    + group["lamda"] * (param_p.data - param_l.data)
+                    + group["lamda"] * (param_p.data - param_l.data.to(param_p.device))
                     + group["mu"] * param_p.data
                 )

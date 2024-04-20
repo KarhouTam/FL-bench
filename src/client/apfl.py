@@ -1,33 +1,19 @@
 from copy import deepcopy
-from typing import Dict, OrderedDict
+from typing import Any
 
 import torch
 
-from fedavg import FedAvgClient
-from src.utils.tools import Logger, trainable_params, NestedNamespace
-from src.utils.models import DecoupledModel
+from src.client.fedavg import FedAvgClient
+from src.utils.tools import trainable_params
 
 
 class APFLClient(FedAvgClient):
-    def __init__(
-        self,
-        model: DecoupledModel,
-        args: NestedNamespace,
-        logger: Logger,
-        device: torch.device,
-        client_num: int,
-    ):
-        super().__init__(model, args, logger, device)
-
-        self.alpha_list = [
-            torch.tensor(self.args.apfl.alpha, device=self.device)
-            for _ in range(client_num)
-        ]
+    def __init__(self, **commons):
+        super().__init__(**commons)
         self.alpha = torch.tensor(self.args.apfl.alpha, device=self.device)
-
         self.local_model = deepcopy(self.model)
 
-        def re_init(src):
+        def _re_init(src):
             target = deepcopy(src)
             for module in target.modules():
                 if (
@@ -38,29 +24,21 @@ class APFLClient(FedAvgClient):
                     module.reset_parameters()
             return deepcopy(target.state_dict())
 
-        self.local_params_dict: Dict[int, OrderedDict[str, torch.Tensor]] = {
-            # cid: re_init(self.model) for cid in range(client_num)
-            cid: deepcopy(self.model.state_dict())
-            for cid in range(client_num)
+        self.optimizer.add_param_group({"params": trainable_params(self.local_model)})
+
+    def set_parameters(self, package: dict[str, Any]):
+        super().set_parameters(package)
+        self.local_model.load_state_dict(package["local_model_params"])
+        self.alpha = package["alpha"].to(self.device)
+
+    def package(self):
+        client_parckage = super().package()
+        client_parckage["local_model_params"] = {
+            key: param.cpu().clone()
+            for key, param in self.local_model.state_dict().items()
         }
-
-        self.optimizer.add_param_group(
-            {
-                "params": trainable_params(self.local_model),
-                "lr": self.args.common.optimizer.lr,
-            }
-        )
-        self.init_opt_state_dict = deepcopy(self.optimizer.state_dict())
-
-    def set_parameters(self, new_parameters: OrderedDict[str, torch.Tensor]):
-        super().set_parameters(new_parameters)
-        self.local_model.load_state_dict(self.local_params_dict[self.client_id])
-        self.alpha = self.alpha_list[self.client_id]
-
-    def save_state(self):
-        super().save_state()
-        self.local_params_dict[self.client_id] = deepcopy(self.local_model.state_dict())
-        self.alpha_list[self.client_id] = self.alpha.clone()
+        client_parckage["alpha"] = self.alpha.cpu().clone()
+        return client_parckage
 
     def fit(self):
         self.model.train()
@@ -87,6 +65,9 @@ class APFLClient(FedAvgClient):
 
                 if self.args.apfl.adaptive_alpha and i == 0:
                     self.update_alpha()
+
+            if self.lr_scheduler is not None:
+                self.lr_scheduler.step()
 
     # refers to https://github.com/MLOPTPSU/FedTorch/blob/b58da7408d783fd426872b63fbe0c0352c7fa8e4/fedtorch/comms/utils/flow_utils.py#L240
     def update_alpha(self):

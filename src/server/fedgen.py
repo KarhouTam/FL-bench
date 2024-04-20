@@ -1,14 +1,14 @@
 from argparse import ArgumentParser, Namespace
 from copy import deepcopy
 from collections import OrderedDict
-from typing import List
+from typing import Any
 
 import numpy as np
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
-from fedavg import FedAvgServer
+from src.server.fedavg import FedAvgServer
 from src.client.fedgen import FedGenClient
 from src.utils.tools import trainable_params, NestedNamespace
 
@@ -39,73 +39,50 @@ class FedGenServer(FedAvgServer):
         args: NestedNamespace,
         algo: str = "FedGen",
         unique_model=False,
-        default_trainer=False,
+        use_fedavg_client_cls=False,
+        return_diff=False,
     ):
-        super().__init__(args, algo, unique_model, default_trainer)
-        self.trainer = FedGenClient(
-            deepcopy(self.model), self.args, self.logger, self.device
-        )
-        self.generator = Generator(self).to(self.device)
+        super().__init__(args, algo, unique_model, use_fedavg_client_cls, return_diff)
+        dataset = self.get_client_dataset()
+        self.data_shape = dataset[0][0].shape
+        self.num_classes = len(dataset.classes)
+        del dataset
+        self.generator = Generator(self)
+        self.init_trainer(FedGenClient, generator=self.generator)
         self.generator_optimizer = torch.optim.Adam(
-            trainable_params(self.generator), args.fedgen.ensemble_lr
+            trainable_params(self.generator), self.args.fedgen.ensemble_lr
         )
         self.generator_lr_scheduler = torch.optim.lr_scheduler.ExponentialLR(
             self.generator_optimizer, gamma=0.98
         )
-        self.unique_labels = range(len(self.trainer.dataset.classes))
+        self.unique_labels = range(self.num_classes)
         self.teacher_model = deepcopy(self.model)
 
+    def package(self, client_id: int):
+        server_package = super().package(client_id)
+        server_package["regularization"] = self.current_epoch > 0
+        server_package["generator_params"] = OrderedDict(
+            (key, param.detach().cpu().clone())
+            for key, param in self.generator.state_dict().items()
+        )
+        server_package["current_global_epoch"] = self.current_epoch
+        return server_package
+
     def train_one_round(self):
-        client_params_cache = []
-        weight_cache = []
-        label_counts_cache = []
-        for client_id in self.selected_clients:
-            client_local_params = self.generate_client_params(client_id)
+        clients_package = self.trainer.train()
+        self.train_generator(clients_package)
+        self.aggregate(clients_package)
 
-            (
-                delta,
-                weight,
-                label_counts,
-                self.client_metrics[client_id][self.current_epoch],
-            ) = self.trainer.train(
-                client_id=client_id,
-                local_epoch=self.clients_local_epoch[client_id],
-                current_global_epoch=self.current_epoch,
-                new_parameters=client_local_params,
-                generator=self.generator,
-                regularization=self.current_epoch > 0,
-                verbose=((self.current_epoch + 1) % self.args.common.verbose_gap) == 0,
-            )
-            label_counts_cache.append(label_counts)
-            client_params_cache.append(delta)
-            weight_cache.append(weight)
-        self.train_generator(client_params_cache, label_counts_cache)
-        self.aggregate(client_params_cache, weight_cache)
-
-    @torch.no_grad()
-    def aggregate(
-        self, client_params_cache: List[List[torch.Tensor]], weight_cache: List[int]
-    ):
-        weights = torch.tensor(weight_cache, device=self.device) / sum(weight_cache)
-        aggregated_params = [
-            torch.sum(weights * torch.stack(layer_params, dim=-1), dim=-1)
-            for layer_params in zip(*client_params_cache)
-        ]
-
-        for old_param, new_param in zip(
-            self.global_params_dict.values(), aggregated_params
-        ):
-            old_param.data.copy_(new_param)
-
-    def train_generator(
-        self,
-        client_params_cache: List[List[torch.Tensor]],
-        label_counts_cache: List[List[int]],
-    ):
+    def train_generator(self, clients_package: dict[int, dict[str, Any]]):
         self.generator.train()
         self.teacher_model.eval()
         self.model.eval()
-        label_weights, qualified_labels = self.get_label_weights(label_counts_cache)
+        self.generator.to(self.device)
+        self.model.to(self.device)
+        self.teacher_model.to(self.device)
+        label_weights, qualified_labels = self.get_label_weights(
+            [package["label_counts"] for package in clients_package.values()]
+        )
         for _ in range(self.args.fedgen.train_generator_epoch):
             y_npy = np.random.choice(qualified_labels, self.args.common.batch_size)
             y_tensor = torch.tensor(y_npy, dtype=torch.long, device=self.device)
@@ -117,10 +94,9 @@ class FedGenServer(FedAvgServer):
             teacher_loss = 0
             teacher_logit = 0
 
-            for i, model_params in enumerate(client_params_cache):
+            for i, package in enumerate(clients_package.values()):
                 self.teacher_model.load_state_dict(
-                    OrderedDict(zip(self.trainable_params_name, model_params)),
-                    strict=False,
+                    package["regular_model_params"], strict=False
                 )
                 weight = label_weights[y_npy][:, i].reshape(-1, 1)
                 expand_weight = np.tile(weight, (1, len(self.unique_labels)))
@@ -147,15 +123,18 @@ class FedGenServer(FedAvgServer):
             self.generator_optimizer.step()
 
         self.generator_lr_scheduler.step()
+        self.generator.cpu()
+        self.model.cpu()
+        self.teacher_model.cpu()
 
-    def get_label_weights(self, label_counts_cache):
+    def get_label_weights(self, clients_label_counts):
         label_weights = []
         qualified_labels = []
-        for i, label_counts in enumerate(zip(*label_counts_cache)):
+        for i, label_counts in enumerate(zip(*clients_label_counts)):
             count_sum = sum(label_counts)
             label_weights.append(np.array(label_counts) / count_sum)
             if (
-                count_sum / len(label_counts_cache)
+                count_sum / len(clients_label_counts)
                 > self.args.fedgen.min_samples_per_label
             ):
                 qualified_labels.append(i)
@@ -167,13 +146,12 @@ class Generator(nn.Module):
     def __init__(self, server: FedGenServer) -> None:
         super().__init__()
         # obtain the latent dim
-        x = torch.zeros(1, *server.trainer.dataset[0][0].shape, device=server.device)
-        self.device = server.device
+        x = torch.zeros(1, *server.data_shape)
         self.use_embedding = server.args.fedgen.use_embedding
         self.latent_dim = server.model.base(x).shape[-1]
         self.hidden_dim = server.args.fedgen.hidden_dim
         self.noise_dim = server.args.fedgen.noise_dim
-        self.class_num = len(server.trainer.dataset.classes)
+        self.class_num = server.num_classes
 
         if server.args.fedgen.use_embedding:
             self.embedding = nn.Embedding(self.class_num, server.args.fedgen.noise_dim)
@@ -194,11 +172,11 @@ class Generator(nn.Module):
 
     def forward(self, targets):
         batchsize = targets.shape[0]
-        eps = torch.randn((batchsize, self.noise_dim), device=self.device)
+        eps = torch.randn((batchsize, self.noise_dim), device=targets.device)
         if self.use_embedding:
             y = self.embedding(targets)
         else:
-            y = torch.zeros((batchsize, self.class_num), device=self.device)
+            y = torch.zeros((batchsize, self.class_num), device=targets.device)
             y.scatter_(1, targets.reshape(-1, 1), 1)
         z = torch.cat([eps, y], dim=1)
         z = self.mlp(z)
@@ -213,11 +191,11 @@ class DiversityLoss(nn.Module):
         self.cosine = nn.CosineSimilarity(dim=2)
 
     def compute_distance(self, tensor1, tensor2, metric):
-        if metric == 'l1':
+        if metric == "l1":
             return torch.abs(tensor1 - tensor2).mean(dim=2)
-        elif metric == 'l2':
+        elif metric == "l2":
             return torch.pow(tensor1 - tensor2, 2).mean(dim=2)
-        elif metric == 'cosine':
+        elif metric == "cosine":
             return 1 - self.cosine(tensor1, tensor2)
         else:
             raise ValueError(metric)
@@ -232,10 +210,5 @@ class DiversityLoss(nn.Module):
         if len(layer.shape) > 2:
             layer = layer.view((layer.size(0), -1))
         layer_dist = self.pairwise_distance(layer, how=self.metric)
-        noise_dist = self.pairwise_distance(noises, how='l2')
+        noise_dist = self.pairwise_distance(noises, how="l2")
         return torch.exp(torch.mean(-noise_dist * layer_dist))
-
-
-if __name__ == "__main__":
-    server = FedGenServer()
-    server.run()

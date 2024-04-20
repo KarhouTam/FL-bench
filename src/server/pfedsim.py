@@ -1,12 +1,12 @@
+import time
 from argparse import ArgumentParser, Namespace
-from collections import OrderedDict
 from copy import deepcopy
 
 import torch
 from rich.progress import track
 
-from fedavg import FedAvgServer
-from src.utils.tools import trainable_params, NestedNamespace
+from src.server.fedavg import FedAvgServer
+from src.utils.tools import NestedNamespace
 
 
 def get_pfedsim_args(args_list=None) -> Namespace:
@@ -18,7 +18,7 @@ def get_pfedsim_args(args_list=None) -> Namespace:
 class pFedSimServer(FedAvgServer):
     def __init__(self, args: NestedNamespace, algo: str = "pFedSim"):
         super().__init__(args, algo)
-        self.weight_matrix = torch.eye(self.client_num, device=self.device)
+        self.weight_matrix = torch.eye(self.client_num)
 
         self.warmup_round = 0
         if 0 <= self.args.pfedsim.warmup_round <= 1:
@@ -42,91 +42,91 @@ class pFedSimServer(FedAvgServer):
         super().train()
 
         # Personalization Phase
-        self.unique_model = True
+        avg_round_time = 0
         pfedsim_progress_bar = track(
             range(self.warmup_round, self.args.common.global_epoch),
             "[bold green]Personalizing...",
             console=self.logger.stdout,
         )
-        self.trainer.personal_params_name.extend(
-            [name for name in self.model.state_dict().keys() if "classifier" in name]
-        )
-        self.client_trainable_params = [
-            [
-                self.global_params_dict[key]
-                for key in trainable_params(self.model, requires_name=True)[1]
-            ]
-            for _ in self.train_clients
+
+        for params_dict in self.clients_personal_model_params.values():
+            params_dict.update(self.global_model_params)
+
+        self.params_name_join_aggregation = [
+            key for key in self.trainable_params_name if "classifier" not in key
         ]
 
         for E in pfedsim_progress_bar:
             self.current_epoch = E
-
-            if (E + 1) % self.args.common.verbose_gap == 0:
+            self.selected_clients = self.client_sample_stream[E]
+            self.verbose = (E + 1) % self.args.common.verbose_gap == 0
+            if self.verbose:
                 self.logger.log(" " * 30, f"TRAINING EPOCH: {E + 1}", " " * 30)
 
             if (E + 1) % self.args.common.test_interval == 0:
                 self.test()
 
-            self.selected_clients = self.client_sample_stream[E]
-            client_params_cache = []
+            begin = time.time()
+            clients_package = self.trainer.train()
+            end = time.time()
             for client_id in self.selected_clients:
-                client_pers_params = self.generate_client_params(client_id)
-                (client_params, _, self.client_metrics[client_id][E]) = (
-                    self.trainer.train(
-                        client_id=client_id,
-                        local_epoch=self.clients_local_epoch[client_id],
-                        new_parameters=client_pers_params,
-                        return_diff=False,
-                        verbose=((E + 1) % self.args.common.verbose_gap) == 0,
+                if not self.return_diff:
+                    self.clients_personal_model_params[client_id].update(
+                        clients_package[client_id]["regular_model_params"]
                     )
-                )
-                client_params_cache.append(client_params)
-
-            self.update_client_params(client_params_cache)
+                else:
+                    self.clients_personal_model_params[client_id].update(
+                        {
+                            key: self.clients_personal_model_params[client_id][key]
+                            - clients_package[client_id]["model_params_diff"][key]
+                            for key in self.trainable_params_name
+                        }
+                    )
             self.update_weight_matrix()
             self.log_info()
-
-    @torch.no_grad()
-    def generate_client_params(self, client_id):
-        if self.current_epoch < self.warmup_round:
-            return self.global_params_dict
-
-        new_parameters = OrderedDict(
-            zip(
-                self.trainable_params_name,
-                deepcopy(self.client_trainable_params[client_id]),
+            avg_round_time = (avg_round_time * (self.current_epoch) + (end - begin)) / (
+                self.current_epoch + 1
             )
+
+        self.logger.log(
+            f"{self.algo}'s average time taken by each global epoch: {int(avg_round_time // 60)} min {(avg_round_time % 60):.2f} sec."
         )
-        if not self.testing:
-            if sum(self.weight_matrix[client_id]) > 1:
-                weights = self.weight_matrix[client_id].clone()
-                weights[client_id] = 0.9999
-                weights = -torch.log(1 - weights)
-                weights /= weights.sum()
-                for name, layer_params in zip(
-                    self.trainable_params_name, zip(*self.client_trainable_params)
-                ):
-                    new_parameters[name] = torch.sum(
-                        torch.stack(layer_params, dim=-1) * weights, dim=-1
-                    )
-        return new_parameters
 
     @torch.no_grad()
+    def get_client_model_params(self, client_id):
+        if self.current_epoch < self.warmup_round:
+            return super().get_client_model_params(client_id)
+        pfedsim_aggregated_params = deepcopy(
+            self.clients_personal_model_params[client_id]
+        )
+        clients_model_params_list = [
+            [params_dict[key] for key in self.params_name_join_aggregation]
+            for params_dict in self.clients_personal_model_params.values()
+        ]
+        if sum(self.weight_matrix[client_id]) > 1:
+            weights = self.weight_matrix[client_id].clone()
+            weights[client_id] = 0.9999
+            weights = -torch.log(1 - weights)
+            weights /= weights.sum()
+            for name, layer_params in zip(
+                self.params_name_join_aggregation, zip(*clients_model_params_list)
+            ):
+                pfedsim_aggregated_params[name] = torch.sum(
+                    torch.stack(layer_params, dim=-1) * weights, dim=-1
+                )
+        return dict(
+            regular_model_params=pfedsim_aggregated_params,
+            personal_model_params=self.clients_personal_model_params[client_id],
+        )
+
     def update_weight_matrix(self):
         for idx_i, i in enumerate(self.selected_clients):
-            client_params_i = OrderedDict(
-                zip(self.trainable_params_name, self.client_trainable_params[i])
-            )
             for j in self.selected_clients[idx_i + 1 :]:
-                client_params_j = OrderedDict(
-                    zip(self.trainable_params_name, self.client_trainable_params[j])
-                )
                 sim_ij = max(
                     0,
                     torch.cosine_similarity(
-                        client_params_i["classifier.weight"],
-                        client_params_j["classifier.weight"],
+                        self.clients_personal_model_params[i]["classifier.weight"],
+                        self.clients_personal_model_params[j]["classifier.weight"],
                         dim=-1,
                     ).mean(),
                 )

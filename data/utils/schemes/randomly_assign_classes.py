@@ -10,8 +10,8 @@ def randomly_assign_classes(
     label_set: set,
     client_num: int,
     class_num: int,
-    partition: Dict,
-    stats: Dict,
+    partition: dict,
+    stats: dict,
 ):
     """Partition data to make each client has almost `client_num` class of data.
 

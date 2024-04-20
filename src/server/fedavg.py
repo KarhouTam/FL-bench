@@ -1,3 +1,5 @@
+import functools
+import inspect
 import pickle
 import json
 import os
@@ -5,14 +7,29 @@ import time
 import random
 from collections import OrderedDict
 from copy import deepcopy
-from typing import Dict, List, OrderedDict
+from typing import Any
 
+import ray
 import torch
 import numpy as np
+from torchvision import transforms
 from rich.console import Console
 from rich.progress import track
 from rich.json import JSON
 
+from src.utils.models import MODELS, DecoupledModel
+from src.utils.metrics import Metrics
+from src.client.fedavg import FedAvgClient
+from src.utils.constants import (
+    FLBENCH_ROOT,
+    LR_SCHEDULERS,
+    OPTIMIZERS,
+    OUT_DIR,
+    DATA_MEAN,
+    DATA_STD,
+)
+from src.utils.trainer import FLbenchTrainer
+from data.utils.datasets import DATASETS, BaseDataset
 from src.utils.tools import (
     Logger,
     NestedNamespace,
@@ -20,10 +37,7 @@ from src.utils.tools import (
     trainable_params,
     get_optimal_cuda_device,
 )
-from src.utils.models import MODELS, DecoupledModel
-from src.utils.metrics import Metrics
-from src.client.fedavg import FedAvgClient
-from src.utils.constants import FLBENCH_ROOT, OUT_DIR
+
 
 class FedAvgServer:
     def __init__(
@@ -31,11 +45,13 @@ class FedAvgServer:
         args: NestedNamespace,
         algo: str = "FedAvg",
         unique_model=False,
-        default_trainer=True,
+        use_fedavg_client_cls=True,
+        return_diff=False,
     ):
         self.args = args
         self.algo = algo
         self.unique_model = unique_model
+        self.return_diff = return_diff
         fix_random_seed(self.args.common.seed)
         start_time = str(
             time.strftime("%Y-%m-%d-%H:%M:%S", time.localtime(round(time.time())))
@@ -55,9 +71,9 @@ class FedAvgServer:
                 partition = pickle.load(f)
         except:
             raise FileNotFoundError(f"Please partition {args.dataset} first.")
-        self.train_clients: List[int] = partition["separation"]["train"]
-        self.test_clients: List[int] = partition["separation"]["test"]
-        self.val_clients: List[int] = partition["separation"]["val"]
+        self.train_clients: list[int] = partition["separation"]["train"]
+        self.test_clients: list[int] = partition["separation"]["test"]
+        self.val_clients: list[int] = partition["separation"]["val"]
         self.client_num: int = partition["separation"]["total"]
 
         # init model(s) parameters
@@ -68,36 +84,45 @@ class FedAvgServer:
         # Finally transfer the model object to the target device.
         self.model: DecoupledModel = MODELS[self.args.common.model](
             dataset=self.args.common.dataset
-        ).to(self.device)
+        )
         self.model.check_avaliability()
 
-        # client_trainable_params is for pFL, which outputs exclusive model per client
-        # global_params_dict is for traditional FL, which outputs a single global model
-        self.client_trainable_params: List[List[torch.Tensor]] = None
-        self.global_params_dict: OrderedDict[str, torch.Tensor] = None
+        self.global_model_params: OrderedDict[str, torch.Tensor] = None
 
-        random_init_params, self.trainable_params_name = trainable_params(
+        _init_global_params, self.trainable_params_name = trainable_params(
             self.model, detach=True, requires_name=True
         )
-        self.global_params_dict = OrderedDict(
-            zip(self.trainable_params_name, random_init_params)
+        _init_personal_params = OrderedDict(self.model.named_buffers())
+        self.global_model_params = OrderedDict(
+            zip(self.trainable_params_name, _init_global_params)
         )
+        self.clients_personal_model_params = {
+            client_id: OrderedDict(
+                (key, param.cpu().clone())
+                for key, param in _init_personal_params.items()
+            )
+            for client_id in range(self.client_num)
+        }
+
+        self.clients_optimizer_state = {i: {} for i in range(self.client_num)}
+        self.clients_lr_scheduler_state = {i: {} for i in range(self.client_num)}
         if (
             not self.unique_model
             and self.args.common.external_model_params_file
             and os.path.isfile(self.args.common.external_model_params_file)
         ):
             # load pretrained params
-            self.global_params_dict = torch.load(
+            self.global_model_params = torch.load(
                 self.args.common.external_model_params_file, map_location=self.device
             )
-        else:
-            self.client_trainable_params = [
-                trainable_params(self.model, detach=True) for _ in self.train_clients
-            ]
+        elif self.unique_model:
+            self.clients_personal_model_params = {
+                client_id: deepcopy(self.model.state_dict())
+                for client_id in self.train_clients
+            }
 
         # system heterogeneity (straggler) setting
-        self.clients_local_epoch: List[int] = [
+        self.clients_local_epoch: list[int] = [
             self.args.common.local_epoch
         ] * self.client_num
         if (
@@ -127,14 +152,9 @@ class FedAvgServer:
             )
             for _ in range(self.args.common.global_epoch)
         ]
-        self.selected_clients: List[int] = []
+        self.selected_clients: list[int] = []
         self.current_epoch = 0
-        # epoch that need test model on test clients.
-        self.epoch_test = [
-            epoch
-            for epoch in range(0, self.args.common.global_epoch)
-            if (epoch + 1) % self.args.common.test_interval == 0
-        ]
+
         # For controlling behaviors of some specific methods while testing (not used by all methods)
         self.testing = False
 
@@ -158,11 +178,13 @@ class FedAvgServer:
                     + f"_{self.args.common.global_epoch}"
                     + f"_{self.args.common.local_epoch}"
                 )
-        self.client_metrics = {i: {} for i in self.train_clients}
+        self.clients_metrics = {i: {} for i in self.train_clients}
         self.global_metrics = {
             "before": {"train": [], "val": [], "test": []},
             "after": {"train": [], "val": [], "test": []},
         }
+
+        self.verbose = False
         stdout = Console(log_path=False, log_time=False)
         self.logger = Logger(
             stdout=stdout,
@@ -172,7 +194,7 @@ class FedAvgServer:
             / self.output_dir
             / f"{self.args.common.dataset}_log.html",
         )
-        self.test_results: Dict[int, Dict[str, Dict[str, Metrics]]] = {}
+        self.test_results: dict[int, dict[str, dict[str, Metrics]]] = {}
         self.train_progress_bar = track(
             range(self.args.common.global_epoch),
             "[bold green]Training...",
@@ -180,23 +202,175 @@ class FedAvgServer:
         )
 
         # init trainer
-        self.trainer = None
-        if default_trainer:
-            self.trainer = FedAvgClient(
-                deepcopy(self.model), self.args, self.logger, self.device
-            )
-
+        self.trainer: FLbenchTrainer
+        if use_fedavg_client_cls:
+            self.init_trainer()
         self.logger.log("=" * 20, self.algo, "=" * 20)
         self.logger.log("Experiment Arguments:")
         self.logger.log(JSON(str(self.args)))
 
+    def init_trainer(self, fl_client_cls=FedAvgClient, **extras):
+        """Initiate the FL-bench trainier that responsible to client training.
+        `extras` are the arguments of `fl_client_cls.__init__()` that not in `[model, args, optimizer_cls, lr_scheduler_cls, dataset, data_indices, device, return_diff]`, which are essential for all methods in FL-bench.
+
+        Args:
+            `fl_client_cls`: The class of client in FL method. Defaults to `FedAvgClient`.
+        """
+        if self.args.mode == "serial" or self.args.parallel.num_workers < 2:
+            self.trainer = FLbenchTrainer(
+                server=self,
+                client_cls=fl_client_cls,
+                mode="serial",
+                num_workers=0,
+                init_args=dict(
+                    model=deepcopy(self.model),
+                    optimizer_cls=self.get_client_optimizer(),
+                    lr_scheduler_cls=self.get_client_lr_scheduler(),
+                    args=self.args,
+                    dataset=self.get_client_dataset(),
+                    data_indices=self.data_indices,
+                    device=self.device,
+                    return_diff=self.return_diff,
+                    **extras,
+                ),
+            )
+        else:
+            model_ref = ray.put(self.model.cpu())
+            optimzier_cls_ref = ray.put(self.get_client_optimizer())
+            lr_scheduler_cls_ref = ray.put(self.get_client_lr_scheduler())
+            dataset_ref = ray.put(self.get_client_dataset())
+            data_indices_ref = ray.put(self.data_indices)
+            args_ref = ray.put(self.args)
+            device_ref = ray.put(None)
+            return_diff_ref = ray.put(self.return_diff)
+            self.trainer = FLbenchTrainer(
+                server=self,
+                client_cls=fl_client_cls,
+                mode="parallel",
+                num_workers=int(self.args.parallel.num_workers),
+                init_args=dict(
+                    model=model_ref,
+                    optimizer_cls=optimzier_cls_ref,
+                    lr_scheduler_cls=lr_scheduler_cls_ref,
+                    args=args_ref,
+                    dataset=dataset_ref,
+                    data_indices=data_indices_ref,
+                    device=device_ref,
+                    return_diff=return_diff_ref,
+                    **{key: ray.put(value) for key, value in extras.items()},
+                ),
+            )
+
+    def get_client_dataset(self) -> BaseDataset:
+        """Load FL dataset and partitioned data indices of clients.
+
+        Raises:
+            FileNotFoundError: When the target dataset has not beed processed.
+
+        Returns:
+            FL dataset.
+        """
+        try:
+            partition_path = (
+                FLBENCH_ROOT / "data" / self.args.common.dataset / "partition.pkl"
+            )
+            with open(partition_path, "rb") as f:
+                partition = pickle.load(f)
+        except:
+            raise FileNotFoundError(
+                f"Please partition {self.args.common.dataset} first."
+            )
+
+        # [0: {"train": [...], "val": [...], "test": [...]}, ...]
+        self.data_indices: list[dict[str, list[int]]] = partition["data_indices"]
+
+        # --------- you can define your custom data preprocessing strategy here ------------
+        test_data_transform = transforms.Compose(
+            [
+                transforms.Normalize(
+                    DATA_MEAN[self.args.common.dataset],
+                    DATA_STD[self.args.common.dataset],
+                )
+            ]
+            if self.args.common.dataset in DATA_MEAN
+            and self.args.common.dataset in DATA_STD
+            else []
+        )
+        test_target_transform = transforms.Compose([])
+        train_data_transform = transforms.Compose(
+            [
+                transforms.Normalize(
+                    DATA_MEAN[self.args.common.dataset],
+                    DATA_STD[self.args.common.dataset],
+                )
+            ]
+            if self.args.common.dataset in DATA_MEAN
+            and self.args.common.dataset in DATA_STD
+            else []
+        )
+        train_target_transform = transforms.Compose([])
+        # --------------------------------------------------------------------------------
+        dataset: BaseDataset = DATASETS[self.args.common.dataset](
+            root=FLBENCH_ROOT / "data" / self.args.common.dataset,
+            args=self.args.dataset,
+            test_data_transform=test_data_transform,
+            test_target_transform=test_target_transform,
+            train_data_transform=train_data_transform,
+            train_target_transform=train_target_transform,
+        )
+
+        return dataset
+
+    def get_client_optimizer(self):
+        """Get client-side model training optimizer.
+
+        Returns:
+            A partial initiated optimizer class that client only need to add `params` arg.
+        """
+        target_optimizer_cls: type[torch.optim.Optimizer] = OPTIMIZERS[
+            self.args.common.optimizer.name
+        ]
+        _required_args = inspect.getfullargspec(target_optimizer_cls.__init__).args
+        _opt_kwargs = {}
+        for key, value in vars(self.args.common.optimizer).items():
+            if key in _required_args:
+                _opt_kwargs[key] = value
+
+        optimizer = functools.partial(target_optimizer_cls, **_opt_kwargs)
+        _opt_kwargs["name"] = self.args.common.optimizer.name
+        self.args.common.optimizer = NestedNamespace(_opt_kwargs)
+        return optimizer
+
+    def get_client_lr_scheduler(self):
+        try:
+            lr_scheduler_args = getattr(self.args.common, "lr_scheduler")
+            if lr_scheduler_args.name is not None:
+                target_scheduler_cls: type[torch.optim.lr_scheduler.LRScheduler] = (
+                    LR_SCHEDULERS[lr_scheduler_args.name]
+                )
+                _required_args = inspect.getfullargspec(
+                    target_scheduler_cls.__init__
+                ).args
+
+                _opt_kwargs = {}
+                for key, value in vars(self.args.common.lr_scheduler).items():
+                    if key in _required_args:
+                        _opt_kwargs[key] = value
+
+                lr_scheduler = functools.partial(target_scheduler_cls, **_opt_kwargs)
+                _opt_kwargs["name"] = self.args.common.lr_scheduler.name
+                self.args.common.lr_scheduler = NestedNamespace(_opt_kwargs)
+                return lr_scheduler
+        except:
+            return None
+
     def train(self):
-        """The Generic FL training process"""
         avg_round_time = 0
         for E in self.train_progress_bar:
             self.current_epoch = E
+            self.verbose = (self.current_epoch + 1) % self.args.common.verbose_gap == 0
 
-            if (E + 1) % self.args.common.verbose_gap == 0:
+            if self.verbose:
                 self.logger.log("-" * 26, f"TRAINING EPOCH: {E + 1}", "-" * 26)
 
             if (E + 1) % self.args.common.test_interval == 0:
@@ -212,124 +386,74 @@ class FedAvgServer:
             )
 
         self.logger.log(
-            f"{self.algo}'s average time taken by each global epoch: {int(avg_round_time // 60)} m {(avg_round_time % 60):.2f} s."
+            f"{self.algo}'s average time taken by each global epoch: {int(avg_round_time // 60)} min {(avg_round_time % 60):.2f} sec."
         )
 
     def train_one_round(self):
         """The function of indicating specific things FL method need to do (at server side) in each communication round."""
-        delta_cache = []
-        weight_cache = []
-        for client_id in self.selected_clients:
-            client_local_params = self.generate_client_params(client_id)
-            (delta, weight, self.client_metrics[client_id][self.current_epoch]) = (
-                self.trainer.train(
-                    client_id=client_id,
-                    local_epoch=self.clients_local_epoch[client_id],
-                    new_parameters=client_local_params,
-                    verbose=((self.current_epoch + 1) % self.args.common.verbose_gap)
-                    == 0,
-                )
-            )
 
-            delta_cache.append(delta)
-            weight_cache.append(weight)
+        clients_package = self.trainer.train()
+        self.aggregate(clients_package)
 
-        self.aggregate(delta_cache, weight_cache)
+    def package(self, client_id: int):
+        """Package parameters that the client-side training needs.
+        If you are implementing your own FL method and your method has different parameters to FedAvg's
+        that passes from server-side to client-side, this method need to be overrided.
+        All this method should do is returning a dict that contains all parameters.
+
+        Args:
+            client_id: The client ID.
+
+        Returns:
+            A dict of parameters: {
+                `client_id`: The client ID.
+                `local_epoch`: The num of epoches that client local training performs.
+                `client_model_params`: The client model parameter dict.
+                `optimizer_state`: The client model optimizer's state dict.
+                `lr_scheduler_state`: The client learning scheduler's state dict.
+                `return_diff`: Flag that indicates whether client should send parameters difference.
+                    `False`: Client sends vanilla model parameters;
+                    `True`: Client sends `diff = global - local`.
+            }.
+        """
+
+        # About the keys, please refer to your client-side class(e.g., FedAvgClient)'s train()
+        return dict(
+            client_id=client_id,
+            local_epoch=self.clients_local_epoch[client_id],
+            **self.get_client_model_params(client_id),
+            optimizer_state=self.clients_optimizer_state[client_id],
+            lr_scheduler_state=self.clients_lr_scheduler_state[client_id],
+            return_diff=self.return_diff,
+        )
 
     def test(self):
         """The function for testing FL method's output (a single global model or personalized client models)."""
         self.testing = True
-        client_ids = set(self.val_clients + self.test_clients)
-        all_same = False
-        if client_ids:
+        clients = list(set(self.val_clients + self.test_clients))
+        template = {
+            "before": {"train": Metrics(), "val": Metrics(), "test": Metrics()},
+            "after": {"train": Metrics(), "val": Metrics(), "test": Metrics()},
+        }
+        if len(clients) > 0:
             if self.val_clients == self.train_clients == self.test_clients:
-                all_same = True
-                results = {
-                    "all_clients": {
-                        "before": {
-                            "train": Metrics(),
-                            "val": Metrics(),
-                            "test": Metrics(),
-                        },
-                        "after": {
-                            "train": Metrics(),
-                            "val": Metrics(),
-                            "test": Metrics(),
-                        },
-                    }
-                }
+                results = {"all_clients": template}
+                self.trainer.test(clients, results["all_clients"])
             else:
                 results = {
-                    "val_clients": {
-                        "before": {
-                            "train": Metrics(),
-                            "val": Metrics(),
-                            "test": Metrics(),
-                        },
-                        "after": {
-                            "train": Metrics(),
-                            "val": Metrics(),
-                            "test": Metrics(),
-                        },
-                    },
-                    "test_clients": {
-                        "before": {
-                            "train": Metrics(),
-                            "val": Metrics(),
-                            "test": Metrics(),
-                        },
-                        "after": {
-                            "train": Metrics(),
-                            "val": Metrics(),
-                            "test": Metrics(),
-                        },
-                    },
+                    "val_clients": deepcopy(template),
+                    "test_clients": deepcopy(template),
                 }
-            for cid in client_ids:
-                client_local_params = self.generate_client_params(cid)
-                client_metrics = self.trainer.test(cid, client_local_params)
-
-                for stage in ["before", "after"]:
-                    for split in ["train", "val", "test"]:
-                        if all_same:
-                            results["all_clients"][stage][split].update(
-                                client_metrics[stage][split]
-                            )
-                        else:
-                            if cid in self.val_clients:
-                                results["val_clients"][stage][split].update(
-                                    client_metrics[stage][split]
-                                )
-                            if cid in self.test_clients:
-                                results["test_clients"][stage][split].update(
-                                    client_metrics[stage][split]
-                                )
+                if len(self.val_clients) > 0:
+                    self.trainer.test(self.val_clients, results["val_clients"])
+                if len(self.test_clients) > 0:
+                    self.trainer.test(self.test_clients, results["test_clients"])
 
             self.test_results[self.current_epoch + 1] = results
 
         self.testing = False
 
-    @torch.no_grad()
-    def update_client_params(self, client_params_cache: List[List[torch.Tensor]]):
-        """
-        The function for updating clients model while unique_model is `True`.
-        This function is only useful for some pFL methods.
-
-        Args:
-            client_params_cache (List[List[torch.Tensor]]): models parameters of selected clients.
-
-        Raises:
-            RuntimeError: If unique_model = `False`, this function will not work properly.
-        """
-        if self.unique_model:
-            for i, client_id in enumerate(self.selected_clients):
-                self.client_trainable_params[client_id] = client_params_cache[i]
-        else:
-            raise RuntimeError(
-                "FL system don't preserve params for each client (unique_model = False)."
-            )
-
-    def generate_client_params(self, client_id: int) -> OrderedDict[str, torch.Tensor]:
+    def get_client_model_params(self, client_id: int) -> OrderedDict[str, torch.Tensor]:
         """
         This function is for outputting model parameters that asked by `client_id`.
 
@@ -339,52 +463,44 @@ class FedAvgServer:
         Returns:
             OrderedDict[str, torch.Tensor]: The trainable model parameters.
         """
-        if self.unique_model:
-            return OrderedDict(
-                zip(self.trainable_params_name, self.client_trainable_params[client_id])
-            )
-        else:
-            return self.global_params_dict
+        regular_params = deepcopy(self.global_model_params)
+        personal_params = self.clients_personal_model_params[client_id]
+        return dict(
+            regular_model_params=regular_params, personal_model_params=personal_params
+        )
 
     @torch.no_grad()
-    def aggregate(
-        self,
-        delta_cache: List[OrderedDict[str, torch.Tensor]],
-        weight_cache: List[int],
-        return_diff=True,
-    ):
-        """
-        This function is for aggregating recevied model parameters from selected clients.
-        The method of aggregation is weighted averaging by default.
-
-        Args:
-            delta_cache (List[List[torch.Tensor]]): `delta` means the difference between client model parameters that before and after local training.
-
-            weight_cache (List[int]): Weight for each `delta` (client dataset size by default).
-
-            return_diff (bool): Differnt value brings different operations. Default to True.
-        """
-        weights = torch.tensor(weight_cache, device=self.device) / sum(weight_cache)
-        if return_diff:
-            delta_list = [list(delta.values()) for delta in delta_cache]
-            aggregated_delta = [
+    def aggregate(self, clients_package: OrderedDict[int, dict[str, Any]]):
+        clients_weight = [package["weight"] for package in clients_package.values()]
+        weights = torch.tensor(clients_weight) / sum(clients_weight)
+        if self.return_diff:  # inputs are model params diff
+            params_diff_list = [
+                list(package["model_params_diff"].values())
+                for package in clients_package.values()
+            ]
+            aggregated_params_diff = [
                 torch.sum(weights * torch.stack(diff, dim=-1), dim=-1)
-                for diff in zip(*delta_list)
+                for diff in zip(*params_diff_list)
             ]
 
-            for param, diff in zip(self.global_params_dict.values(), aggregated_delta):
+            for param, diff in zip(
+                self.global_model_params.values(), aggregated_params_diff
+            ):
                 param.data -= diff
         else:
+            params_list = [
+                list(package["regular_model_params"].values())
+                for package in clients_package.values()
+            ]
             for old_param, zipped_new_param in zip(
-                self.global_params_dict.values(), zip(*delta_cache)
+                self.global_model_params.values(), zip(*params_list)
             ):
-                old_param.data = (torch.stack(zipped_new_param, dim=-1) * weights).sum(
-                    dim=-1
+                old_param.data = torch.sum(
+                    torch.stack(zipped_new_param, dim=-1) * weights, dim=-1
                 )
-        self.model.load_state_dict(self.global_params_dict, strict=False)
 
     def show_convergence(self):
-        """This function is for checking model convergence through the entire FL training process."""
+        """Collect the number of epoches that FL method reach specific accuracies while training."""
         colors = {
             "before": "blue",
             "after": "red",
@@ -416,7 +532,7 @@ class FedAvgServer:
                         acc_range = acc_range[:min_acc_idx]
 
     def log_info(self):
-        """This function is for logging each selected client's training info."""
+        """Accumulate client evaluation results at each round."""
         for stage in ["before", "after"]:
             for split, flag in [
                 ("train", self.args.common.eval_train),
@@ -427,7 +543,7 @@ class FedAvgServer:
                     global_metrics = Metrics()
                     for i in self.selected_clients:
                         global_metrics.update(
-                            self.client_metrics[i][self.current_epoch][stage][split]
+                            self.clients_metrics[i][self.current_epoch][stage][split]
                         )
 
                     self.global_metrics[stage][split].append(global_metrics)
@@ -446,7 +562,8 @@ class FedAvgServer:
                             ),
                         )
 
-    def log_max_metrics(self):
+    def show_max_metrics(self):
+        """Show the maximum stats that FL method get."""
         self.logger.log("=" * 20, self.algo, "Max Accuracy", "=" * 20)
 
         colors = {
@@ -489,10 +606,10 @@ class FedAvgServer:
                             )
 
     def run(self):
-        """The comprehensive FL process.
+        """The entrypoint of FL-bench experiment.
 
         Raises:
-            RuntimeError: If `trainer` is not set.
+            RuntimeError: When FL-bench trainer is not set properly.
         """
         begin = time.time()
         if self.trainer is None:
@@ -536,7 +653,7 @@ class FedAvgServer:
 
         if self.args.common.check_convergence:
             self.show_convergence()
-        self.log_max_metrics()
+        self.show_max_metrics()
         self.logger.close()
 
         if self.args.common.save_fig:
@@ -609,4 +726,4 @@ class FedAvgServer:
             if self.unique_model:
                 torch.save(self.client_trainable_params, self.output_dir / model_name)
             else:
-                torch.save(self.global_params_dict, self.output_dir / model_name)
+                torch.save(self.global_model_params, self.output_dir / model_name)

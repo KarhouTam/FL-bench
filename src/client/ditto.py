@@ -1,45 +1,32 @@
 from copy import deepcopy
-from typing import OrderedDict
+from collections import OrderedDict
+from typing import Any
 
-import torch
-
-from fedavg import FedAvgClient
-from src.utils.tools import Logger, NestedNamespace, trainable_params
-from src.utils.models import DecoupledModel
+from src.client.fedavg import FedAvgClient
+from src.utils.tools import trainable_params
 
 
 class DittoClient(FedAvgClient):
-    def __init__(
-        self,
-        model: DecoupledModel,
-        args: NestedNamespace,
-        logger: Logger,
-        device: torch.device,
-        client_num: int,
-    ):
-        super().__init__(model, args, logger, device)
-        self.pers_model = deepcopy(model)
-        self.pers_model_params_dict = {
-            cid: deepcopy(self.pers_model.state_dict()) for cid in range(client_num)
-        }
-        self.optimizer.add_param_group(
-            {
-                "params": trainable_params(self.pers_model),
-                "lr": self.args.common.optimizer.lr,
-            }
-        )
-        self.init_opt_state_dict = deepcopy(self.optimizer.state_dict())
+    def __init__(self, **commons):
+        super().__init__(**commons)
+        self.pers_model = deepcopy(self.model).to(self.device)
+        self.optimizer.add_param_group({"params": trainable_params(self.pers_model)})
 
-    def set_parameters(self, new_parameters: OrderedDict[str, torch.Tensor]):
-        super().set_parameters(new_parameters)
-        self.global_params = new_parameters
-        self.pers_model.load_state_dict(self.pers_model_params_dict[self.client_id])
-
-    def save_state(self):
-        super().save_state()
-        self.pers_model_params_dict[self.client_id] = deepcopy(
-            self.pers_model.state_dict()
+    def set_parameters(self, package: dict[str, Any]):
+        super().set_parameters(package)
+        self.global_params = OrderedDict(
+            (key, param.to(self.device))
+            for key, param in package["regular_model_params"].items()
         )
+        self.pers_model.load_state_dict(package["personalized_model_params"])
+
+    def package(self):
+        client_package = super().package()
+        client_package["personalized_model_params"] = OrderedDict(
+            (key, param.detach().cpu().clone())
+            for key, param in self.pers_model.state_dict().items()
+        )
+        return client_package
 
     def fit(self):
         self.model.train()
@@ -56,6 +43,9 @@ class DittoClient(FedAvgClient):
                 loss.backward()
                 self.optimizer.step()
 
+            if self.lr_scheduler is not None:
+                self.lr_scheduler.step()
+
         for _ in range(self.args.ditto.pers_epoch):
             for x, y in self.trainloader:
                 x, y = x.to(self.device), y.to(self.device)
@@ -64,8 +54,7 @@ class DittoClient(FedAvgClient):
                 self.optimizer.zero_grad()
                 loss.backward()
                 for pers_param, global_param in zip(
-                    trainable_params(self.pers_model),
-                    trainable_params(self.global_params),
+                    trainable_params(self.pers_model), self.global_params.values()
                 ):
                     pers_param.grad.data += self.args.ditto.lamda * (
                         pers_param.data - global_param.data

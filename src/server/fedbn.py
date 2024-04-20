@@ -1,6 +1,4 @@
-from copy import deepcopy
-
-from fedavg import FedAvgServer
+from src.server.fedavg import FedAvgServer
 from src.client.fedbn import FedBNClient
 from src.utils.tools import NestedNamespace
 
@@ -11,9 +9,8 @@ class FedBNServer(FedAvgServer):
         args: NestedNamespace,
         algo: str = "FedBN",
         unique_model=False,
-        default_trainer=False,
+        use_fedavg_client_cls=False,
+        return_diff=False,
     ):
-        super().__init__(args, algo, unique_model, default_trainer)
-        self.trainer = FedBNClient(
-            deepcopy(self.model), self.args, self.logger, self.device
-        )
+        super().__init__(args, algo, unique_model, use_fedavg_client_cls, return_diff)
+        self.init_trainer(FedBNClient)

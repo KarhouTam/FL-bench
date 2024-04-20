@@ -1,19 +1,10 @@
-import torch
-
-from fedavg import FedAvgClient
-from src.utils.tools import Logger, trainable_params, NestedNamespace
-from src.utils.models import DecoupledModel
+from src.client.fedavg import FedAvgClient
+from src.utils.tools import trainable_params
 
 
 class FedProxClient(FedAvgClient):
-    def __init__(
-        self,
-        model: DecoupledModel,
-        args: NestedNamespace,
-        logger: Logger,
-        device: torch.device,
-    ):
-        super(FedProxClient, self).__init__(model, args, logger, device)
+    def __init__(self, **commons):
+        super(FedProxClient, self).__init__(**commons)
 
     def fit(self):
         self.model.train()

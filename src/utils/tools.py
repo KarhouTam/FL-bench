@@ -1,10 +1,9 @@
 import json
 import os
 import random
-import yaml
 from argparse import Namespace
 from collections import Counter, OrderedDict
-from typing import Callable, Dict, List, Sequence, Tuple, Union
+from typing import Callable, Sequence, Union
 from pathlib import Path
 
 import torch
@@ -15,7 +14,7 @@ from rich.console import Console
 
 from data.utils.datasets import BaseDataset
 from src.utils.metrics import Metrics
-from src.utils.constants import DEFAULT_COMMON_ARGS
+from src.utils.constants import DEFAULT_COMMON_ARGS, DEFAULT_PARALLEL_ARGS
 
 
 def fix_random_seed(seed: int) -> None:
@@ -44,8 +43,6 @@ def get_optimal_cuda_device(use_cuda: bool) -> torch.device:
     Returns:
         torch.device: The selected CUDA device.
     """
-    # This function is modified by the `get_best_gpu()` in https://github.com/SMILELab-FL/FedLab/blob/master/fedlab/utils/functional.py
-    # Shout out to FedLab, which is an incredible FL framework!
     if not torch.cuda.is_available() or not use_cuda:
         return torch.device("cpu")
     pynvml.nvmlInit()
@@ -69,7 +66,7 @@ def trainable_params(
     src: Union[OrderedDict[str, torch.Tensor], torch.nn.Module],
     detach=False,
     requires_name=False,
-) -> Union[List[torch.Tensor], Tuple[List[torch.Tensor], List[str]]]:
+) -> Union[list[torch.Tensor], tuple[list[torch.Tensor], list[str]]]:
     """Collect all parameters in `src` that `.requires_grad = True` into a list and return it.
 
     Args:
@@ -101,22 +98,25 @@ def trainable_params(
 
 
 def vectorize(
-    src: Union[OrderedDict[str, torch.Tensor], List[torch.Tensor]], detach=True
+    src: OrderedDict[str, torch.Tensor] | list[torch.Tensor] | torch.nn.Module,
+    detach=True,
 ) -> torch.Tensor:
-    """Vectorize and concatenate all tensors in `src`.
+    """Vectorize(Flatten) and concatenate all tensors in `src`.
 
     Args:
-        src (Union[OrderedDict[str, torch.Tensor]List[torch.Tensor]]): The source of tensors.
-        detach (bool, optional): Set to `True`, return the `.detach().clone()`. Defaults to True.
+        `src`: The source of tensors.
+        `detach`: Set as `True` to return `tensor.detach().clone()`. Defaults to `True`.
 
     Returns:
-        torch.Tensor: The vectorized tensor.
+        The vectorized tensor.
     """
     func = (lambda x: x.detach().clone()) if detach else (lambda x: x)
     if isinstance(src, list):
         return torch.cat([func(param).flatten() for param in src])
-    elif isinstance(src, OrderedDict):
+    elif isinstance(src, OrderedDict) or isinstance(src, dict):
         return torch.cat([func(param).flatten() for param in src.values()])
+    elif isinstance(src, torch.nn.Module):
+        return torch.cat([func(param).flatten() for param in src.state_dict().values()])
 
 
 @torch.no_grad()
@@ -138,6 +138,7 @@ def evalutate_model(
         Metrics: The metrics objective.
     """
     model.eval()
+    model.to(device)
     metrics = Metrics()
     for x, y in dataloader:
         x, y = x.to(device), y.to(device)
@@ -149,17 +150,17 @@ def evalutate_model(
 
 
 def count_labels(
-    dataset: BaseDataset, indices: List[int] = None, min_value=0
-) -> List[int]:
+    dataset: BaseDataset, indices: list[int] = None, min_value=0
+) -> list[int]:
     """For counting number of labels in `dataset.targets`.
 
     Args:
         dataset (BaseDataset): Target dataset.
-        indices (List[int]): the subset indices. Defaults to all indices of `dataset` if not specified.
+        indices (list[int]): the subset indices. Defaults to all indices of `dataset` if not specified.
         min_value (int, optional): The minimum value for each label. Defaults to 0.
 
     Returns:
-        List[int]: The number of each label.
+        list[int]: The number of each label.
     """
     if indices is None:
         indices = list(range(len(dataset.targets)))
@@ -168,36 +169,27 @@ def count_labels(
 
 
 def parse_args(
-    config_file_path: str,
+    config_file_args: dict | None,
     method_name: str,
-    get_method_args_func: Union[
-        Callable[[Union[Sequence[str], None]], Namespace], None
-    ],
-    method_args_list: List[str],
+    get_method_args_func: Callable[[Sequence[str] | None], Namespace] | None,
+    method_args_list: list[str],
 ) -> Namespace:
-    """Merging default argument namespace with argument dict from custom config file.
+    """Purge arguments from default args dict, config file and CLI and produce the final arguments.
 
     Args:
-        default_args (Namespace): Default args set by CLI.
+        config_file_args (Union[dict, None]): Argument dictionary loaded from user-defined `.yml` file. `None` for unspecifying.
+        method_name (str): The FL method's name.
+        get_method_args_func (Union[ Callable[[Union[Sequence[str], None]], Namespace], None ]): The callable function of parsing FL method `method_name`'s spec arguments.
+        method_args_list (list[str]): FL method `method_name`'s specified arguments set on CLI.
 
     Returns:
-        Namespace: The merged arg namespace.
+        NestedNamespace: The final argument namespace.
     """
-    final_args = NestedNamespace({"common": DEFAULT_COMMON_ARGS})
-    config_file_args = {}
-    if config_file_path is not None:
-        try:
-            with open(Path(config_file_path).absolute()) as f:
-                config_file_args = yaml.safe_load(f)
-            final_args = NestedNamespace(config_file_args)
-
-            common_args = DEFAULT_COMMON_ARGS
-            common_args.update(config_file_args["common"])
-            final_args.__setattr__("common", NestedNamespace(common_args))
-        except:
-            Warning(
-                f"Unrecongnized config file path: {Path(config_file_path).absolute()}. All common arguments are rolled back to their defaults."
-            )
+    ARGS = dict(mode="serial", common=DEFAULT_COMMON_ARGS)
+    if config_file_args is not None:
+        ARGS["common"].update(config_file_args["common"])
+        if "mode" in config_file_args.keys():
+            ARGS["mode"] = config_file_args["mode"]
 
     if get_method_args_func is not None:
         default_method_args = get_method_args_func([]).__dict__
@@ -217,9 +209,25 @@ def parse_args(
             elif key in config_file_method_args.keys():
                 method_args[key] = config_file_method_args[key]
 
-        final_args.__setattr__(method_name, NestedNamespace(method_args))
+        ARGS[method_name] = method_args
 
-    return final_args
+    assert ARGS["mode"] in ["serial", "parallel"], f"Unrecongnized mode: {ARGS['mode']}"
+    if ARGS["mode"] == "parallel":
+        parallel_args = DEFAULT_PARALLEL_ARGS
+        if "parallel" in ARGS.keys():
+            parallel_args.update(ARGS["parallel"])
+
+        if parallel_args["num_workers"] < 2:
+            print(
+                f"num_workers is less than 2: {parallel_args['num_workers']} and mode is fallback to serial."
+            )
+            ARGS["mode"] = "serial"
+            del ARGS["parallel"]
+
+        parallel_args["num_workers"] = int(parallel_args["num_workers"])
+        ARGS["parallel"] = parallel_args
+
+    return NestedNamespace(ARGS)
 
 
 class Logger:
@@ -253,7 +261,7 @@ class Logger:
 
 
 class NestedNamespace(Namespace):
-    def __init__(self, args_dict: Dict):
+    def __init__(self, args_dict: dict):
         super().__init__(
             **{
                 key: self._nested_namespace(value) if isinstance(value, dict) else value

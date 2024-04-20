@@ -17,7 +17,7 @@ from torch.utils.data import Dataset
 
 class BaseDataset(Dataset):
     def __init__(self) -> None:
-        self.classes: List = None
+        self.classes: list = None
         self.data: torch.Tensor = None
         self.targets: torch.Tensor = None
         self.train_data_transform = None

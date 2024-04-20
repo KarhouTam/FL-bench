@@ -1,18 +1,22 @@
-from typing import Tuple
+from typing import Any
 
 import torch
 import torch.nn.functional as F
 import torch.autograd as autograd
 
-from fedavg import FedAvgClient
-from src.utils.models import DecoupledModel
-from src.utils.tools import Logger, NestedNamespace
+from src.client.fedavg import FedAvgClient
 
 
 class FedIIRClient(FedAvgClient):
-    def __init__(self, model: DecoupledModel, args: NestedNamespace, logger: Logger, device: torch.device):
-        super(FedIIRClient, self).__init__(model, args, logger, device)
-        self.grad_mean: Tuple[torch.Tensor] = None
+    def __init__(self, **commons):
+        super(FedIIRClient, self).__init__(**commons)
+        self.grad_mean: tuple[torch.Tensor] = None
+
+    def set_parameters(self, package: dict[str, Any]):
+        super().set_parameters(package)
+        self.grad_mean = package["grad_mean"]
+        if self.grad_mean is not None:
+            self.grad_mean = tuple(grad.to(self.device) for grad in self.grad_mean)
 
     def fit(self):
         self.model.train()
@@ -42,10 +46,11 @@ class FedIIRClient(FedAvgClient):
                 loss.backward()
                 self.optimizer.step()
 
-    def grad(self, client_id, new_parameters):
-        self.client_id = client_id
-        self.load_dataset()
-        self.set_parameters(new_parameters)
+            if self.lr_scheduler is not None:
+                self.lr_scheduler.step()
+
+    def grad(self, server_package: dict[str, Any]):
+        self.set_parameters(server_package)
         grad_sum = tuple(
             torch.zeros_like(p).to(self.device)
             for p in list(self.model.classifier.parameters())
@@ -67,4 +72,7 @@ class FedIIRClient(FedAvgClient):
             )
             grad_sum = tuple(g1 + g2 for g1, g2 in zip(grad_sum, grad_batch))
             total_batch += 1
-        return grad_sum, total_batch
+        return dict(
+            grad_sum=tuple(grad.detach().cpu().clone() for grad in grad_sum),
+            total_batch=total_batch,
+        )

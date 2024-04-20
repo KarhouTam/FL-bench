@@ -1,20 +1,12 @@
 import torch
 import torch.nn.functional as F
 
-from fedavg import FedAvgClient
-from src.utils.models import DecoupledModel
-from src.utils.tools import Logger, NestedNamespace
+from src.client.fedavg import FedAvgClient
 
 
 class FedSRClient(FedAvgClient):
-    def __init__(
-        self,
-        model: DecoupledModel,
-        args: NestedNamespace,
-        logger: Logger,
-        device: torch.device,
-    ):
-        super(FedSRClient, self).__init__(model, args, logger, device)
+    def __init__(self, **commons):
+        super(FedSRClient, self).__init__(**commons)
 
     def fit(self):
         self.model.train()
@@ -59,3 +51,6 @@ class FedSRClient(FedAvgClient):
                 self.optimizer.zero_grad()
                 obj.backward()
                 self.optimizer.step()
+
+            if self.lr_scheduler is not None:
+                self.lr_scheduler.step()

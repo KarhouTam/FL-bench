@@ -5,7 +5,7 @@ import torch
 import torch.nn as nn
 from torch.utils.data import Dataset, DataLoader
 
-from fedavg import FedAvgServer
+from src.server.fedavg import FedAvgServer
 from src.client.adcol import ADCOLClient
 from src.utils.tools import NestedNamespace
 
@@ -69,49 +69,38 @@ class ADCOLServer(FedAvgServer):
         args: NestedNamespace,
         algo: str = "ADCOL",
         unique_model=False,
-        default_trainer=False,
+        use_fedavg_client_cls=False,
+        return_diff=True,
     ):
-        super().__init__(args, algo, unique_model, default_trainer)
+        super().__init__(args, algo, unique_model, use_fedavg_client_cls, return_diff)
         self.train_client_num = len(self.train_clients)
         self.discriminator = Discriminator(
             base_model=self.model, client_num=len(self.train_clients)
-        ).to(self.device)
-        self.trainer = ADCOLClient(
-            deepcopy(self.model),
-            deepcopy(self.discriminator),
-            self.args,
-            self.logger,
-            self.device,
-            self.client_num,
         )
-        self.feature_dataloader = None
+        self.init_trainer(
+            ADCOLClient,
+            discriminator=deepcopy(self.discriminator),
+            client_num=self.client_num,
+        )
+        self.feature_dataloader: DataLoader = None
         self.features = {}
 
     def train_one_round(self):
-        delta_cache = []
-        weight_cache = []
+        clients_package = self.trainer.train()
+
         self.features = {}
-        self.feature_dataloader: DataLoader = None
-        for client_id in self.selected_clients:
-            client_local_params = self.generate_client_params(client_id)
-            (
-                delta,
-                weight,
-                self.client_metrics[client_id][self.current_epoch],
-                self.features[client_id],
-            ) = self.trainer.train(
-                client_id=client_id,
-                local_epoch=self.clients_local_epoch[client_id],
-                new_parameters=client_local_params,
-                new_discriminator_parameters=self.discriminator.state_dict(),
-                verbose=((self.current_epoch + 1) % self.args.common.verbose_gap) == 0,
-            )
-
-            delta_cache.append(delta)
-            weight_cache.append(weight)
-
-        self.aggregate(delta_cache, weight_cache)
+        self.feature_dataloader = None
+        for cid in self.selected_clients:
+            self.features[cid] = clients_package[cid]["features_list"]
+        self.aggregate(clients_package)
         self.train_and_test_discriminator()
+
+    def package(self, client_id: int):
+        server_package = super().package(client_id)
+        server_package["new_discriminator_params"] = deepcopy(
+            self.discriminator.state_dict()
+        )
+        return server_package
 
     def train_and_test_discriminator(self):
         self.generate_client_index()
@@ -122,12 +111,15 @@ class ADCOLServer(FedAvgServer):
 
         if (self.current_epoch + 1) % self.args.common.test_interval == 0:
             acc_after = self.test_discriminator()
-            if (self.current_epoch + 1) % self.args.common.verbose_gap == 0:
+            if self.verbose:
                 self.logger.log(
                     f"The accuracy of discriminator: {acc_before*100 :.2f}% -> {acc_after*100 :.2f}%"
                 )
 
+        self.discriminator.cpu()
+
     def train_discriminator(self):
+        self.discriminator.to(self.device)
         self.discriminator.train()
         self.discriminator_optimizer = torch.optim.SGD(
             self.discriminator.parameters(), lr=self.args.adcol.dis_lr
@@ -146,8 +138,9 @@ class ADCOLServer(FedAvgServer):
 
     def test_discriminator(self):
         # test discriminator
+        self.discriminator.to(self.device)
+        self.discriminator.eval()
         if self.feature_dataloader:
-            self.discriminator.eval()
             self.accuracy_list = []
             for x, y in self.feature_dataloader:
                 x, y = x.to(self.device), y.to(self.device)

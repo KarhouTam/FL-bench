@@ -1,14 +1,6 @@
-```
-
-
-                             ______ __               __                        __  
-                            / ____// /              / /_   ___   ____   _____ / /_ 
-                           / /_   / /     ______   / __ \ / _ \ / __ \ / ___// __ \
-                          / __/  / /___  /_____/  / /_/ //  __// / / // /__ / / / /
-                         /_/    /_____/          /_____/ \___//_/ /_/ \___//_/ /_/
-
-
-```
+<p align="center">
+<img src=".github/images/logo.svg" alt="Image"/>
+</p>
 
 <p align="center">
   <a href="https://github.com/KarhouTam/FL-bench/blob/master/LICENSE">
@@ -24,7 +16,16 @@
     <img alt="GitHub Repo forks" src="https://img.shields.io/github/forks/KarhouTam/FL-bench?style=for-the-badge&logo=github&color=8386e0">
   </a>
 </p>
-<h4 align="center"><i>This is a benchmark for evaluating well-known traditional, personalized and domain generalization federated learning methods. This benchmark is straightforward and easy to extend.</i></h4>
+<h4 align="center"><i>
+Evaluating Federated Learning Methods
+
+Realizing Your Brilliant Ideas
+Having Fun with Federated Learning
+</i></h4>
+
+<h5 align="center"><i>🎉 FL-bench now can perform FL training in parallel (with the help of <a href https://github.com/ray-project/ray>ray</a>)！ 🎉</i></h5> 
+
+
 
 ## Methods 🧬
 
@@ -206,13 +207,44 @@ python main.py fedprox your_config.yml           # fedprox.mu = 0.01
 python main.py fedprox your_config.yml --mu 10   # fedprox.mu = 10
 ``` 
 
-
 ### Monitor 📈
 1. Run `python -m visdom.server` on terminal.
 2. Set `visible` as `true`.
 3. Go check `localhost:8097` on your browser.
 
-## Common Arguments 🔧
+### Using `Ray` for Parallel Training
+You need to set
+```yaml
+# your_config_file.yml
+mode: parallel
+parallel:
+  num_workers: 2 # any positive integer that larger than 1
+  ...
+...
+```
+for parallel training, which will **vastly improve the training efficiency**.
+
+
+#### Launching a `Ray` Cluster
+A `Ray` cluster would be launched implicitly by `python main.py <method> ...`.
+Or you can manually launch it by
+```yaml
+# your_config_file.yml
+mode: parallel
+parallel:
+  ray_cluster_addr: null
+  ...
+...
+```
+
+```shell
+ray start --head [OPTIONS]
+```
+and FL-bench will search existed `ray` cluster and connect to it.
+
+
+
+## Arguments 🔧
 
 All common arguments have their default value. Go check [`DEFAULT_COMMON_ARGS`](src/utils/constants.py) in `src/utils/constants.py` for full details of common arguments. 
 
@@ -237,6 +269,7 @@ About the default values of specific FL method arguments, go check corresponding
 | `eval_val`                   | `bool`  | Non-zero value for performing evaluation on joined clients' valset before and after local training.                                                                                                                                          |
 | `eval_train`                 | `bool`  | Non-zero value for performing evaluation on joined clients' trainset before and after local training.                                                                                                                                        |
 | `optimizer`                  | `dict`  | Client-side optimizer.  Argument request is the same as Optimizers in `torch.optim`.                                                                                                                                                         |
+| `lr_scheduler`                  | `dict`  | Client-side learning rate scheduler.  Argument request is the same as schedulers in `torch.optim.lr_scheduler`.                                                                                                                                                         |
 | `verbose_gap`                | `int`   | Interval round of displaying clients training performance on terminal.                                                                                                                                                                       |
 | `batch_size`                 | `int`   | Data batch size for client local training.                                                                                                                                                                                                   |
 | `use_cuda`                   | `bool`  | Non-zero value indicates that tensors are in gpu.                                                                                                                                                                                            |
@@ -250,6 +283,16 @@ About the default values of specific FL method arguments, go check corresponding
 | `save_metrics`               | `bool`  | Non-zero value for saving metrics stats into a `.csv` file at `out/<method>/<start_time>`.                                                                                                                                                   |
 | `viz_win_name`               | `str`   | Custom visdom window name (active when setting `visible` as a non-zero value).                                                                                                                                                               |
 | `check_convergence`          | `bool`  | Non-zero value for checking convergence after training.                                                                                                                                                                                      |
+
+### Arguments of Parallel Training 👯‍♂️
+
+| Arguments                 | Type  | Description                                                                                                                                                                                                                                                                              |
+| ------------------------- | ----- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `num_workers`             | `int` | The number of parallel workers. Need to be set as an integer that larger than `1`.                                                                                                                                                                                                       |
+| `ray_cluster_addr`        | `str` | The IP address of the selected ray cluster. Default as `null`, which means `ray` will build a new cluster everytime you running an experiment and destroy it at the end. More details can be found in the [official docs](https://docs.ray.io/en/latest/ray-core/api/doc/ray.init.html). |
+| `num_cpus` and `num_gpus` | `int` | The amount of computational resources you allocate. Default as `null`, which means all.                                                                                                                                                                                                  |
+
+
 
 ## Supported Models 🚀
 
@@ -305,11 +348,13 @@ Medical Image Datasets
 
 ### Implementing FL Method
 
+The `package()` at server-side class indicates what parameters server need to send to clients. Similarly, `package()` at client-side class indicates whtat parameters client need to send back to the server. You should always has `super().package()` in your override implementation.
+
 - I recommend you to inherit your method classes from [`FedAvgServer`](src/server/fedavg.py) and [`FedAvgClient`](src/client/fedavg.py) for maximum utilizing FL-bench's workflow.
 
-- For customizing your server-side process, consider to override the `train_one_round()` and `aggregate()` in [`FedAvgServer`](src/server/fedavg.py).
+- For customizing your server-side process, consider to override the `package()` and `aggregate()` in [`FedAvgServer`](src/server/fedavg.py).
 
-- For customizing your client-side training, consider to override the `fit()` or `train()` in [`FedAvgClient`](src/client/fedavg.py).
+- For customizing your client-side training, consider to override the `fit()` or `package()` in [`FedAvgClient`](src/client/fedavg.py).
 
 ### Integrating Dataset
 

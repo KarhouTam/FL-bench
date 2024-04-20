@@ -1,19 +1,9 @@
-import torch
-
-from fedper import FedPerClient
-from src.utils.models import DecoupledModel
-from src.utils.tools import Logger, NestedNamespace
+from src.client.fedper import FedPerClient
 
 
 class FedRepClient(FedPerClient):
-    def __init__(
-        self,
-        model: DecoupledModel,
-        args: NestedNamespace,
-        logger: Logger,
-        device: torch.device,
-    ):
-        super().__init__(model, args, logger, device)
+    def __init__(self, **commons):
+        super().__init__(**commons)
 
     def fit(self):
         self.model.train()
@@ -39,6 +29,9 @@ class FedRepClient(FedPerClient):
                         if name in self.personal_params_name:
                             param.grad.zero_()
                 self.optimizer.step()
+
+            if self.lr_scheduler is not None:
+                self.lr_scheduler.step()
 
     def finetune(self):
         self.model.train()

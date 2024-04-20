@@ -1,47 +1,42 @@
-from argparse import Namespace
-from collections import OrderedDict
-from typing import Dict
+from copy import deepcopy
+import random
+from typing import Any
 
 import torch
-from torch._tensor import Tensor
+from torch.utils.data import DataLoader, Subset
 
-from fedavg import FedAvgClient
-from src.utils.models import DecoupledModel
-from src.utils.tools import Logger, trainable_params
-from src.utils.models import DecoupledModel
+from src.client.fedavg import FedAvgClient
+from src.utils.tools import trainable_params
 
 
 class ElasticClient(FedAvgClient):
-    def __init__(
-        self,
-        model: DecoupledModel,
-        args: Namespace,
-        logger: Logger,
-        device: torch.device,
-    ):
-        super().__init__(model, args, logger, device)
+    def __init__(self, **commons):
+        super().__init__(**commons)
         self.layer_num = len(trainable_params(self.model))
-        self.sensitivity: Dict[int, torch.Tensor] = {}
+        self.sensitivity = torch.zeros(self.layer_num, device=self.device)
+        self.sampled_trainset = Subset(self.dataset, indices=[])
+        self.sampled_trainloader = DataLoader(
+            self.sampled_trainset, self.args.common.batch_size
+        )
 
-    def train(
-        self,
-        client_id: int,
-        local_epoch: int,
-        new_parameters: OrderedDict[str, Tensor],
-        return_diff=True,
-        verbose=False,
-    ):
-        self.client_id = client_id
-        self.local_epoch = local_epoch
-        self.load_dataset()
-        self.set_parameters(new_parameters)
+    def load_data_indices(self):
+        train_data_indices = deepcopy(self.data_indices[self.client_id]["train"])
+        random.shuffle(train_data_indices)
+        sampled_size = int(len(train_data_indices) * self.args.elastic.sample_ratio)
+        self.sampled_trainset.indices = train_data_indices[:sampled_size]
+        self.trainset.indices = train_data_indices[sampled_size:]
+        self.valset.indices = self.data_indices[self.client_id]["val"]
+        self.testset.indices = self.data_indices[self.client_id]["test"]
 
-        if self.client_id not in self.sensitivity:
-            self.sensitivity[self.client_id] = torch.zeros(
-                self.layer_num, device=self.device
-            )
+    def set_parameters(self, package: dict[str, Any]):
+        super().set_parameters(package)
+        self.sensitivity = package["sensitivity"].to(self.device)
+
+    def train(self, server_package: dict[str, Any]):
+        self.set_parameters(server_package)
+
         self.model.eval()
-        for x, y in self.trainloader:
+        for x, y in self.sampled_trainloader:
             x, y = x.to(self.device), y.to(self.device)
             logits = self.model(x)
             loss = self.criterion(logits, y)
@@ -52,20 +47,20 @@ class ElasticClient(FedAvgClient):
                 )
             ]
             for i in range(len(grads_norm)):
-                self.sensitivity[self.client_id][i] = (
-                    self.args.elastic.mu * self.sensitivity[self.client_id][i]
+                self.sensitivity[i] = (
+                    self.args.elastic.mu * self.sensitivity[i]
                     + (1 - self.args.elastic.mu) * grads_norm[i].abs()
                 )
 
-        eval_results = self.train_and_log(verbose=verbose)
+        self.train_with_eval()
+        if self.lr_scheduler is not None:
+            self.lr_scheduler.step()
 
-        delta = OrderedDict()
-        for (name, p0), p1 in zip(new_parameters.items(), trainable_params(self.model)):
-            delta[name] = p0 - p1
+        client_package = self.package()
 
-        return (
-            delta,
-            len(self.trainset),
-            eval_results,
-            self.sensitivity[self.client_id],
-        )
+        return client_package
+
+    def package(self):
+        client_package = super().package()
+        client_package["sensitivity"] = self.sensitivity.cpu().clone()
+        return client_package

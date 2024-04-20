@@ -1,15 +1,13 @@
 import os
 from argparse import ArgumentParser, Namespace
 from collections import OrderedDict
-from copy import deepcopy
 
 import torch
 import torch.distributions as distrib
 import torch.nn as nn
 import torch.nn.functional as F
 
-
-from fedavg import FedAvgServer
+from src.server.fedavg import FedAvgServer
 from src.client.fedsr import FedSRClient
 from src.utils.models import DecoupledModel
 from src.utils.constants import NUM_CLASSES
@@ -61,28 +59,34 @@ class FedSRServer(FedAvgServer):
         args: NestedNamespace,
         algo: str = "FedSR",
         unique_model=False,
-        default_trainer=False,
+        use_fedavg_client_cls=False,
+        return_diff=False,
     ):
-        if args is None:
-            args = get_fedsr_args().parse_args()
-        super().__init__(args, algo, unique_model, default_trainer)
-
+        super().__init__(args, algo, unique_model, use_fedavg_client_cls, return_diff)
         # reload the model
-        self.model = FedSRModel(self.model, self.args.common.dataset).to(self.device)
+        self.model = FedSRModel(self.model, self.args.common.dataset)
         self.model.check_avaliability()
-        init_params, self.trainable_params_name = trainable_params(
+
+        _init_global_params, self.trainable_params_name = trainable_params(
             self.model, detach=True, requires_name=True
         )
-        self.global_params_dict = OrderedDict(
-            zip(self.trainable_params_name, init_params)
+        _init_personal_params = OrderedDict(self.model.named_buffers())
+        self.global_model_params = OrderedDict(
+            zip(self.trainable_params_name, _init_global_params)
         )
+        self.clients_personal_model_params = {
+            client_id: {
+                key: param.cpu().clone() for key, param in _init_personal_params.items()
+            }
+            for client_id in range(self.client_num)
+        }
+
         if self.args.common.external_model_params_file and os.path.isfile(
             self.args.common.external_model_params_file
         ):
-            self.global_params_dict = torch.load(
+            # load pretrained params
+            self.global_model_params = torch.load(
                 self.args.common.external_model_params_file, map_location=self.device
             )
 
-        self.trainer = FedSRClient(
-            deepcopy(self.model), self.args, self.logger, self.device
-        )
+        self.init_trainer(FedSRClient)

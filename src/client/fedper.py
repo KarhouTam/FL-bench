@@ -1,21 +1,12 @@
-import torch
-
-from fedavg import FedAvgClient
-from src.utils.models import DecoupledModel
-from src.utils.tools import Logger, NestedNamespace
+from src.client.fedavg import FedAvgClient
 
 
 class FedPerClient(FedAvgClient):
-    def __init__(self, model: DecoupledModel, args: NestedNamespace, logger: Logger, device: torch.device):
-        super().__init__(model, args, logger, device)
+    def __init__(self, **commons):
+        super().__init__(**commons)
         self.personal_params_name = [
             name for name in self.model.state_dict().keys() if "classifier" in name
         ]
-        self.init_personal_params_dict = {
-            name: param.clone().detach()
-            for name, param in self.model.state_dict(keep_vars=True).items()
-            if (not param.requires_grad) or (name in self.personal_params_name)
-        }
 
     def finetune(self):
         self.model.train()
