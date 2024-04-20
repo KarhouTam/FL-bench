@@ -91,6 +91,9 @@ class FedRoDClient(FedAvgClient):
                 self.optimizer.zero_grad()
                 loss.backward()
                 self.optimizer.step()
+            
+            if self.lr_scheduler is not None:
+                self.lr_scheduler.step()
 
         if self.args.fedrod.hyper and self.first_time_selected:
             # This part has no references on the FedRoD paper

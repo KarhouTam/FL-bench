@@ -43,9 +43,6 @@ class DittoClient(FedAvgClient):
                 loss.backward()
                 self.optimizer.step()
 
-            if self.lr_scheduler is not None:
-                self.lr_scheduler.step()
-
         for _ in range(self.args.ditto.pers_epoch):
             for x, y in self.trainloader:
                 x, y = x.to(self.device), y.to(self.device)
@@ -60,6 +57,9 @@ class DittoClient(FedAvgClient):
                         pers_param.data - global_param.data
                     )
                 self.optimizer.step()
+
+            if self.lr_scheduler is not None:
+                self.lr_scheduler.step()
 
     def evaluate(self):
         return super().evaluate(self.pers_model)
