@@ -222,12 +222,12 @@ parallel:
   ...
 ...
 ```
-for parallel training, which will **vastly improve the training efficiency**.
+for parallel training, which will **vastly improve your training efficiency**.
 
 
-#### Launching a `Ray` Cluster
-A `Ray` cluster would be launched implicitly by `python main.py <method> ...`.
-Or you can manually launch it by
+#### Creating a `Ray` Cluster
+A `Ray` cluster would be created implicitly by `python main.py <method> ...`.
+Or you can manually launch it to avoid creating cluster each time by running experiment.
 ```yaml
 # your_config_file.yml
 mode: parallel
@@ -240,7 +240,7 @@ parallel:
 ```shell
 ray start --head [OPTIONS]
 ```
-and FL-bench will search existed `ray` cluster and connect to it.
+
 
 
 
@@ -348,13 +348,15 @@ Medical Image Datasets
 
 ### Implementing FL Method
 
-The `package()` at server-side class indicates what parameters server need to send to clients. Similarly, `package()` at client-side class indicates whtat parameters client need to send back to the server. You should always has `super().package()` in your override implementation.
+The `package()` at server-side class is used for assembling all parameters server need to send to clients. Similarly, `package()` at client-side class is for parameters clients need to send back to server. You should always has `super().package()` in your override implementation. 
 
-- I recommend you to inherit your method classes from [`FedAvgServer`](src/server/fedavg.py) and [`FedAvgClient`](src/client/fedavg.py) for maximum utilizing FL-bench's workflow.
+- Consider to inherit your method classes from [`FedAvgServer`](src/server/fedavg.py) and [`FedAvgClient`](src/client/fedavg.py) for maximum utilizing FL-bench's workflow.
 
-- For customizing your server-side process, consider to override the `package()` and `aggregate()` in [`FedAvgServer`](src/server/fedavg.py).
+- For customizing your server-side process, consider to override the `package()` and `aggregate()`.
 
-- For customizing your client-side training, consider to override the `fit()` or `package()` in [`FedAvgClient`](src/client/fedavg.py).
+- For customizing your client-side training, consider to override the `fit()` or `package()`.
+
+You can find all details in [`FedAvgClient`](src/client/fedavg.py) and [`FedAvgServer`](src/server/fedavg.py), which are the bases of all implementations in FL-bench.
 
 ### Integrating Dataset
 
