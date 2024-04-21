@@ -211,7 +211,9 @@ class FedAvgServer:
 
     def init_trainer(self, fl_client_cls=FedAvgClient, **extras):
         """Initiate the FL-bench trainier that responsible to client training.
-        `extras` are the arguments of `fl_client_cls.__init__()` that not in `[model, args, optimizer_cls, lr_scheduler_cls, dataset, data_indices, device, return_diff]`, which are essential for all methods in FL-bench.
+        `extras` are the arguments of `fl_client_cls.__init__()` that not in
+        `[model, args, optimizer_cls, lr_scheduler_cls, dataset, data_indices, device, return_diff]`, 
+        which are essential for all methods in FL-bench.
 
         Args:
             `fl_client_cls`: The class of client in FL method. Defaults to `FedAvgClient`.
@@ -416,8 +418,6 @@ class FedAvgServer:
                     `True`: Client sends `diff = global - local`.
             }.
         """
-
-        # About the keys, please refer to your client-side class(e.g., FedAvgClient)'s train()
         return dict(
             client_id=client_id,
             local_epoch=self.clients_local_epoch[client_id],
@@ -461,7 +461,10 @@ class FedAvgServer:
             client_id (int): The ID of query client.
 
         Returns:
-            OrderedDict[str, torch.Tensor]: The trainable model parameters.
+            {
+                `regular_model_params`: Generally model parameters that join aggregation.
+                `personal_model_params`: Client personal model parameters that won't join aggregation.
+            }
         """
         regular_params = deepcopy(self.global_model_params)
         personal_params = self.clients_personal_model_params[client_id]
@@ -471,6 +474,19 @@ class FedAvgServer:
 
     @torch.no_grad()
     def aggregate(self, clients_package: OrderedDict[int, dict[str, Any]]):
+        """Aggregate clients model parameters and produce global model parameters.
+
+        Args:
+            clients_package: Dict of client parameter packages, with format:
+            {
+                `client_id`: {
+                    `regular_model_params`: ...,
+                    `optimizer_state`: ...,
+                }
+            }
+            
+            About the content of client parameter package, check `FedAvgClient.package()`.
+        """
         clients_weight = [package["weight"] for package in clients_package.values()]
         weights = torch.tensor(clients_weight) / sum(clients_weight)
         if self.return_diff:  # inputs are model params diff

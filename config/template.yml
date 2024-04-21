@@ -1,19 +1,17 @@
 # Full explaination are listed on README.md
 
-# Options: [serial, parallel]
-mode: parallel
-# mode: serial
+mode: parallel # [serial, parallel]
 
 parallel: # It's fine to keep these configs.
-  # Options: [null, auto, local]
   # Go check doc of `https://docs.ray.io/en/latest/ray-core/api/doc/ray.init.html` for more details.
-  ray_cluster_addr: null
+  ray_cluster_addr: null # [null, auto, local]
+  
   # `null` implies that all cpus/gpus are included.
   num_cpus: null
   num_gpus: null
+
   # should be set larger than 1, or training mode fallback to `serial`
-  # Set a larger `num_workers` can boost training parallelism,
-  # also let each worker have less computational resources.
+  # Set a larger `num_workers` can further boost efficiency, also let each worker have less computational resources.
   num_workers: 2
 
 common:

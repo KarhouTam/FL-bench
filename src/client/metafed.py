@@ -10,7 +10,6 @@ from torch.utils.data import Subset, DataLoader
 from src.utils.tools import trainable_params, evalutate_model
 
 
-# FIXME: MetaFed
 class MetaFedClient(FedAvgClient):
     def __init__(self, **commons):
         super().__init__(**commons)

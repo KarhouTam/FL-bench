@@ -219,7 +219,7 @@ class FedAvgClient:
             A evalution results dict: {
                 `train`: results on client training set.
                 `val`: results on client validation set.
-                `test`: results on client testset.
+                `test`: results on client test set.
             }
         """
         target_model = self.model if model is None else model
