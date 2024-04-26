@@ -185,9 +185,14 @@ def parse_args(
     Returns:
         NestedNamespace: The final argument namespace.
     """
-    ARGS = dict(mode="serial", common=DEFAULT_COMMON_ARGS)
+    ARGS = dict(
+        mode="serial", common=DEFAULT_COMMON_ARGS, parallel=DEFAULT_PARALLEL_ARGS
+    )
     if config_file_args is not None:
-        ARGS["common"].update(config_file_args["common"])
+        if "common" in config_file_args.keys():
+            ARGS["common"].update(config_file_args["common"])
+        if "parallel" in config_file_args.keys():
+            ARGS["parallel"].update(config_file_args["parallel"])
         if "mode" in config_file_args.keys():
             ARGS["mode"] = config_file_args["mode"]
 
@@ -213,20 +218,12 @@ def parse_args(
 
     assert ARGS["mode"] in ["serial", "parallel"], f"Unrecongnized mode: {ARGS['mode']}"
     if ARGS["mode"] == "parallel":
-        parallel_args = DEFAULT_PARALLEL_ARGS
-        if "parallel" in ARGS.keys():
-            parallel_args.update(ARGS["parallel"])
-
-        if parallel_args["num_workers"] < 2:
+        if ARGS["parallel"]["num_workers"] < 2:
             print(
-                f"num_workers is less than 2: {parallel_args['num_workers']} and mode is fallback to serial."
+                f"num_workers is less than 2: {ARGS['parallel']['num_workers']} and mode is fallback to serial."
             )
             ARGS["mode"] = "serial"
             del ARGS["parallel"]
-
-        parallel_args["num_workers"] = int(parallel_args["num_workers"])
-        ARGS["parallel"] = parallel_args
-
     return NestedNamespace(ARGS)
 
 
