@@ -96,6 +96,11 @@ class pFedSimServer(FedAvgServer):
     def get_client_model_params(self, client_id):
         if self.current_epoch < self.warmup_round:
             return super().get_client_model_params(client_id)
+        if self.testing:
+            return dict(
+                regular_model_params={},
+                personal_model_params=self.clients_personal_model_params[client_id],
+            )
         pfedsim_aggregated_params = deepcopy(
             self.clients_personal_model_params[client_id]
         )
@@ -115,8 +120,8 @@ class pFedSimServer(FedAvgServer):
                     torch.stack(layer_params, dim=-1) * weights, dim=-1
                 )
         return dict(
-            regular_model_params=pfedsim_aggregated_params,
-            personal_model_params=self.clients_personal_model_params[client_id],
+            regular_model_params={},
+            personal_model_params=pfedsim_aggregated_params,  # includes all params
         )
 
     def update_weight_matrix(self):
