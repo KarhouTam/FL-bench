@@ -198,13 +198,10 @@ def parse_args(
 
     if get_method_args_func is not None:
         default_method_args = get_method_args_func([]).__dict__
-        config_file_method_args = config_file_args.get(method_name, {})
+        config_file_method_args = {}
+        if config_file_args is not None:
+            config_file_method_args = config_file_args.get(method_name, {})
         cli_method_args = get_method_args_func(method_args_list).__dict__
-
-        # extract arguments set explicitly set in CLI
-        for key in default_method_args.keys():
-            if default_method_args[key] == cli_method_args[key]:
-                cli_method_args.pop(key)
 
         # For the same argument, the value setting priority is CLI > config file > defalut value
         method_args = default_method_args
