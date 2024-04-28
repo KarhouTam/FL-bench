@@ -26,9 +26,11 @@ if __name__ == "__main__":
     config_file_path = None
     cli_method_args = []
     if len(sys.argv) > 2:
-        config_file_path = sys.argv[2]
-        cli_method_args = sys.argv[3:]
-
+        if ".yaml" in sys.argv[2] or ".yml" in sys.argv[2]:  # ***.yml or ***.yaml
+            config_file_path = sys.argv[2]
+            cli_method_args = sys.argv[3:]
+        else:
+            cli_method_args = sys.argv[2:]
     try:
         fl_method_server_module = importlib.import_module(f"src.server.{method_name}")
         # fl_method_client_module = importlib.import_module(method_name, CLIENT_DIR)
