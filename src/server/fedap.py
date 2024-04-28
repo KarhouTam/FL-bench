@@ -185,21 +185,20 @@ class FedAPServer(FedAvgServer):
     def get_client_model_params(self, client_id) -> OrderedDict[str, torch.Tensor]:
         if self.pretrain:
             return super().get_client_model_params(client_id)
-        regular_params = {}
-        personal_params = self.clients_personal_model_params[client_id]
-        for layer_name in self.trainable_params_name:
-            layer_params = [
-                model_params[layer_name]
-                for model_params in self.clients_personal_model_params.values()
-            ]
-            personal_params[layer_name] = torch.sum(
-                torch.stack(layer_params, dim=-1) * self.weight_matrix[client_id],
-                dim=-1,
-            )
 
-        return dict(
-            regular_model_params=regular_params, personal_model_params=personal_params
-        )
+        personal_params = self.clients_personal_model_params[client_id]
+        if not self.testing:
+            for layer_name in self.trainable_params_name:
+                layer_params = [
+                    model_params[layer_name]
+                    for model_params in self.clients_personal_model_params.values()
+                ]
+                personal_params[layer_name] = torch.sum(
+                    torch.stack(layer_params, dim=-1) * self.weight_matrix[client_id],
+                    dim=-1,
+                )
+
+        return dict(regular_model_params={}, personal_model_params=personal_params)
 
 
 def wasserstein(m1, v1, m2, v2, mode="nosquare"):
