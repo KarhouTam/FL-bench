@@ -33,16 +33,10 @@ if __name__ == "__main__":
             cli_method_args = sys.argv[2:]
     try:
         fl_method_server_module = importlib.import_module(f"src.server.{method_name}")
-        # fl_method_client_module = importlib.import_module(method_name, CLIENT_DIR)
     except:
-        raise FileNotFoundError(f"unrecongnized method: {method_name}.")
+        raise ImportError(f"Can't import `src.server.{method_name}`.")
 
-    try:
-        get_method_args_func = getattr(
-            fl_method_server_module, f"get_{method_name}_args"
-        )
-    except:
-        get_method_args_func = None
+    get_method_args_func = getattr(fl_method_server_module, f"get_{method_name}_args")
 
     module_attributes = inspect.getmembers(fl_method_server_module)
     server_class = [

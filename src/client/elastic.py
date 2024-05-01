@@ -53,8 +53,6 @@ class ElasticClient(FedAvgClient):
                 )
 
         self.train_with_eval()
-        if self.lr_scheduler is not None:
-            self.lr_scheduler.step()
 
         client_package = self.package()
 

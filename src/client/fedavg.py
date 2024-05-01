@@ -36,6 +36,8 @@ class FedAvgClient:
             self.device = device
         self.dataset = dataset
         self.model = model.to(self.device)
+        self.global_regular_model_params: OrderedDict[str, torch.Tensor]
+        self.personal_params_name: list[str] = []  # Some FL methods need it
 
         self.optimizer_cls = optimizer_cls
         self.lr_scheduler_cls = lr_scheduler_cls
@@ -60,13 +62,9 @@ class FedAvgClient:
         self.local_epoch = self.args.common.local_epoch
         self.criterion = torch.nn.CrossEntropyLoss().to(self.device)
 
-        # Some FL methods need it
-        self.personal_params_name: list[str] = []
-
         self.eval_results = {}
 
         self.return_diff = return_diff
-        self.global_regular_model_params: OrderedDict[str, torch.Tensor]
 
     def load_data_indices(self):
         """This function is for loading data indices for No.`self.client_id` client."""

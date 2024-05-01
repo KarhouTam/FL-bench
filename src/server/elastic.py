@@ -74,4 +74,3 @@ class ElasticServer(FedAvgServer):
             self.global_model_params.values(), zeta, aggregated_diff
         ):
             param.data -= coef * diff
-        self.model.load_state_dict(self.global_model_params, strict=False)
