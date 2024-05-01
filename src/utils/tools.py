@@ -149,25 +149,6 @@ def evalutate_model(
     return metrics
 
 
-def count_labels(
-    dataset: BaseDataset, indices: list[int] = None, min_value=0
-) -> list[int]:
-    """For counting number of labels in `dataset.targets`.
-
-    Args:
-        dataset (BaseDataset): Target dataset.
-        indices (list[int]): the subset indices. Defaults to all indices of `dataset` if not specified.
-        min_value (int, optional): The minimum value for each label. Defaults to 0.
-
-    Returns:
-        list[int]: The number of each label.
-    """
-    if indices is None:
-        indices = list(range(len(dataset.targets)))
-    counter = Counter(dataset.targets[indices].tolist())
-    return [counter.get(i, min_value) for i in range(len(dataset.classes))]
-
-
 def parse_args(
     config_file_args: dict | None,
     method_name: str,

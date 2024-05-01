@@ -1,12 +1,14 @@
+from collections import Counter
 from copy import deepcopy
 from typing import Any
 
+import numpy as np
 import torch
 import torch.nn.functional as F
 
 from src.client.fedavg import FedAvgClient
 from src.utils.models import DecoupledModel
-from src.utils.tools import count_labels, trainable_params
+from src.utils.tools import trainable_params
 
 
 def balanced_softmax_loss(
@@ -37,6 +39,15 @@ class FedRoDClient(FedAvgClient):
         self.personal_params_name.extend(
             [key for key, _ in self.model.named_parameters() if "personalized" in key]
         )
+        self.clients_label_counts = []
+        for indices in self.data_indices:
+            counter = Counter(np.array(self.dataset.targets)[indices["train"]])
+            self.clients_label_counts.append(
+                torch.tensor(
+                    [counter.get(i, 0) for i in range(len(self.dataset.classes))],
+                    device=self.device,
+                )
+            )
 
     def set_parameters(self, package: dict[str, Any]):
         super().set_parameters(package)
@@ -53,15 +64,14 @@ class FedRoDClient(FedAvgClient):
     def fit(self):
         self.model.train()
         self.dataset.train()
-        label_counts = torch.tensor(
-            count_labels(self.dataset, self.trainset.indices), device=self.device
-        )
         if self.args.fedrod.hyper:
             if self.args.fedrod.hyper and self.first_time_selected:
                 self.hypernetwork.to(self.device)
                 # if using hypernetwork for generating personalized classifier parameters and client is first-time selected
-                label_distrib = label_counts / label_counts.sum()
-                classifier_params = self.hypernetwork(label_distrib)
+                classifier_params = self.hypernetwork(
+                    self.clients_label_counts[self.client_id]
+                    / self.clients_label_counts[self.client_id].sum()
+                )
                 clf_weight_numel = self.model.generic_model.classifier.weight.numel()
                 self.model.personalized_classifier.weight.data = (
                     classifier_params[:clf_weight_numel]
@@ -84,14 +94,17 @@ class FedRoDClient(FedAvgClient):
                 x, y = x.to(self.device), y.to(self.device)
                 logit_g, logit_p = self.model(x)
                 loss_g = balanced_softmax_loss(
-                    logit_g, y, self.args.fedrod.gamma, label_counts
+                    logit_g,
+                    y,
+                    self.args.fedrod.gamma,
+                    self.clients_label_counts[self.client_id],
                 )
                 loss_p = self.criterion(logit_p, y)
                 loss = loss_g + loss_p
                 self.optimizer.zero_grad()
                 loss.backward()
                 self.optimizer.step()
-            
+
             if self.lr_scheduler is not None:
                 self.lr_scheduler.step()
 

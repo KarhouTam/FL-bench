@@ -65,7 +65,12 @@ class FedGenServer(FedAvgServer):
             (key, param.detach().cpu().clone())
             for key, param in self.generator.state_dict().items()
         )
-        server_package["current_global_epoch"] = self.current_epoch
+        server_package["alpha"] = self.exp_coef_scheduler(
+            self.args.fedgen.generative_alpha
+        )
+        server_package["beta"] = self.exp_coef_scheduler(
+            self.args.fedgen.generative_beta
+        )
         return server_package
 
     def train_one_round(self):
@@ -111,7 +116,9 @@ class FedGenServer(FedAvgServer):
 
             student_logits = self.model.classifier(generator_output)
             student_loss = F.kl_div(
-                F.log_softmax(student_logits, dim=1), F.softmax(teacher_logit, dim=1)
+                F.log_softmax(student_logits, dim=1),
+                F.softmax(teacher_logit, dim=1),
+                reduction="batchmean",
             )
             loss = (
                 self.args.fedgen.ensemble_alpha * teacher_loss
@@ -131,7 +138,7 @@ class FedGenServer(FedAvgServer):
         label_weights = []
         qualified_labels = []
         for i, label_counts in enumerate(zip(*clients_label_counts)):
-            count_sum = sum(label_counts)
+            count_sum = max(sum(label_counts), 1e-8)
             label_weights.append(np.array(label_counts) / count_sum)
             if (
                 count_sum / len(clients_label_counts)
@@ -140,6 +147,16 @@ class FedGenServer(FedAvgServer):
                 qualified_labels.append(i)
         label_weights = np.array(label_weights).reshape((len(self.unique_labels)), -1)
         return label_weights, qualified_labels
+
+    def exp_coef_scheduler(self, init_coef):
+        return max(
+            1e-4,
+            init_coef
+            * (
+                self.args.fedgen.coef_decay
+                ** (self.current_epoch // self.args.fedgen.coef_decay_epoch)
+            ),
+        )
 
 
 class Generator(nn.Module):
