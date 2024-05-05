@@ -36,7 +36,7 @@ if __name__ == "__main__":
     except:
         raise ImportError(f"Can't import `src.server.{method_name}`.")
 
-    get_method_args_func = getattr(fl_method_server_module, f"get_{method_name}_args")
+    get_method_args_func = getattr(fl_method_server_module, f"get_{method_name}_args", None)
 
     module_attributes = inspect.getmembers(fl_method_server_module)
     server_class = [
