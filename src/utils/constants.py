@@ -1,4 +1,5 @@
 import json
+import os
 from pathlib import Path
 
 from torch import optim
@@ -72,23 +73,44 @@ INPUT_CHANNELS = {
 }
 
 
-def _get_domain_classes_num():
-    try:
+def _get_domainnet_args():
+    if os.path.isfile(FLBENCH_ROOT / "data" / "domain" / "metadata.json"):
         with open(FLBENCH_ROOT / "data" / "domain" / "metadata.json", "r") as f:
             metadata = json.load(f)
-        return metadata["class_num"]
-    except:
-        return 0
+        return metadata
+    else:
+        return {}
 
 
-def _get_synthetic_classes_num():
-    try:
+def _get_synthetic_args():
+    if os.path.isfile(FLBENCH_ROOT / "data" / "synthetic" / "args.json"):
         with open(FLBENCH_ROOT / "data" / "synthetic" / "args.json", "r") as f:
             metadata = json.load(f)
-        return metadata["class_num"]
-    except:
-        return 0
+        return metadata
+    else:
+        return {}
 
+
+# (C, H, W)
+DATA_SHAPE = {
+    "mnist": (1, 28, 28),
+    "medmnistS": (1, 28, 28),
+    "medmnistC": (1, 28, 28),
+    "medmnistA": (1, 28, 28),
+    "fmnist": (1, 28, 28),
+    "svhn": (3, 32, 32),
+    "emnist": 62,
+    "femnist": 62,
+    "cifar10": (3, 32, 32),
+    "cinic10": (3, 32, 32),
+    "cifar100": (3, 32, 32),
+    "covid19": (3, 244, 224),
+    "usps": (1, 16, 16),
+    "celeba": (3, 218, 178),
+    "tiny_imagenet": (3, 64, 64),
+    "synthetic": _get_synthetic_args().get("dimension", 0),
+    "domain": (3, *(_get_domainnet_args().get("image_size", (0, 0)))),
+}
 
 NUM_CLASSES = {
     "mnist": 10,
@@ -106,8 +128,8 @@ NUM_CLASSES = {
     "usps": 10,
     "celeba": 2,
     "tiny_imagenet": 200,
-    "synthetic": _get_synthetic_classes_num(),
-    "domain": _get_domain_classes_num(),
+    "synthetic": _get_synthetic_args().get("class_num", 0),
+    "domain": _get_domainnet_args().get("class_num", 0),
 }
 
 

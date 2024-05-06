@@ -286,7 +286,15 @@ class FedAvgServer:
         # [0: {"train": [...], "val": [...], "test": [...]}, ...]
         self.data_indices: list[dict[str, list[int]]] = partition["data_indices"]
 
-        # --------- you can define your custom data preprocessing strategy here ------------
+        dataset: BaseDataset = DATASETS[self.args.common.dataset](
+            root=FLBENCH_ROOT / "data" / self.args.common.dataset,
+            args=self.args.dataset,
+            **self.get_dataset_transforms(),
+        )
+
+        return dataset
+
+    def get_dataset_transforms(self):
         test_data_transform = transforms.Compose(
             [
                 transforms.Normalize(
@@ -311,17 +319,12 @@ class FedAvgServer:
             else []
         )
         train_target_transform = transforms.Compose([])
-        # --------------------------------------------------------------------------------
-        dataset: BaseDataset = DATASETS[self.args.common.dataset](
-            root=FLBENCH_ROOT / "data" / self.args.common.dataset,
-            args=self.args.dataset,
-            test_data_transform=test_data_transform,
-            test_target_transform=test_target_transform,
+        return dict(
             train_data_transform=train_data_transform,
             train_target_transform=train_target_transform,
+            test_data_transform=test_data_transform,
+            test_target_transform=test_target_transform,
         )
-
-        return dataset
 
     def get_client_optimizer(self):
         """Get client-side model training optimizer.

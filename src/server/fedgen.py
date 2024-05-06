@@ -11,6 +11,7 @@ import torch.nn.functional as F
 from src.server.fedavg import FedAvgServer
 from src.client.fedgen import FedGenClient
 from src.utils.tools import trainable_params, NestedNamespace
+from src.utils.constants import DATA_SHAPE, NUM_CLASSES
 
 
 def get_fedgen_args(args_list=None) -> Namespace:
@@ -43,10 +44,6 @@ class FedGenServer(FedAvgServer):
         return_diff=False,
     ):
         super().__init__(args, algo, unique_model, use_fedavg_client_cls, return_diff)
-        dataset = self.get_client_dataset()
-        self.data_shape = dataset[0][0].shape
-        self.num_classes = len(dataset.classes)
-        del dataset
         self.generator = Generator(self)
         self.init_trainer(FedGenClient, generator=self.generator)
         self.generator_optimizer = torch.optim.Adam(
@@ -55,7 +52,7 @@ class FedGenServer(FedAvgServer):
         self.generator_lr_scheduler = torch.optim.lr_scheduler.ExponentialLR(
             self.generator_optimizer, gamma=0.98
         )
-        self.unique_labels = range(self.num_classes)
+        self.unique_labels = range(NUM_CLASSES[self.args.common.dataset])
         self.teacher_model = deepcopy(self.model)
 
     def package(self, client_id: int):
@@ -163,12 +160,12 @@ class Generator(nn.Module):
     def __init__(self, server: FedGenServer) -> None:
         super().__init__()
         # obtain the latent dim
-        x = torch.zeros(1, *server.data_shape)
+        x = torch.zeros(1, *DATA_SHAPE[server.args.common.dataset])
         self.use_embedding = server.args.fedgen.use_embedding
         self.latent_dim = server.model.base(x).shape[-1]
         self.hidden_dim = server.args.fedgen.hidden_dim
         self.noise_dim = server.args.fedgen.noise_dim
-        self.class_num = server.num_classes
+        self.class_num = NUM_CLASSES[server.args.common.dataset]
 
         if server.args.fedgen.use_embedding:
             self.embedding = nn.Embedding(self.class_num, server.args.fedgen.noise_dim)

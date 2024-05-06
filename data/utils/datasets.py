@@ -578,7 +578,7 @@ class DomainNet(BaseDataset):
         self.targets = torch.load(targets_path)
         self.pre_transform = transforms.Compose(
             [
-                transforms.Resize([metadata["image_size"], metadata["image_size"]]),
+                transforms.Resize(metadata["image_size"]),
                 transforms.ToTensor(),
             ]
         )

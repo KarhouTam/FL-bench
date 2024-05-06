@@ -107,7 +107,7 @@ if __name__ == "__main__":
                 "class_num": class_num,
                 "client_num": client_num_foreach_domain * 6,
                 "data_amount": len(targets),
-                "image_size": img_size,
+                "image_size": (img_size, img_size),
                 "seed": seed,
                 "domain_map": dict(zip(domains, range(len(domains)))),
                 "classes": {
