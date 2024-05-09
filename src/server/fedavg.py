@@ -106,20 +106,14 @@ class FedAvgServer:
 
         self.clients_optimizer_state = {i: {} for i in range(self.client_num)}
         self.clients_lr_scheduler_state = {i: {} for i in range(self.client_num)}
-        if (
-            not self.unique_model
-            and self.args.common.external_model_params_file
-            and os.path.isfile(self.args.common.external_model_params_file)
-        ):
-            # load pretrained params
+        model_params_file_path = str((FLBENCH_ROOT / self.args.common.external_model_params_file).absolute())
+        if os.path.isfile(model_params_file_path) and model_params_file_path.find(".pt") != -1:
             self.global_model_params = torch.load(
-                self.args.common.external_model_params_file, map_location=self.device
+                model_params_file_path, map_location="cpu"
             )
-        elif self.unique_model:
-            self.clients_personal_model_params = {
-                client_id: deepcopy(self.model.state_dict())
-                for client_id in self.train_clients
-            }
+            if self.unique_model:
+                for params_dict in self.clients_personal_model_params.values():
+                    params_dict.update(self.global_model_params)
 
         # system heterogeneity (straggler) setting
         self.clients_local_epoch: list[int] = [
@@ -212,7 +206,7 @@ class FedAvgServer:
     def init_trainer(self, fl_client_cls=FedAvgClient, **extras):
         """Initiate the FL-bench trainier that responsible to client training.
         `extras` are the arguments of `fl_client_cls.__init__()` that not in
-        `[model, args, optimizer_cls, lr_scheduler_cls, dataset, data_indices, device, return_diff]`, 
+        `[model, args, optimizer_cls, lr_scheduler_cls, dataset, data_indices, device, return_diff]`,
         which are essential for all methods in FL-bench.
 
         Args:
@@ -487,7 +481,7 @@ class FedAvgServer:
                     `optimizer_state`: ...,
                 }
             }
-            
+
             About the content of client parameter package, check `FedAvgClient.package()`.
         """
         clients_weight = [package["weight"] for package in clients_package.values()]
@@ -743,6 +737,8 @@ class FedAvgServer:
         if self.args.common.save_model:
             model_name = f"{self.args.common.dataset}_{self.args.common.global_epoch}_{self.args.common.model}.pt"
             if self.unique_model:
-                torch.save(self.client_trainable_params, self.output_dir / model_name)
+                torch.save(
+                    self.clients_personal_model_params, self.output_dir / model_name
+                )
             else:
                 torch.save(self.global_model_params, self.output_dir / model_name)
