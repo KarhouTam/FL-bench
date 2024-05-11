@@ -20,7 +20,7 @@ DEFAULT_COMMON_ARGS = {
     "test_interval": 100,
     "straggler_ratio": 0,
     "straggler_min_local_epoch": 0,
-    "external_model_params_file": None,
+    "external_model_params_file": "",
     "optimizer": {
         "name": "sgd",  # [sgd, adam, adamw, rmsprop, adagrad]
         "lr": 0.01,
