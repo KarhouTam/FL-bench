@@ -39,10 +39,13 @@ class FedAvgClient:
         self.global_regular_model_params: OrderedDict[str, torch.Tensor]
         self.personal_params_name: list[str] = []  # Some FL methods need it
 
-        self.optimizer_cls = optimizer_cls
-        self.lr_scheduler_cls = lr_scheduler_cls
-        self.optimizer = self.optimizer_cls(params=trainable_params(self.model))
+        self.optimizer = optimizer_cls(params=trainable_params(self.model))
+        self.init_optimizer_state = deepcopy(self.optimizer.state_dict())
         self.lr_scheduler: torch.optim.lr_scheduler.LRScheduler = None
+        self.init_lr_scheduler_state: dict = None
+        if lr_scheduler_cls is not None:
+            self.lr_scheduler = lr_scheduler_cls(optimizer=self.optimizer)
+            self.init_lr_scheduler_state = deepcopy(self.lr_scheduler.state_dict())
 
         # [{"train": [...], "val": [...], "test": [...]}, ...]
         self.data_indices = data_indices
@@ -120,11 +123,14 @@ class FedAvgClient:
 
         if package["optimizer_state"]:
             self.optimizer.load_state_dict(package["optimizer_state"])
+        else:
+            self.optimizer.load_state_dict(self.init_optimizer_state)
 
-        if self.lr_scheduler_cls is not None:
-            self.lr_scheduler = self.lr_scheduler_cls(optimizer=self.optimizer)
+        if self.lr_scheduler is not None:
             if package["lr_scheduler_state"]:
                 self.lr_scheduler.load_state_dict(package["lr_scheduler_state"])
+            else:
+                self.lr_scheduler.load_state_dict(self.init_lr_scheduler_state)
 
         self.model.load_state_dict(package["regular_model_params"], strict=False)
         self.model.load_state_dict(package["personal_model_params"], strict=False)
@@ -169,12 +175,12 @@ class FedAvgClient:
                 if (not param.requires_grad) or (key in self.personal_params_name)
             },
             optimizer_state=deepcopy(self.optimizer.state_dict()),
-            lr_scheduler_state={},
+            lr_scheduler_state=(
+                {}
+                if self.lr_scheduler is None
+                else deepcopy(self.lr_scheduler.state_dict())
+            ),
         )
-        if self.lr_scheduler is not None:
-            client_package["lr_scheduler_state"] = deepcopy(
-                self.lr_scheduler.state_dict()
-            )
         if self.return_diff:
             client_package["model_params_diff"] = {
                 key: param_old - param_new
