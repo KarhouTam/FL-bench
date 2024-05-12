@@ -567,7 +567,7 @@ class FedAvgServer:
                             [self.current_epoch],
                             win=self.viz_win_name,
                             update="append",
-                            name=f"{split}({stage})",
+                            name=f"{split}set ({stage} local training)",
                             opts=dict(
                                 title=self.viz_win_name,
                                 xlabel="Communication Rounds",
@@ -686,7 +686,7 @@ class FedAvgServer:
                                 metrics.accuracy
                                 for metrics in self.global_metrics[stage][split]
                             ],
-                            label=f"{split}_{stage}",
+                            label=f"{split}set ({stage} local training)",
                             ls=linestyle[stage][split],
                         )
 
