@@ -8,10 +8,10 @@ def to_numpy(x):
         return x.cpu().numpy()
     elif isinstance(x, list):
         return np.array(x)
+    elif isinstance(x, np.ndarray):
+        return x
     else:
-        raise TypeError(
-            f"input data should be torch.Tensor or built-in list. Now {type(x)}"
-        )
+        raise TypeError(f"Unsupported type: {type(x)}")
 
 
 class Metrics:
