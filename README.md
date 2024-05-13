@@ -128,16 +128,11 @@ Just select one of them.
 pip install -r .environment/requirements.txt
 ```
 
-### Conda 💻
-```sh
-conda env create -f .environment/environment.yml
-```
-
 ### Poetry 🎶
 
 ```sh
 # For those China mainland users
-cd .environment && poetry install --no-root
+poetry install --no-root -C .environment
 
 # For those oversea users
 cd .environment && sed -i "10,14d" pyproject.toml && poetry lock --no-update && poetry install --no-root
