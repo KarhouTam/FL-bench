@@ -2,7 +2,7 @@ import json
 import os
 import random
 from argparse import Namespace
-from collections import Counter, OrderedDict
+from collections import OrderedDict
 from typing import Callable, Sequence, Union
 from pathlib import Path
 
