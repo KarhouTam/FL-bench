@@ -120,7 +120,7 @@ class FLbenchTrainer:
         map = {}  # {future: (client_id, worker_id)}
         while i < len(clients) or len(futures) > 0:
             while i < len(clients) and len(idle_workers) > 0:
-                server_package = self.server.package(clients[i])
+                server_package = ray.put(self.server.package(clients[i]))
                 worker_id = idle_workers.popleft()
                 future = self.workers[worker_id].test.remote(server_package)
                 map[future] = (clients[i], worker_id)
@@ -157,7 +157,9 @@ class FLbenchTrainer:
         map = {}  # {future: (client_id, worker_id)}
         while i < len(clients) or len(futures) > 0:
             while i < len(clients) and len(idle_workers) > 0:
-                server_package = getattr(self.server, package_func_name)(clients[i])
+                server_package = ray.put(
+                    getattr(self.server, package_func_name)(clients[i])
+                )
                 worker_id = idle_workers.popleft()
                 future = getattr(self.workers[worker_id], func_name).remote(
                     server_package
