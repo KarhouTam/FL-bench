@@ -13,3 +13,4 @@ scikit-learn~=1.4.0
 pynvml~=11.5.0
 PyYAML~=6.0.1
 ray[default]~=2.10.0
+tensorboard~=2.16.2

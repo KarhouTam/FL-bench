@@ -4,13 +4,13 @@ version = "0.2.0"
 description = "Benchmark of federated learning that aim solving image classification tasks."
 authors = ["KarhouTam <karhoutam@qq.com>"]
 license = "GPL-2.0-or-later"
-readme = ["README.md", "data/README.md"]
+readme = ["../README.md", "../data/README.md"]
 repository = "https://github.com/KarhouTam/FL-bench"
 
 [[tool.poetry.source]]
 name = "mirrors"
 url = "https://mirrors.sustech.edu.cn/pypi/simple"
-priority = "default"
+priority = "primary"
 
 [tool.poetry.dependencies]
 python = ">=3.10, <3.12"
@@ -29,6 +29,7 @@ faiss-cpu = "1.7.4"
 pynvml = "11.5.0"
 PyYAML = "6.0.1"
 ray = "2.10.0"
+tensorboard = "2.16.2"
 
 [build-system]
 requires = ["poetry-core"]

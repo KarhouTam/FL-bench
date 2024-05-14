@@ -175,9 +175,7 @@ About methods of generating federated dastaset, go check [`data/README.md`](data
 # Run FedAvg with default settings. 
 python main.py fedavg
 ```
-
-
-### How To Customize Experiment Arguments 🤖
+### How To Customize FL method Arguments 🤖
 - By modifying config file
 - By explicitly setting in CLI, e.g., `python main.py fedprox config/my_cfg.yml --mu 0.01`.
 - By modifying the default value in `src/utils/constants.py/DEFAULT_COMMON_ARGS` or `src/server/<method>.py/get_<method>_args()`
@@ -186,19 +184,20 @@ python main.py fedavg
 
 For example, the default value of `fedprox.mu` is `1`, 
 ```python
+# src/server/fedprox.py
 def get_fedprox_args(args_list=None) -> Namespace:
     parser = ArgumentParser()
     parser.add_argument("--mu", type=float, default=1.0)
     return parser.parse_args(args_list)
 ```
-and you set
+and your `.yml` config file has
 ```yaml
 # your_config.yml
 ...
 fedprox:
   mu: 0.01
 ```
-in your config file. If you run
+
 ```shell
 python main.py fedprox                           # fedprox.mu = 1
 python main.py fedprox your_config.yml           # fedprox.mu = 0.01
@@ -206,12 +205,30 @@ python main.py fedprox your_config.yml --mu 10   # fedprox.mu = 10
 ``` 
 
 ### Monitor 📈
-1. Run `python -m visdom.server` on terminal.
-2. Set `visible` as `true`.
-3. Go check `localhost:8097` on your browser.
+FL-bench supports `visdom` and `tensorboard`.
 
-### Using `Ray` for Parallel Training 
-You need to set
+#### Activate
+**👀 NOTE:** You needs to launch `visdom` / `tensorboard` server by yourself.
+```yaml
+# your config_file.yml
+common:
+  ...
+  visible: tensorboard # options: [null, visdom, tensorboard]
+```
+
+#### Launch `visdom` / `tensorboard` Server
+
+##### `visdom`
+1. Run `python -m visdom.server` on terminal.
+2. Go check `localhost:8097` on your browser.
+
+#### `tensorboard`
+1. Run `tensorboard --logdir=<your_log_dir>` on terminal.
+2. Go check `localhost:6006` on your browser.
+
+## Parallel Training via `Ray` 🚀
+This feature can **vastly improve your training efficiency**. At the same time, this feature is user-friendly and easy to use!!!
+### Activate (What You ONLY Need To Do)
 ```yaml
 # your_config_file.yml
 mode: parallel
@@ -220,29 +237,29 @@ parallel:
   ...
 ...
 ```
-for parallel training, which will **vastly improve your training efficiency**.
-
-
-#### Creating a `Ray` Cluster
-A `Ray` cluster would be created implicitly by `python main.py <method> ...`.
-Or you can manually launch it to avoid creating cluster each time by running experiment.
+### Manually Create `Ray` Cluster (Optional)
+A `Ray` cluster would be created implicitly everytime you run experiment in parallel mode.
+Or you can create it manually to avoid creating and destroying cluster every time you run experiment.
 ```yaml
 # your_config_file.yml
+# Connect to an existing Ray cluster in localhost.
 mode: parallel
 parallel:
   ray_cluster_addr: null
+  num_gpus: null
+  num_cpus: null
   ...
 ...
 ```
-
 ```shell
 ray start --head [OPTIONS]
 ```
+👀 **NOTE:** You need to keep `num_cpus: null` and `num_gpus: null` in your config file for connecting to a existing `Ray` cluster.
 
 
 
 
-## Arguments 🔧
+## Common Arguments 🔧
 
 All common arguments have their default value. Go check [`DEFAULT_COMMON_ARGS`](src/utils/constants.py) in `src/utils/constants.py` for full details of common arguments. 
 
@@ -253,42 +270,42 @@ You can also write your own `.yml` config file. I offer you a [template](config/
 One example: `python main.py fedavg config/template.yaml [cli_method_args...]`
 
 About the default values of specific FL method arguments, go check corresponding `FL-bench/src/server/<method>.py` for the full details.
-| Arguments                    | Type    | Description                                                                                                                                                                                                                                  |
-| ---------------------------- | ------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `dataset`                    | `str`   | The name of dataset that experiment run on.                                                                                                                                                                                                  |
-| `model`                      | `str`   | The model backbone experiment used.                                                                                                                                                                                                          |
-| `seed`                       | `int`   | Random seed for running experiment.                                                                                                                                                                                                          |
-| `join_ratio`                 | `float` | Ratio for (client each round) / (client num in total).                                                                                                                                                                                       |
-| `global_epoch`               | `int`   | Global epoch, also called communication round.                                                                                                                                                                                               |
-| `local_epoch`                | `int`   | Local epoch for client local training.                                                                                                                                                                                                       |
-| `finetune_epoch`             | `int`   | Epoch for clients fine-tunning their models before test.                                                                                                                                                                                     |
-| `test_interval`              | `int`   | Interval round of performing test on clients.                                                                                                                                                                                                |
-| `eval_test`                  | `bool`  | Non-zero value for performing evaluation on joined clients' testset before and after local training.                                                                                                                                         |
-| `eval_val`                   | `bool`  | Non-zero value for performing evaluation on joined clients' valset before and after local training.                                                                                                                                          |
-| `eval_train`                 | `bool`  | Non-zero value for performing evaluation on joined clients' trainset before and after local training.                                                                                                                                        |
-| `optimizer`                  | `dict`  | Client-side optimizer.  Argument request is the same as Optimizers in `torch.optim`.                                                                                                                                                         |
-| `lr_scheduler`                  | `dict`  | Client-side learning rate scheduler.  Argument request is the same as schedulers in `torch.optim.lr_scheduler`.                                                                                                                                                         |
-| `verbose_gap`                | `int`   | Interval round of displaying clients training performance on terminal.                                                                                                                                                                       |
-| `batch_size`                 | `int`   | Data batch size for client local training.                                                                                                                                                                                                   |
-| `use_cuda`                   | `bool`  | Non-zero value indicates that tensors are in gpu.                                                                                                                                                                                            |
-| `visible`                    | `bool`  | Non-zero value for using Visdom to monitor algorithm performance on `localhost:8097`.                                                                                                                                                        |
-| `straggler_ratio`            | `float` | The ratio of stragglers (set in `[0, 1]`). Stragglers would not perform full-epoch local training as normal clients. Their local epoch would be randomly selected from range `[straggler_min_local_epoch, local_epoch)`.                     |
-| `straggler_min_local_epoch`  | `int`   | The minimum value of local epoch for stragglers.                                                                                                                                                                                             |
-| `external_model_params_file` | `str`   | The model parameters `.pt` file **relative** path to the root of FL-bench. ⚠ This feature is enabled only when `unique_model=False`, which is pre-defined by each FL method. |
-| `save_log`                   | `bool`  | Non-zero value for saving algorithm running log in `out/<method>/<start_time>`.                                                                                                                                                              |
-| `save_model`                 | `bool`  | Non-zero value for saving output model(s) parameters in `out/<method>/<start_time>`.pt`.                                                                                                                                                     |
-| `save_fig`                   | `bool`  | Non-zero value for saving the accuracy curves showed on Visdom into a `.pdf` file at `out/<method>/<start_time>`.                                                                                                                            |
-| `save_metrics`               | `bool`  | Non-zero value for saving metrics stats into a `.csv` file at `out/<method>/<start_time>`.                                                                                                                                                   |
-| `viz_win_name`               | `str`   | Custom visdom window name (active when setting `visible` as a non-zero value).                                                                                                                                                               |
-| `check_convergence`          | `bool`  | Non-zero value for checking convergence after training.                                                                                                                                                                                      |
+| Arguments                    | Type    | Description                                                                                                                                                                                                              |
+| ---------------------------- | ------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `dataset`                    | `str`   | The name of dataset that experiment run on.                                                                                                                                                                              |
+| `model`                      | `str`   | The model backbone experiment used.                                                                                                                                                                                      |
+| `seed`                       | `int`   | Random seed for running experiment.                                                                                                                                                                                      |
+| `join_ratio`                 | `float` | Ratio for (client each round) / (client num in total).                                                                                                                                                                   |
+| `global_epoch`               | `int`   | Global epoch, also called communication round.                                                                                                                                                                           |
+| `local_epoch`                | `int`   | Local epoch for client local training.                                                                                                                                                                                   |
+| `finetune_epoch`             | `int`   | Epoch for clients fine-tunning their models before test.                                                                                                                                                                 |
+| `test_interval`              | `int`   | Interval round of performing test on clients.                                                                                                                                                                            |
+| `eval_test`                  | `bool`  | Non-zero value for performing evaluation on joined clients' testset before and after local training.                                                                                                                     |
+| `eval_val`                   | `bool`  | Non-zero value for performing evaluation on joined clients' valset before and after local training.                                                                                                                      |
+| `eval_train`                 | `bool`  | Non-zero value for performing evaluation on joined clients' trainset before and after local training.                                                                                                                    |
+| `optimizer`                  | `dict`  | Client-side optimizer.  Argument request is the same as Optimizers in `torch.optim`.                                                                                                                                     |
+| `lr_scheduler`               | `dict`  | Client-side learning rate scheduler.  Argument request is the same as schedulers in `torch.optim.lr_scheduler`.                                                                                                          |
+| `verbose_gap`                | `int`   | Interval round of displaying clients training performance on terminal.                                                                                                                                                   |
+| `batch_size`                 | `int`   | Data batch size for client local training.                                                                                                                                                                               |
+| `use_cuda`                   | `bool`  | Non-zero value indicates that tensors are in gpu.                                                                                                                                                                        |
+| `visible`                    | `bool`  | Non-zero value for using Visdom to monitor algorithm performance on `localhost:8097`.                                                                                                                                    |
+| `straggler_ratio`            | `float` | The ratio of stragglers (set in `[0, 1]`). Stragglers would not perform full-epoch local training as normal clients. Their local epoch would be randomly selected from range `[straggler_min_local_epoch, local_epoch)`. |
+| `straggler_min_local_epoch`  | `int`   | The minimum value of local epoch for stragglers.                                                                                                                                                                         |
+| `external_model_params_file` | `str`   | The model parameters `.pt` file **relative** path to the root of FL-bench. ⚠ This feature is enabled only when `unique_model=False`, which is pre-defined by each FL method.                                             |
+| `save_log`                   | `bool`  | Non-zero value for saving algorithm running log in `out/<method>/<start_time>`.                                                                                                                                          |
+| `save_model`                 | `bool`  | Non-zero value for saving output model(s) parameters in `out/<method>/<start_time>`.pt`.                                                                                                                                 |
+| `save_fig`                   | `bool`  | Non-zero value for saving the accuracy curves showed on Visdom into a `.pdf` file at `out/<method>/<start_time>`.                                                                                                        |
+| `save_metrics`               | `bool`  | Non-zero value for saving metrics stats into a `.csv` file at `out/<method>/<start_time>`.                                                                                                                               |
+| `viz_win_name`               | `str`   | Custom visdom window name (active when setting `visible` as a non-zero value).                                                                                                                                           |
+| `check_convergence`          | `bool`  | Non-zero value for checking convergence after training.                                                                                                                                                                  |
 
-### Arguments of Parallel Training 👯‍♂️
+### Parallel Training Arguments 👯‍♂️
 
-| Arguments                 | Type  | Description                                                                                                                                                                                                                                                                              |
-| ------------------------- | ----- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `num_workers`             | `int` | The number of parallel workers. Need to be set as an integer that larger than `1`.                                                                                                                                                                                                       |
-| `ray_cluster_addr`        | `str` | The IP address of the selected ray cluster. Default as `null`, which means `ray` will build a new cluster everytime you running an experiment and destroy it at the end. More details can be found in the [official docs](https://docs.ray.io/en/latest/ray-core/api/doc/ray.init.html). |
-| `num_cpus` and `num_gpus` | `int` | The amount of computational resources you allocate. Default as `null`, which means all.                                                                                                                                                                                                  |
+| Arguments                 | Type  | Description                                                                                                                                                                                                                                                                                                                |
+| ------------------------- | ----- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `num_workers`             | `int` | The number of parallel workers. Need to be set as an integer that larger than `1`.                                                                                                                                                                                                                                         |
+| `ray_cluster_addr`        | `str` | The IP address of the selected ray cluster. Default as `null`, which means if there is no existing ray cluster, `ray` will build a new cluster everytime you run the experiment and destroy it at the end. More details can be found in the [official docs](https://docs.ray.io/en/latest/ray-core/api/doc/ray.init.html). |
+| `num_cpus` and `num_gpus` | `int` | The amount of computational resources you allocate for your `Ray` cluster. Default as `null` for all.                                                                                                                                                                                                                      |
 
 
 
@@ -303,7 +320,7 @@ This benchmark supports bunch of models that common and integrated in Torchvisio
 - LeNet5
 ...
 
-🤗 You can define your own custom model by filling the `CustomModel` class in [`src/utils/models.py`](src/utils/models.py) and use it by setting `model` to `custom` when running.
+🤗 You can define your own custom model by filling the `CustomModel` class in [`src/utils/models.py`](src/utils/models.py) and use it by defining `model: custom`.
 
 ## Supported Datasets 🎨
 

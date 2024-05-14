@@ -48,6 +48,14 @@ class FedAvgServer:
         use_fedavg_client_cls=True,
         return_diff=False,
     ):
+        """
+        Args:
+            `args`: A nested Namespace object of the arguments.
+            `algo`: Name of FL method.
+            `unique_model`: `True` indicates that clients have their own fullset model parameters.
+            `use_fedavg_client_cls`: `True` indicates that using default `FedAvgClient()` as the client class.
+            `return_diff`: `True` indicates that clients return `diff = W_global - W_local` as parameter update; `False` for `W_local` only.
+        """
         self.args = args
         self.algo = algo
         self.unique_model = unique_model
@@ -159,19 +167,6 @@ class FedAvgServer:
         ):
             os.makedirs(self.output_dir, exist_ok=True)
 
-        if self.args.common.visible:
-            from visdom import Visdom
-
-            self.viz = Visdom()
-            if self.args.common.viz_win_name is not None:
-                self.viz_win_name = self.args.common.viz_win_name
-            else:
-                self.viz_win_name = (
-                    f"{self.algo}"
-                    + f"_{self.args.common.dataset}"
-                    + f"_{self.args.common.global_epoch}"
-                    + f"_{self.args.common.local_epoch}"
-                )
         self.clients_metrics = {i: {} for i in self.train_clients}
         self.global_metrics = {
             "before": {"train": [], "val": [], "test": []},
@@ -195,13 +190,33 @@ class FedAvgServer:
             console=stdout,
         )
 
+        self.logger.log("=" * 20, self.algo, "=" * 20)
+        self.logger.log("Experiment Arguments:")
+        self.logger.log(JSON(str(self.args)))
+
+        if self.args.common.visible == "visdom":
+            from visdom import Visdom
+
+            self.viz = Visdom()
+            self.viz_win_name = (
+                f"{self.algo}"
+                + f"_{self.args.common.dataset}"
+                + f"_{self.args.common.global_epoch}"
+                + f"_{self.args.common.local_epoch}"
+                + f"_{start_time}"
+            )
+        elif self.args.common.visible == "tensorboard":
+            from torch.utils.tensorboard import SummaryWriter
+
+            self.tensorboard = SummaryWriter(log_dir=self.output_dir)
+            self.tensorboard.add_text(
+                "Experimental Arguments",
+                f"<pre>{self.args}</pre>",
+            )
         # init trainer
         self.trainer: FLbenchTrainer
         if use_fedavg_client_cls:
             self.init_trainer()
-        self.logger.log("=" * 20, self.algo, "=" * 20)
-        self.logger.log("Experiment Arguments:")
-        self.logger.log(JSON(str(self.args)))
 
     def init_trainer(self, fl_client_cls=FedAvgClient, **extras):
         """Initiate the FL-bench trainier that responsible to client training.
@@ -561,18 +576,24 @@ class FedAvgServer:
 
                     self.global_metrics[stage][split].append(global_metrics)
 
-                    if self.args.common.visible:
+                    if self.args.common.visible == "visdom":
                         self.viz.line(
                             [global_metrics.accuracy],
                             [self.current_epoch],
                             win=self.viz_win_name,
                             update="append",
-                            name=f"{split}set ({stage} local training)",
+                            name=f"{split}set-{stage}LocalTraining",
                             opts=dict(
-                                title=self.viz_win_name,
+                                title=f"{self.algo}-{self.args.common.dataset}",
                                 xlabel="Communication Rounds",
                                 ylabel="Accuracy",
                             ),
+                        )
+                    elif self.args.common.visible == "tensorboard":
+                        self.tensorboard.add_scalar(
+                            f"Accuracy/{split}set-{stage}LocalTraining",
+                            global_metrics.accuracy,
+                            self.current_epoch,
                         )
 
     def show_max_metrics(self):
@@ -625,14 +646,6 @@ class FedAvgServer:
             RuntimeError: When FL-bench trainer is not set properly.
         """
         begin = time.time()
-        if self.trainer is None:
-            raise RuntimeError(
-                "Specify your unique trainer or set `default_trainer` as True."
-            )
-
-        if self.args.common.visible:
-            self.viz.close(win=self.viz_win_name)
-
         self.train()
         end = time.time()
         total = end - begin
@@ -641,28 +654,34 @@ class FedAvgServer:
         )
         self.logger.log("=" * 20, self.algo, "Experiment Results:", "=" * 20)
         self.logger.log(
-            "Format: [green](before local fine-tuning) -> [blue](after local fine-tuning)"
+            "Format: [green](before local fine-tuning) -> [blue](after local fine-tuning)",
+            "So if finetune_epoch = 0, x.xx% -> 0.00% is normal.",
         )
-        self.logger.log(
-            {
-                epoch: {
-                    group: {
-                        split: {
-                            "loss": f"{metrics['before'][split].loss:.4f} -> {metrics['after'][split].loss:.4f}",
-                            "accuracy": f"{metrics['before'][split].accuracy:.2f}% -> {metrics['after'][split].accuracy:.2f}%",
-                        }
-                        for split, flag in [
-                            ("train", self.args.common.eval_train),
-                            ("val", self.args.common.eval_val),
-                            ("test", self.args.common.eval_test),
-                        ]
-                        if flag
+        all_test_results = {
+            epoch: {
+                group: {
+                    split: {
+                        "loss": f"{metrics['before'][split].loss:.4f} -> {metrics['after'][split].loss:.4f}",
+                        "accuracy": f"{metrics['before'][split].accuracy:.2f}% -> {metrics['after'][split].accuracy:.2f}%",
                     }
-                    for group, metrics in results.items()
+                    for split, flag in [
+                        ("train", self.args.common.eval_train),
+                        ("val", self.args.common.eval_val),
+                        ("test", self.args.common.eval_test),
+                    ]
+                    if flag
                 }
-                for epoch, results in self.test_results.items()
+                for group, metrics in results.items()
             }
-        )
+            for epoch, results in self.test_results.items()
+        }
+
+        self.logger.log(all_test_results)
+        if self.args.common.visible == "tensorboard":
+            for epoch, results in all_test_results.items():
+                self.tensorboard.add_text(
+                    "Test Results", text_string=f"<pre>{results}</pre>", global_step=epoch
+                )
 
         if self.args.common.check_convergence:
             self.show_convergence()
@@ -686,7 +705,7 @@ class FedAvgServer:
                                 metrics.accuracy
                                 for metrics in self.global_metrics[stage][split]
                             ],
-                            label=f"{split}set ({stage} local training)",
+                            label=f"{split}set ({stage}LocalTraining)",
                             ls=linestyle[stage][split],
                         )
 
@@ -711,10 +730,10 @@ class FedAvgServer:
                     if len(self.global_metrics[stage][split]) > 0:
                         for metric in [
                             "accuracy",
-                            "micro_precision",
-                            "macro_precision",
-                            "micro_recall",
-                            "macro_recall",
+                            # "micro_precision",
+                            # "macro_precision",
+                            # "micro_recall",
+                            # "macro_recall",
                         ]:
                             stats = [
                                 getattr(metrics, metric)
