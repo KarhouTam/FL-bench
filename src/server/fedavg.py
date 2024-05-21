@@ -111,6 +111,9 @@ class FedAvgServer:
             )
             for client_id in range(self.client_num)
         }
+        if self.unique_model:
+            for params_dict in self.clients_personal_model_params.values():
+                params_dict.update(self.global_model_params)
 
         self.clients_optimizer_state = {i: {} for i in range(self.client_num)}
         self.clients_lr_scheduler_state = {i: {} for i in range(self.client_num)}

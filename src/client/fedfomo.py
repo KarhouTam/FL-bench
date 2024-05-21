@@ -38,12 +38,12 @@ class FedFomoClient(FedAvgClient):
         if package["optimizer_state"]:
             self.optimizer.load_state_dict(package["optimizer_state"])
         else:
-            self.optimizer = self.optimizer_cls(params=trainable_params(self.model))
+            self.optimizer.load_state_dict(self.init_optimizer_state)
 
-        if package["lr_scheduler_state"]:
-            self.lr_scheduler.load_state_dict(package["lr_scheduler_state"])
-        elif self.lr_scheduler_cls is not None:
-            self.lr_scheduler = self.lr_scheduler_cls(optimizer=self.optimizer)
+        if package["optimizer_state"]:
+            self.optimizer.load_state_dict(package["optimizer_state"])
+        else:
+            self.optimizer.load_state_dict(self.init_optimizer_state)
 
         self.model.load_state_dict(
             package["model_params_from_selected_clients"][self.client_id]
