@@ -7,7 +7,7 @@ import torch.nn.functional as F
 
 from src.client.fedavg import FedAvgClient
 from torch.utils.data import Subset, DataLoader
-from src.utils.tools import trainable_params, evalutate_model
+from src.utils.tools import evalutate_model
 
 
 class MetaFedClient(FedAvgClient):
@@ -60,12 +60,13 @@ class MetaFedClient(FedAvgClient):
         if package["optimizer_state"]:
             self.optimizer.load_state_dict(package["optimizer_state"])
         else:
-            self.optimizer = self.optimizer_cls(params=trainable_params(self.model))
+            self.optimizer.load_state_dict(self.init_optimizer_state)
 
-        if package["lr_scheduler_state"]:
-            self.lr_scheduler.load_state_dict(package["lr_scheduler_state"])
-        elif self.lr_scheduler_cls is not None:
-            self.lr_scheduler = self.lr_scheduler_cls(optimizer=self.optimizer)
+        if self.lr_scheduler is not None:
+            if package["lr_scheduler_state"]:
+                self.lr_scheduler.load_state_dict(package["lr_scheduler_state"])
+            else:
+                self.lr_scheduler.load_state_dict(self.init_lr_scheduler_state)
 
         self.client_flag = package["client_flag"]
         self.model.load_state_dict(package["student_model_params"])

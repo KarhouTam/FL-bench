@@ -11,6 +11,7 @@ class DittoClient(FedAvgClient):
         super().__init__(**commons)
         self.pers_model = deepcopy(self.model).to(self.device)
         self.optimizer.add_param_group({"params": trainable_params(self.pers_model)})
+        self.init_optimizer_state = deepcopy(self.optimizer.state_dict())
 
     def set_parameters(self, package: dict[str, Any]):
         super().set_parameters(package)

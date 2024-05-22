@@ -20,7 +20,8 @@ class pFedMeClient(FedAvgClient):
             self.args.pfedme.lamda,
             self.args.pfedme.mu,
         )
-        self.lr_scheduler = self.lr_scheduler_cls(self.optimizer)
+        if self.lr_scheduler_cls is not None:
+            self.lr_scheduler = self.lr_scheduler_cls(self.optimizer)
 
     def set_parameters(self, package: dict[str, Any]):
         super().set_parameters(package)
