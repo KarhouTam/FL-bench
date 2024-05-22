@@ -117,8 +117,13 @@ class FedAvgServer:
 
         self.clients_optimizer_state = {i: {} for i in range(self.client_num)}
         self.clients_lr_scheduler_state = {i: {} for i in range(self.client_num)}
-        model_params_file_path = str((FLBENCH_ROOT / self.args.common.external_model_params_file).absolute())
-        if os.path.isfile(model_params_file_path) and model_params_file_path.find(".pt") != -1:
+        model_params_file_path = str(
+            (FLBENCH_ROOT / self.args.common.external_model_params_file).absolute()
+        )
+        if (
+            os.path.isfile(model_params_file_path)
+            and model_params_file_path.find(".pt") != -1
+        ):
             self.global_model_params = torch.load(
                 model_params_file_path, map_location="cpu"
             )
@@ -213,8 +218,7 @@ class FedAvgServer:
 
             self.tensorboard = SummaryWriter(log_dir=self.output_dir)
             self.tensorboard.add_text(
-                "Experimental Arguments",
-                f"<pre>{self.args}</pre>",
+                "Experimental Arguments", f"<pre>{self.args}</pre>"
             )
         # init trainer
         self.trainer: FLbenchTrainer
@@ -683,7 +687,9 @@ class FedAvgServer:
         if self.args.common.visible == "tensorboard":
             for epoch, results in all_test_results.items():
                 self.tensorboard.add_text(
-                    "Test Results", text_string=f"<pre>{results}</pre>", global_step=epoch
+                    "Test Results",
+                    text_string=f"<pre>{results}</pre>",
+                    global_step=epoch,
                 )
 
         if self.args.common.check_convergence:

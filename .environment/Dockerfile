@@ -13,5 +13,5 @@ RUN pip install --upgrade pip && \
     pip install -r /tmp/requirements.txt
 
 
-# port for visdom
-EXPOSE 8097 8265
+# visdom ray-dashboard tensorboard
+EXPOSE 8097 8265 6006

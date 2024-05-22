@@ -1,4 +1,5 @@
 from collections import OrderedDict, deque
+from typing import Any, Callable
 
 import ray
 import ray.actor
@@ -138,18 +139,28 @@ class FLbenchTrainer:
                             results[stage][split].update(metrics[stage][split])
 
     def _serial_exec(
-        self, func_name: str, clients: list[int], package_func_name: str = "package"
+        self,
+        func_name: str,
+        clients: list[int],
+        package_func: Callable[[int], dict[str, Any]] = None,
     ):
+        if package_func is None:
+            package_func = getattr(self.server, "package")
         clients_package = OrderedDict()
         for client_id in clients:
-            server_package = getattr(self.server, package_func_name)(client_id)
+            server_package = package_func(client_id)
             package = getattr(self.worker, func_name)(server_package)
             clients_package[client_id] = package
         return clients_package
 
     def _parallel_exec(
-        self, func_name: str, clients: list[int], package_func_name: str = "package"
+        self,
+        func_name: str,
+        clients: list[int],
+        package_func: Callable[[int], dict[str, Any]] = None,
     ):
+        if package_func is None:
+            package_func = getattr(self.server, "package")
         clients_package = OrderedDict()
         i = 0
         futures = []
@@ -157,9 +168,7 @@ class FLbenchTrainer:
         map = {}  # {future: (client_id, worker_id)}
         while i < len(clients) or len(futures) > 0:
             while i < len(clients) and len(idle_workers) > 0:
-                server_package = ray.put(
-                    getattr(self.server, package_func_name)(clients[i])
-                )
+                server_package = ray.put(package_func(clients[i]))
                 worker_id = idle_workers.popleft()
                 future = getattr(self.workers[worker_id], func_name).remote(
                     server_package

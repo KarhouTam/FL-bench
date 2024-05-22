@@ -1,7 +1,6 @@
-import json
 from functools import partial
 from collections import OrderedDict
-from typing import List, Optional
+from typing import Optional
 
 import torch
 import torch.nn as nn
@@ -9,7 +8,7 @@ import torch.nn.functional as F
 import torchvision.models as models
 from torch import Tensor
 
-from .constants import NUM_CLASSES, INPUT_CHANNELS, FLBENCH_ROOT
+from src.utils.constants import DATA_SHAPE, NUM_CLASSES, INPUT_CHANNELS
 
 
 class DecoupledModel(nn.Module):
@@ -86,25 +85,25 @@ class DecoupledModel(nn.Module):
 
 # CNN used in FedAvg
 class FedAvgCNN(DecoupledModel):
+    feature_length = {
+        "mnist": 1024,
+        "medmnistS": 1024,
+        "medmnistC": 1024,
+        "medmnistA": 1024,
+        "covid19": 196736,
+        "fmnist": 1024,
+        "emnist": 1024,
+        "femnist": 1,
+        "cifar10": 1600,
+        "cinic10": 1600,
+        "cifar100": 1600,
+        "tiny_imagenet": 3200,
+        "celeba": 133824,
+        "svhn": 1600,
+        "usps": 800,
+    }
     def __init__(self, dataset: str):
         super(FedAvgCNN, self).__init__()
-        features_length = {
-            "mnist": 1024,
-            "medmnistS": 1024,
-            "medmnistC": 1024,
-            "medmnistA": 1024,
-            "covid19": 196736,
-            "fmnist": 1024,
-            "emnist": 1024,
-            "femnist": 1,
-            "cifar10": 1600,
-            "cinic10": 1600,
-            "cifar100": 1600,
-            "tiny_imagenet": 3200,
-            "celeba": 133824,
-            "svhn": 1600,
-            "usps": 800,
-        }
         self.base = nn.Sequential(
             OrderedDict(
                 conv1=nn.Conv2d(INPUT_CHANNELS[dataset], 32, 5),
@@ -114,7 +113,7 @@ class FedAvgCNN(DecoupledModel):
                 activation2=nn.ReLU(),
                 pool2=nn.MaxPool2d(2),
                 flatten=nn.Flatten(),
-                fc1=nn.Linear(features_length[dataset], 512),
+                fc1=nn.Linear(self.feature_length[dataset], 512),
             )
         )
         self.classifier = nn.Linear(512, NUM_CLASSES[dataset])
@@ -124,25 +123,25 @@ class FedAvgCNN(DecoupledModel):
 
 
 class LeNet5(DecoupledModel):
+    feature_length = {
+        "mnist": 256,
+        "medmnistS": 256,
+        "medmnistC": 256,
+        "medmnistA": 256,
+        "covid19": 49184,
+        "fmnist": 256,
+        "emnist": 256,
+        "femnist": 256,
+        "cifar10": 400,
+        "cinic10": 400,
+        "svhn": 400,
+        "cifar100": 400,
+        "celeba": 33456,
+        "usps": 200,
+        "tiny_imagenet": 2704,
+    }
     def __init__(self, dataset: str) -> None:
         super(LeNet5, self).__init__()
-        feature_length = {
-            "mnist": 256,
-            "medmnistS": 256,
-            "medmnistC": 256,
-            "medmnistA": 256,
-            "covid19": 49184,
-            "fmnist": 256,
-            "emnist": 256,
-            "femnist": 256,
-            "cifar10": 400,
-            "cinic10": 400,
-            "svhn": 400,
-            "cifar100": 400,
-            "celeba": 33456,
-            "usps": 200,
-            "tiny_imagenet": 2704,
-        }
         self.base = nn.Sequential(
             OrderedDict(
                 conv1=nn.Conv2d(INPUT_CHANNELS[dataset], 6, 5),
@@ -154,7 +153,7 @@ class LeNet5(DecoupledModel):
                 activation2=nn.ReLU(),
                 pool2=nn.MaxPool2d(2),
                 flatten=nn.Flatten(),
-                fc1=nn.Linear(feature_length[dataset], 120),
+                fc1=nn.Linear(self.feature_length[dataset], 120),
                 activation3=nn.ReLU(),
                 fc2=nn.Linear(120, 84),
             )
@@ -167,34 +166,25 @@ class LeNet5(DecoupledModel):
 
 
 class TwoNN(DecoupledModel):
+    feature_length = {
+        "mnist": 784,
+        "medmnistS": 784,
+        "medmnistC": 784,
+        "medmnistA": 784,
+        "fmnist": 784,
+        "emnist": 784,
+        "femnist": 784,
+        "cifar10": 3072,
+        "cinic10": 3072,
+        "svhn": 3072,
+        "cifar100": 3072,
+        "usps": 1536,
+        "synthetic": DATA_SHAPE["synthetic"],
+    }
     def __init__(self, dataset):
         super(TwoNN, self).__init__()
-
-        def get_synthetic_dimension():
-            try:
-                with open(FLBENCH_ROOT / "data" / "synthetic" / "args.json", "r") as f:
-                    metadata = json.load(f)
-                return metadata["dimension"]
-            except:
-                return 0
-
-        features_length = {
-            "mnist": 784,
-            "medmnistS": 784,
-            "medmnistC": 784,
-            "medmnistA": 784,
-            "fmnist": 784,
-            "emnist": 784,
-            "femnist": 784,
-            "cifar10": 3072,
-            "cinic10": 3072,
-            "svhn": 3072,
-            "cifar100": 3072,
-            "usps": 1536,
-            "synthetic": get_synthetic_dimension(),
-        }
         self.base = nn.Sequential(
-            nn.Linear(features_length[dataset], 200),
+            nn.Linear(self.feature_length[dataset], 200),
             nn.ReLU(inplace=True),
             nn.Linear(200, 200),
             nn.ReLU(inplace=True),

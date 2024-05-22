@@ -23,6 +23,6 @@ class FedProxClient(FedAvgClient):
                 for w, w_t in zip(trainable_params(self.model), global_params):
                     w.grad.data += self.args.fedprox.mu * (w.data - w_t.data)
                 self.optimizer.step()
-            
+
             if self.lr_scheduler is not None:
                 self.lr_scheduler.step()

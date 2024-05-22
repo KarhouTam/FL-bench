@@ -58,6 +58,8 @@ Having Fun with Federated Learning.
 - ***FedOpt*** -- [Adaptive Federated Optimization](https://arxiv.org/abs/2003.00295) (ICLR'21)
 
 - ***Elastic Aggregation*** -- [Elastic Aggregation for Federated Optimization](https://openaccess.thecvf.com/content/CVPR2023/html/Chen_Elastic_Aggregation_for_Federated_Optimization_CVPR_2023_paper.html) (CVPR'23)
+
+- ***FedFed*** -- [FedFed: Feature Distillation against Data Heterogeneity in Federated Learning](http://arxiv.org/abs/2310.05077) (NIPS'23)
 </details>
 
 <details>
@@ -239,22 +241,22 @@ parallel:
 ```
 ### Manually Create `Ray` Cluster (Optional)
 A `Ray` cluster would be created implicitly everytime you run experiment in parallel mode.
-Or you can create it manually to avoid creating and destroying cluster every time you run experiment.
+Or you can create it manually by the command shown below to avoid creating and destroying cluster every time you run experiment.
+```shell
+ray start --head [OPTIONS]
+```
+👀 **NOTE:** You need to keep `num_cpus: null` and `num_gpus: null` in your config file for connecting to a existing `Ray` cluster.
 ```yaml
 # your_config_file.yml
 # Connect to an existing Ray cluster in localhost.
 mode: parallel
 parallel:
-  ray_cluster_addr: null
+  ...
   num_gpus: null
   num_cpus: null
-  ...
 ...
 ```
-```shell
-ray start --head [OPTIONS]
-```
-👀 **NOTE:** You need to keep `num_cpus: null` and `num_gpus: null` in your config file for connecting to a existing `Ray` cluster.
+
 
 
 
