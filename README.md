@@ -148,8 +148,6 @@ docker pull registry.cn-hangzhou.aliyuncs.com/karhoutam/fl-bench:master
 
 # For those oversea users
 docker pull ghcr.io/karhoutam/fl-bench:master
-# or
-docker pull docker.io/karhoutam/fl-bench:master
 
 # An example for building container
 docker run -it --name fl-bench -v path/to/FL-bench:/root/FL-bench --privileged --gpus all ghcr.io/karhoutam/fl-bench:master
