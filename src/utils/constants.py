@@ -42,7 +42,6 @@ DEFAULT_COMMON_ARGS = {
     "save_model": False,
     "save_fig": True,
     "save_metrics": True,
-    "viz_win_name": None,
     "check_convergence": True,
 }
 
