@@ -41,18 +41,18 @@ class FedPACClient(FedAvgClient):
                 mean = features[i].mean(dim=0)
                 self.h_ref[i] = distrib1[i] * mean
                 self.v += (
-                    distrib1[i]
-                    * torch.trace((torch.mm(features[i].t(), features[i]) / size))
+                    distrib1[i] * torch.trace(features[i].t() @ features[i] / size)
                 ).item()
                 self.v -= (distrib2[i] * (mean**2)).sum().item()
 
         self.v /= len(self.trainset.indices)
 
+    @torch.no_grad
     def calculate_prototypes(self, mean=False):
         prototypes = [[] for _ in self.dataset.classes]
         for x, y in self.trainloader:
             x = x.to(self.device)
-            features = self.model.get_final_features(x, detach=True)
+            features = self.model.get_final_features(x)
             for i, label in enumerate(y.tolist()):
                 prototypes[label].append(features[i])
 
@@ -92,6 +92,8 @@ class FedPACClient(FedAvgClient):
                 self.model.base.requires_grad_(False)
                 self.model.classifier.requires_grad_(True)
                 for x, y in self.trainloader:
+                    if len(y) <= 1:
+                        continue
                     x, y = x.to(self.device), y.to(self.device)
                     logits = self.model(x)
                     loss = self.criterion(logits, y)
@@ -102,6 +104,8 @@ class FedPACClient(FedAvgClient):
                 self.model.base.requires_grad_(True)
                 self.model.classifier.requires_grad_(False)
                 for x, y in self.trainloader:
+                    if len(y) <= 1:
+                        continue
                     x, y = x.to(self.device), y.to(self.device)
                     features = self.model.get_final_features(x, detach=False)
                     logits = self.model.classifier(features)
