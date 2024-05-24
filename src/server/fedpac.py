@@ -37,11 +37,6 @@ class FedPACServer(FedAvgServer):
         server_package["global_prototypes"] = self.global_prototypes
         return server_package
 
-    def train_one_round(self):
-        client_packages = self.trainer.train()
-        self.aggregate_prototypes(client_packages)
-        self.aggregate(client_packages)
-
     def aggregate_prototypes(self, client_packages: list[dict[str, Any]]):
         prototypes_list = [
             package["prototypes"] for package in client_packages.values()
@@ -54,9 +49,10 @@ class FedPACServer(FedAvgServer):
             zip(zip(*prototypes_list), zip(*weights_list))
         ):
             prototypes = list(filter(lambda p: isinstance(p, torch.Tensor), prototypes))
-            weights = torch.tensor(list(filter(lambda w: w > 0, weights)), dtype=float)
+            weights = torch.tensor(
+                list(filter(lambda w: w > 0, weights)), dtype=torch.float
+            )
             if len(prototypes) > 0:
-                # because prototypes are averaged
                 weights /= weights.sum()
                 prototypes = torch.stack(prototypes, dim=-1)
                 self.global_prototypes[i] = torch.sum(prototypes * weights, dim=-1)
@@ -65,29 +61,33 @@ class FedPACServer(FedAvgServer):
         # aggregate all parameters (include classifier's)
         super().aggregate(client_packages)
 
+        # aggregate new global prototypes
+        self.aggregate_prototypes(client_packages)
+
         # aggregate personalized classifier and store parameters in self.client_personal_model_params
         # personal params is prior to the globals, results in personalized classifier params overlap the globals
         num_clients = len(self.selected_clients)
         client_h_ref_list = [package["h_ref"] for package in client_packages.values()]
-        client_v_list = [package["v"] for package in client_packages.values()]
+        V = torch.tensor(
+            [package["v"] for package in client_packages.values()], dtype=torch.float
+        )
         feature_length = client_h_ref_list[0].shape[1]
         classifier_weights = {}
-        for i in range(num_clients):
-            V = torch.tensor(client_v_list)
-            h_ref = client_h_ref_list[i]
+        for i, client_id in enumerate(self.selected_clients):
+            h_i = client_packages[client_id]["h_ref"]
             distances = torch.zeros((num_clients, num_clients))
-            for j, k in pairwise(tuple(range(num_clients))):
-                h_j1 = client_h_ref_list[j]
-                h_j2 = client_h_ref_list[k]
+            for (idx_j, idx_k), (j, k) in pairwise(self.selected_clients):
+                h_j = client_packages[j]["h_ref"]
+                h_k = client_packages[k]["h_ref"]
                 H = torch.zeros((feature_length, feature_length))
-                for k in range(NUM_CLASSES[self.args.common.dataset]):
+                for label in range(NUM_CLASSES[self.args.common.dataset]):
                     H += torch.mm(
-                        (h_ref[k] - h_j1[k]).reshape(feature_length, 1),
-                        (h_ref[k] - h_j2[k]).reshape(1, feature_length),
+                        (h_i[label] - h_j[label]).reshape(feature_length, 1),
+                        (h_i[label] - h_k[label]).reshape(1, feature_length),
                     )
                 dist_jk = torch.trace(H)
-                distances[j][k] = dist_jk
-                distances[k][j] = dist_jk
+                distances[idx_j][idx_k] = dist_jk
+                distances[idx_k][idx_j] = dist_jk
 
             W = None
             p_matrix = torch.diag(V) + distances
@@ -102,7 +102,7 @@ class FedPACServer(FedAvgServer):
                 ]  # zero-out small weights (<eps)
             else:
                 # QP solver
-                eigenvals, eigenvecs = torch.linalg.eig(p_matrix)
+                eigenvals, eigenvecs = torch.linalg.eigh(p_matrix)
                 eigenvals = eigenvals.real
                 eigenvecs = eigenvecs.real
 
@@ -124,10 +124,9 @@ class FedPACServer(FedAvgServer):
                         i * (i > 1e-3) for i in alpha.value
                     ]  # zero-out small weights (<eps)
                 else:
-                    W = None
-            if W is None:
-                W = [0.0] * num_clients
-                W[i] = 1.0
+                    W = [0.0] * num_clients
+                    W[i] = 1.0
+
             W = torch.tensor(W, dtype=torch.float)
             classifier_weights[self.selected_clients[i]] = W / W.sum()
 
@@ -151,5 +150,5 @@ class FedPACServer(FedAvgServer):
 def pairwise(sequence):
     n = len(sequence)
     for i in range(n):
-        for j in range(i, n):
-            yield (sequence[i], sequence[j])
+        for j in range(i + 1, n):
+            yield ((i, j), (sequence[i], sequence[j]))

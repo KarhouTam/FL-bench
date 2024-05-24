@@ -44,7 +44,7 @@ class FedPACClient(FedAvgClient):
                     distrib1[i]
                     * torch.trace((torch.mm(features[i].t(), features[i]) / size))
                 ).item()
-                self.v -= (distrib2[i] * (torch.mul(mean, mean))).sum().item()
+                self.v -= (distrib2[i] * (mean**2)).sum().item()
 
         self.v /= len(self.trainset.indices)
 
@@ -112,14 +112,16 @@ class FedPACClient(FedAvgClient):
                         for i, label in enumerate(y.cpu().tolist()):
                             if label in self.global_prototypes.keys():
                                 loss_mse += torch.nn.functional.mse_loss(
-                                    self.global_prototypes[label].to(self.device), features[i]
+                                    self.global_prototypes[label].to(self.device),
+                                    features[i],
                                 )
                             else:
                                 loss_mse += torch.nn.functional.mse_loss(
                                     local_prototypes[label], features[i]
                                 )
-                    self.optimizer.zero_grad()
                     loss = loss_ce + self.args.fedpac.lamda * loss_mse
+                    self.optimizer.zero_grad()
+                    loss.backward()
                     self.optimizer.step()
 
         self.model.requires_grad_(True)
