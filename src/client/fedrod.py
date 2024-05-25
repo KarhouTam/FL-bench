@@ -152,7 +152,7 @@ class FedRoDModel(DecoupledModel):
         self.eval_per = eval_per
 
     def forward(self, x):
-        z = torch.relu(self.generic_model.get_final_features(x, detach=False))
+        z = self.generic_model.get_last_features(x, detach=False)
         logit_g = self.generic_model.classifier(z)
         logit_p = self.personalized_classifier(z)
         if self.training:

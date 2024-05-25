@@ -58,7 +58,7 @@ class FedProtoClient(FedAvgClient):
                     continue
 
                 x, y = x.to(self.device), y.to(self.device)
-                features = F.relu(self.model.get_final_features(x, detach=False))
+                features = F.relu(self.model.get_last_features(x, detach=False))
                 logits = self.model.classifier(features)
                 target_prototypes = self.process_features(features, y)
 
