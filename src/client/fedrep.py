@@ -63,6 +63,7 @@ class FedRepClient(FedPerClient):
                         for name, param in self.model.named_parameters():
                             if name in self.personal_params_name:
                                 param.grad.zero_()
+                    self.optimizer.step()
         else:
             # fine-tune the classifier only
             for _ in range(self.args.common.finetune_epoch):
