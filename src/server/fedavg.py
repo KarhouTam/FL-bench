@@ -95,22 +95,18 @@ class FedAvgServer:
         )
         self.model.check_avaliability()
 
-        self.global_model_params: OrderedDict[str, torch.Tensor] = None
-
         _init_global_params, self.trainable_params_name = trainable_params(
             self.model, detach=True, requires_name=True
         )
-        _init_personal_params = OrderedDict(self.model.named_buffers())
-        self.global_model_params = OrderedDict(
+        self.global_model_params: OrderedDict[str, torch.Tensor] = OrderedDict(
             zip(self.trainable_params_name, _init_global_params)
         )
-        self.clients_personal_model_params = {
-            client_id: OrderedDict(
-                (key, param.cpu().clone())
-                for key, param in _init_personal_params.items()
-            )
-            for client_id in range(self.client_num)
-        }
+        self.clients_personal_model_params = {i: {} for i in range(self.client_num)}
+        if self.args.common.buffers == "local":
+            for params_dict in self.clients_personal_model_params.values():
+                params_dict.update(self.model.named_buffers())
+        elif self.args.common.buffers == "global":
+            self.global_model_params.update(self.model.named_buffers())
         if self.unique_model:
             for params_dict in self.clients_personal_model_params.values():
                 params_dict.update(self.global_model_params)
