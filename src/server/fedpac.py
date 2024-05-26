@@ -2,8 +2,8 @@ from argparse import ArgumentParser
 from collections import OrderedDict
 from typing import Any
 
-import torch
 import numpy as np
+import torch
 import cvxpy as cvx
 
 from src.server.fedavg import FedAvgServer
@@ -50,12 +50,16 @@ class FedPACServer(FedAvgServer):
         ):
             prototypes = list(filter(lambda p: isinstance(p, torch.Tensor), prototypes))
             weights = torch.tensor(
-                list(filter(lambda w: w > 0, weights)), dtype=torch.float
+                list(filter(lambda w: w > 0, weights)),
+                dtype=torch.float,
+                device=self.device,
             )
             if len(prototypes) > 0:
                 weights /= weights.sum()
-                prototypes = torch.stack(prototypes, dim=-1)
-                self.global_prototypes[i] = torch.sum(prototypes * weights, dim=-1)
+                prototypes = torch.stack(prototypes, dim=-1).to(self.device)
+                self.global_prototypes[i] = torch.sum(
+                    prototypes * weights, dim=-1
+                ).cpu()
 
     def aggregate(self, client_packages: OrderedDict[int, dict[str, Any]]):
         # aggregate all parameters (include classifier's)
@@ -69,66 +73,53 @@ class FedPACServer(FedAvgServer):
         num_clients = len(self.selected_clients)
         client_h_ref_list = [package["h_ref"] for package in client_packages.values()]
         V = torch.tensor(
-            [package["v"] for package in client_packages.values()], dtype=torch.float
+            [package["v"] for package in client_packages.values()],
+            dtype=torch.float,
+            device=self.device,
         )
         feature_length = client_h_ref_list[0].shape[1]
         classifier_weights = {}
         for i, client_id in enumerate(self.selected_clients):
-            h_i = client_packages[client_id]["h_ref"]
-            distances = torch.zeros((num_clients, num_clients))
+            h_i = client_packages[client_id]["h_ref"].to(self.device)
+            distances = torch.zeros((num_clients, num_clients), device=self.device)
             for (idx_j, idx_k), (j, k) in pairwise(self.selected_clients):
-                h_j = client_packages[j]["h_ref"]
-                h_k = client_packages[k]["h_ref"]
-                H = torch.zeros((feature_length, feature_length))
-                for label in range(NUM_CLASSES[self.args.common.dataset]):
+                h_j = client_packages[j]["h_ref"].to(self.device)
+                h_k = client_packages[k]["h_ref"].to(self.device)
+                H = torch.zeros((feature_length, feature_length), device=self.device)
+                for c in range(NUM_CLASSES[self.args.common.dataset]):
                     H += torch.mm(
-                        (h_i[label] - h_j[label]).reshape(feature_length, 1),
-                        (h_i[label] - h_k[label]).reshape(1, feature_length),
+                        (h_i[c] - h_j[c]).reshape(feature_length, 1),
+                        (h_i[c] - h_k[c]).reshape(1, feature_length),
                     )
                 dist_jk = torch.trace(H)
                 distances[idx_j][idx_k] = dist_jk
                 distances[idx_k][idx_j] = dist_jk
 
-            W = None
-            p_matrix = torch.diag(V) + distances
+            W = [int(idx == i) for idx in range(num_clients)]
+            P = (torch.diag(V) + distances).cpu()
 
-            if np.all(np.linalg.eigvals(p_matrix.numpy()) >= 0.0):
-                alpha = cvx.Variable(num_clients)
-                obj = cvx.Minimize(cvx.quad_form(alpha, p_matrix))
-                prob = cvx.Problem(obj, [cvx.sum(alpha) == 1.0, alpha >= 0])
-                prob.solve()
-                W = [
-                    i * (i > 1e-3) for i in alpha.value
-                ]  # zero-out small weights (<eps)
+            if torch.all(torch.linalg.eigvalsh(P) >= 0.0):
+                W = calculate_classifier_weights(num_clients, P, i)
             else:
                 # QP solver
-                eigenvals, eigenvecs = torch.linalg.eigh(p_matrix)
-                eigenvals = eigenvals.real
-                eigenvecs = eigenvecs.real
-
+                eigenvals, eigenvecs = torch.linalg.eigh(P)
+                eigenvals, eigenvals.to(self.device)
+                eigenvecs = eigenvecs.to(self.device)
                 # for numerical stablity
-                p_matrix.zero_()
+                P = torch.zeros((num_clients, num_clients), device=self.device)
                 for j in range(num_clients):
                     if eigenvals[j] >= 0.01:
-                        p_matrix += eigenvals[j] * torch.mm(
+                        P += eigenvals[j] * torch.mm(
                             eigenvecs[:, j].reshape(num_clients, 1),
                             eigenvecs[:, j].reshape(1, num_clients),
                         )
 
-                if np.all(np.linalg.eigvals(p_matrix.numpy()) >= 0.0):
-                    alpha = cvx.Variable(num_clients)
-                    obj = cvx.Minimize(cvx.quad_form(alpha, p_matrix))
-                    prob = cvx.Problem(obj, [cvx.sum(alpha) == 1.0, alpha >= 0])
-                    prob.solve()
-                    W = [
-                        i * (i > 1e-3) for i in alpha.value
-                    ]  # zero-out small weights (<eps)
-                else:
-                    W = [0.0] * num_clients
-                    W[i] = 1.0
+                P = P.cpu()
+                if torch.all(torch.linalg.eigvalsh(P) >= 0.0):
+                    W = calculate_classifier_weights(num_clients, P, i)
 
-            W = torch.tensor(W, dtype=torch.float)
-            classifier_weights[self.selected_clients[i]] = W / W.sum()
+            W = torch.tensor(W, dtype=torch.float, device=self.device)
+            classifier_weights[client_id] = W / W.sum()
 
         classifier_params_name = [
             name for name in self.trainable_params_name if "classifier" in name
@@ -140,15 +131,27 @@ class FedPACServer(FedAvgServer):
                     for package in client_packages.values()
                 ],
                 dim=-1,
-            )
+            ).to(self.device)
             for i in self.selected_clients:
                 self.clients_personal_model_params[i][layer] = (
-                    parameters * classifier_weights[i]
-                ).sum(dim=-1)
+                    (parameters * classifier_weights[i]).sum(dim=-1).cpu()
+                )
+
+
+def calculate_classifier_weights(num_clients: int, P: torch.Tensor, idx: int):
+    try:
+        alpha = cvx.Variable(num_clients)
+        obj = cvx.Minimize(cvx.quad_form(alpha, P.numpy()))
+        prob = cvx.Problem(obj, [cvx.sum(alpha) == 1.0, alpha >= 0])
+        prob.solve()
+        W = [i * (i > 1e-3) for i in alpha.value]
+    except cvx.error.DCPError:
+        W = [int(idx == i) for i in range(num_clients)]
+    return W
 
 
 def pairwise(sequence):
     n = len(sequence)
     for i in range(n):
-        for j in range(i + 1, n):
+        for j in range(i, n):
             yield ((i, j), (sequence[i], sequence[j]))

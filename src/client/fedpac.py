@@ -1,4 +1,5 @@
 from collections import Counter
+from copy import deepcopy
 from typing import Any
 
 import torch
@@ -41,7 +42,7 @@ class FedPACClient(FedAvgClient):
                 mean = features[i].mean(dim=0)
                 self.h_ref[i] = distrib1[i] * mean
                 self.v += (
-                    distrib1[i] * torch.trace(features[i].t() @ features[i] / size)
+                    distrib1[i] * torch.trace((features[i].t() @ features[i]) / size)
                 ).item()
                 self.v -= (distrib2[i] * (mean**2)).sum().item()
 
@@ -51,8 +52,9 @@ class FedPACClient(FedAvgClient):
     def calculate_prototypes(self, mean=False):
         prototypes = [[] for _ in self.dataset.classes]
         for x, y in self.trainloader:
-            x = x.to(self.device)
-            features = self.model.get_final_features(x)
+            if len(y) <= 1:
+                continue
+            features = self.model.get_final_features(x.to(self.device))
             for i, label in enumerate(y.tolist()):
                 prototypes[label].append(features[i])
 
@@ -79,7 +81,7 @@ class FedPACClient(FedAvgClient):
                 prototypes.append(proto)
         client_package["prototypes"] = prototypes
         client_package["label_distrib"] = self.label_distribs[self.client_id]
-        client_package["v"] = self.v
+        client_package["v"] = deepcopy(self.v)
         client_package["h_ref"] = self.h_ref.cpu().clone()
         return client_package
 
