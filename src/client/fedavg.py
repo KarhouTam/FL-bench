@@ -47,7 +47,7 @@ class FedAvgClient:
 
         self.optimizer = optimizer_cls(params=trainable_params(self.model))
         self.init_optimizer_state = deepcopy(self.optimizer.state_dict())
-        
+
         self.lr_scheduler: torch.optim.lr_scheduler.LRScheduler = None
         self.init_lr_scheduler_state: dict = None
         self.lr_scheduler_cls = None
@@ -145,7 +145,7 @@ class FedAvgClient:
         self.model.load_state_dict(package["personal_model_params"], strict=False)
         if self.args.common.buffers == "drop":
             self.model.load_state_dict(self.init_buffers, strict=False)
-        
+
         if self.return_diff:
             _, trainable_param_keys = trainable_params(self.model, requires_name=True)
             model_params = self.model.state_dict()
@@ -154,7 +154,7 @@ class FedAvgClient:
             )
             if self.args.common.buffers == "global":
                 for key, buffer in self.model.named_buffers():
-                    self.global_regular_model_params.update((key, buffer.clone().cpu()))
+                    self.global_regular_model_params[key] = buffer.clone().cpu()
 
     def train(self, server_package: dict[str, Any]):
         self.set_parameters(server_package)
@@ -198,6 +198,8 @@ class FedAvgClient:
         )
         if self.args.common.buffers == "global":
             for key, buffer in self.model.named_buffers():
+                if "num_batches_tracked" in key:
+                    buffer.zero_()
                 client_package["regular_model_params"][key] = buffer.clone().cpu()
         if self.return_diff:
             client_package["model_params_diff"] = {

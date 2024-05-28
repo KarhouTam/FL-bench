@@ -505,30 +505,32 @@ class FedAvgServer:
         clients_weight = [package["weight"] for package in clients_package.values()]
         weights = torch.tensor(clients_weight) / sum(clients_weight)
         if self.return_diff:  # inputs are model params diff
-            params_diff_list = [
-                list(package["model_params_diff"].values())
-                for package in clients_package.values()
-            ]
-            aggregated_params_diff = [
-                torch.sum(weights * torch.stack(diff, dim=-1), dim=-1)
-                for diff in zip(*params_diff_list)
-            ]
-
-            for param, diff in zip(
-                self.global_model_params.values(), aggregated_params_diff
-            ):
-                param.data -= diff
-        else:
-            params_list = [
-                list(package["regular_model_params"].values())
-                for package in clients_package.values()
-            ]
-            for old_param, zipped_new_param in zip(
-                self.global_model_params.values(), zip(*params_list)
-            ):
-                old_param.data = torch.sum(
-                    torch.stack(zipped_new_param, dim=-1) * weights, dim=-1
+            for name, global_param in self.global_model_params.items():
+                diffs = torch.stack(
+                    [
+                        package["model_params_diff"][name]
+                        for package in clients_package.values()
+                    ],
+                    dim=-1,
                 )
+                aggregated = torch.sum(
+                    diffs * weights, dim=-1, dtype=global_param.dtype
+                ).to(global_param.device)
+                self.global_model_params[name].data -= aggregated
+        else:
+            for name, global_param in self.global_model_params.items():
+                client_params = torch.stack(
+                    [
+                        package["regular_model_params"][name]
+                        for package in clients_package.values()
+                    ],
+                    dim=-1,
+                )
+                aggregated = torch.sum(
+                    client_params * weights, dim=-1, dtype=global_param.dtype
+                ).to(global_param.device)
+
+                global_param.data = aggregated
 
     def show_convergence(self):
         """Collect the number of epoches that FL method reach specific accuracies while training."""

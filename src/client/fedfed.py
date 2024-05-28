@@ -135,7 +135,7 @@ class FedFedClient(FedAvgClient):
 
         _, regular_keys = trainable_params(self.model, requires_name=True)
         model_params = self.model.state_dict(keep_vars=True)
-        return dict(
+        client_package = dict(
             weight=len(self.trainset),
             regular_model_params={
                 key: model_params[key].detach().clone().cpu() for key in regular_keys
@@ -150,6 +150,12 @@ class FedFedClient(FedAvgClient):
             optimizer_state=deepcopy(self.optimizer.state_dict()),
             VAE_optimizer_state=deepcopy(self.VAE_optimizer.state_dict()),
         )
+        if self.args.common.buffers == "global":
+            for key, buffer in self.model.named_buffers():
+                if "num_batches_tracked" in key:
+                    buffer.zero_()
+                client_package["regular_model_params"][key] = buffer.clone().cpu()
+        return client_package
 
     @torch.no_grad
     def generate_shared_data(self, package: dict[str, Any]):

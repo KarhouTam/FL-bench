@@ -53,7 +53,7 @@ class pFedSimServer(FedAvgServer):
             params_dict.update(self.global_model_params)
 
         self.params_name_join_aggregation = [
-            key for key in self.trainable_params_name if "classifier" not in key
+            key for key in self.global_model_params.keys() if "classifier" not in key
         ]
 
         for E in pfedsim_progress_bar:

@@ -35,11 +35,13 @@ class pFedHNServer(FedAvgServer):
         return_diff=True,
     ):
         if args.mode == "parallel":
-            print("pFedHN does not support paralell mode and is fallback to serial.")
-            args.mode = "serial"
+            raise NotImplementedError("pFedHN does not support paralell mode.")
+        if args.common.buffers == "global":
+            raise NotImplementedError("pFedHN does not support global buffers.")
         algo = "pFedHN" if args.pfedhn.version == "pfedhn" else "pFedHN-PC"
         use_fedavg_client_cls = True if args.pfedhn.version == "pfedhn" else False
         super().__init__(args, algo, unique_model, use_fedavg_client_cls, return_diff)
+
         if self.args.pfedhn.version == "pfedhn_pc":
             self.init_trainer(FedPerClient)
 

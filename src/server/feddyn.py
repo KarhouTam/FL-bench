@@ -28,7 +28,7 @@ class FedDynServer(FedAvgServer):
     ):
         super().__init__(args, algo, unique_model, use_fedavg_client_cls, return_diff)
         self.init_trainer(FedDynClient)
-        param_numel = vectorize(trainable_params(self.model)).numel()
+        param_numel = vectorize(self.global_model_params).numel()
         self.nabla = [torch.zeros(param_numel) for _ in range(self.client_num)]
         self.clients_weight = torch.tensor(
             [len(self.data_indices[i]["train"]) for i in self.train_clients]
@@ -50,7 +50,11 @@ class FedDynServer(FedAvgServer):
             list(package["regular_model_params"].values())
             for package in clients_package.values()
         ]
-        avg_params = [torch.stack(params).mean(dim=0) for params in zip(*params_list)]
+        weights = torch.ones(len(params_list)) / len(params_list)
+        avg_params = [
+            (torch.stack(params, dim=-1) * weights).sum(dim=-1)
+            for params in zip(*params_list)
+        ]
         params_shape = [(param.numel(), param.shape) for param in avg_params]
         flatten_global_params = vectorize(self.global_model_params)
 
@@ -66,5 +70,5 @@ class FedDynServer(FedAvgServer):
             new_params.append(flatten_new_params[i : i + numel].reshape(shape))
             i += numel
         self.global_model_params = OrderedDict(
-            zip(self.trainable_params_name, new_params)
+            zip(self.global_model_params.keys(), new_params)
         )

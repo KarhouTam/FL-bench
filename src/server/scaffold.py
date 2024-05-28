@@ -41,11 +41,15 @@ class SCAFFOLDServer(FedAvgServer):
     def aggregate(self, clients_package: dict[int, dict[str, Any]]):
         c_delta_list = [package["c_delta"] for package in clients_package.values()]
         y_delta_list = [package["y_delta"] for package in clients_package.values()]
+        weights = torch.ones(len(y_delta_list)) / len(y_delta_list)
         for param, y_delta in zip(
             self.global_model_params.values(), zip(*y_delta_list)
         ):
             param.data.add_(
-                self.args.scaffold.global_lr * torch.stack(y_delta, dim=-1).mean(dim=-1)
+                self.args.scaffold.global_lr
+                * torch.sum(
+                    torch.stack(y_delta, dim=-1) * weights, dim=-1, dtype=param.dtype
+                )
             )
 
         # update global control

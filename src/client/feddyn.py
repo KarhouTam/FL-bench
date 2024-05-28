@@ -16,10 +16,13 @@ class FedDynClient(FedAvgClient):
 
     def set_parameters(self, package: dict[str, Any]):
         super().set_parameters(package)
-        self.flatten_global_params = vectorize(
-            package["regular_model_params"], detach=True
-        )
-        self.nabla = package["nabla"]
+        if self.args.common.buffers == "global":
+            self.flatten_global_params = vectorize(self.model, detach=True)
+        else:
+            self.flatten_global_params = vectorize(
+                trainable_params(self.model), detach=True
+            )
+        self.nabla = package["nabla"].to(self.device)
         self.alpha = package["alpha"]
 
     def fit(self):
@@ -33,12 +36,16 @@ class FedDynClient(FedAvgClient):
                 x, y = x.to(self.device), y.to(self.device)
                 logit = self.model(x)
                 loss_ce = self.criterion(logit, y)
-                flatten_curr_params = vectorize(
-                    trainable_params(self.model), detach=False
-                )
+                if self.args.common.buffers == "global":
+                    flatten_curr_params = vectorize(
+                        self.model.state_dict(keep_vars=True), detach=False
+                    )
+                else:
+                    flatten_curr_params = vectorize(
+                        trainable_params(self.model), detach=False
+                    )
                 loss_algo = self.alpha * torch.sum(
-                    flatten_curr_params
-                    * (-self.flatten_global_params + self.nabla).to(self.device)
+                    flatten_curr_params * (-self.flatten_global_params + self.nabla)
                 )
                 loss = loss_ce + loss_algo
                 self.optimizer.zero_grad()

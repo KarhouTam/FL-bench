@@ -30,12 +30,14 @@ class pFedLAServer(FedAvgServer):
         return_diff=True,
     ):
         if args.mode == "parallel":
-            print(
-                "pFedLA does not support parallel mode and is fallback to serial mode."
-            )
-            args.mode = "serial"
+            raise NotImplementedError("pFedHN does not support paralell mode.")
+        if args.common.buffers == "global":
+            raise NotImplementedError("pFedHN does not support global buffers.")
         algo = "pFedLA" if args.pfedla.k == 0 else "HeurpFedLA"
         super().__init__(args, algo, unique_model, use_fedavg_client_cls, return_diff)
+        if self.args.common.buffers == "global":
+            print("pFedLA does not support global buffers and is fallback to local.")
+            self.args.common.buffers = "local"
         self.hypernet = HyperNetwork(
             embedding_dim=self.args.pfedla.embedding_dim,
             layer_num=len(self.trainable_params_name),

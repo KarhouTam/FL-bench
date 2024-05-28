@@ -1,5 +1,6 @@
 from argparse import ArgumentParser, Namespace
 from collections import OrderedDict
+from typing import Any
 
 import torch
 
@@ -36,41 +37,31 @@ class ElasticServer(FedAvgServer):
         server_package["sensitivity"] = self.clients_sensitivity[client_id]
         return server_package
 
-    def train_one_round(self):
-        clients_package = self.trainer.train()
+    def aggregate(self, clients_package: OrderedDict[int, dict[str, Any]]):
+        sensitivities = []
+        weights = []
+        for package in clients_package.values():
+            sensitivities.append(package["sensitivity"])
+            weights.append(package["weight"])
 
-        clients_params_diff = []
-        clients_weight = []
-        clients_sensitivity = []
+        weights = torch.tensor(weights) / sum(weights)
+        sensitivities = torch.stack(sensitivities, dim=-1)
 
-        for cid in self.selected_clients:
-            self.clients_sensitivity[cid] = clients_package[cid]["sensitivity"]
-            clients_params_diff.append(clients_package[cid]["model_params_diff"])
-            clients_weight.append(clients_package[cid]["weight"])
-            clients_sensitivity.append(clients_package[cid]["sensitivity"])
+        aggregated_sensitivity = torch.sum(sensitivities * weights, dim=-1)
+        max_sensitivity = sensitivities.max(dim=-1)[0]
 
-        self.aggregate(clients_weight, clients_params_diff, clients_sensitivity)
-
-    def aggregate(
-        self,
-        clients_weight: list[int],
-        clients_params_diff: list[OrderedDict[str, Tensor]],
-        clients_sensitivity: list[torch.Tensor],
-    ):
-        weights = torch.tensor(clients_weight) / sum(clients_weight)
-        stacked_sensitivity = torch.stack(clients_sensitivity, dim=-1)
-        aggregated_sensitivity = torch.sum(stacked_sensitivity * weights, dim=-1)
-        max_sensitivity = stacked_sensitivity.max(dim=-1)[0]
         zeta = 1 + self.args.elastic.tau - aggregated_sensitivity / max_sensitivity
-        clients_params_diff_list = [
-            list(delta.values()) for delta in clients_params_diff
-        ]
-        aggregated_diff = [
-            torch.sum(weights * torch.stack(diff, dim=-1), dim=-1)
-            for diff in zip(*clients_params_diff_list)
-        ]
 
-        for param, coef, diff in zip(
-            self.global_model_params.values(), zeta, aggregated_diff
-        ):
-            param.data -= coef * diff
+        for (key, global_param), coef in zip(self.global_model_params.items(), zeta):
+            diffs = torch.stack(
+                [
+                    package["model_params_diff"][key]
+                    for package in clients_package.values()
+                ],
+                dim=-1,
+            )
+            aggregated = torch.sum(
+                diffs * weights, dim=-1, dtype=global_param.dtype
+            ).to(global_param.device)
+
+            global_param.data -= coef * aggregated
