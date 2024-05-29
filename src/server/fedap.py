@@ -85,14 +85,14 @@ class FedAPServer(FedAvgServer):
                 for client_id in selected_clients_this_round:
                     self.selected_clients = [client_id]
                     client_package = self.trainer.train()
-                    self.global_model_params = client_package[client_id][
+                    self.public_model_params = client_package[client_id][
                         "regular_model_params"
                     ]
 
         # update clients params to pretrain params
         for client_id in self.train_clients:
             self.clients_personal_model_params[client_id].update(
-                self.global_model_params
+                self.public_model_params
             )
 
         # generate weight matrix
@@ -188,12 +188,12 @@ class FedAPServer(FedAvgServer):
 
         personal_params = self.clients_personal_model_params[client_id]
         if not self.testing:
-            for layer_name in self.trainable_params_name:
+            for key in self.public_model_param_names:
                 layer_params = [
-                    model_params[layer_name]
+                    model_params[key]
                     for model_params in self.clients_personal_model_params.values()
                 ]
-                personal_params[layer_name] = torch.sum(
+                personal_params[key] = torch.sum(
                     torch.stack(layer_params, dim=-1) * self.weight_matrix[client_id],
                     dim=-1,
                 )

@@ -6,7 +6,7 @@ from torch.utils.data import DataLoader
 
 from src.server.fedavg import FedAvgServer
 from src.client.fedmd import FedMDClient
-from src.utils.tools import NestedNamespace, trainable_params
+from src.utils.tools import NestedNamespace
 from src.utils.constants import DATA_MEAN, DATA_STD, FLBENCH_ROOT
 from data.utils.datasets import DATASETS
 
@@ -97,9 +97,6 @@ class FedMDServer(FedAvgServer):
         self.public_data: list[torch.Tensor] = []
         self.consensus: list[torch.Tensor] = []
 
-        self.optimizer = self.get_client_optimizer()(
-            params=trainable_params(self.model)
-        )
         self.init_trainer(FedMDClient)
 
     def load_public_data_batches(self):

@@ -31,10 +31,10 @@ class CCVRServer(FedAvgServer):
         self.init_trainer(CCVRClient)
 
     def test(self):
-        frz_global_params_dict = deepcopy(self.global_model_params)
+        frz_global_params_dict = deepcopy(self.public_model_params)
         self.calibrate_classifier()
         super().test()
-        self.global_model_params = frz_global_params_dict
+        self.public_model_params = frz_global_params_dict
 
     def compute_classes_mean_cov(self):
         features_means, features_covs, features_count = [], [], []
@@ -131,7 +131,7 @@ class CCVRServer(FedAvgServer):
             trainable_params(self.model.classifier), lr=self.args.common.optimizer.lr
         )
 
-        self.model.load_state_dict(self.global_model_params, strict=False)
+        self.model.load_state_dict(self.public_model_params, strict=False)
         for x, y in dataloader:
             logits = self.model.classifier(x)
             loss = criterion(logits, y)
@@ -139,6 +139,7 @@ class CCVRServer(FedAvgServer):
             loss.backward()
             optimizer.step()
 
-        self.global_model_params = OrderedDict(
-            zip(self.trainable_params_name, trainable_params(self.model, detach=True))
+        model_params = self.model.state_dict()
+        self.public_model_params.update(
+            (key, model_params[key]) for key in self.public_model_param_names
         )

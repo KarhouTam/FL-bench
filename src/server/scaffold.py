@@ -6,7 +6,7 @@ import torch
 
 from src.server.fedavg import FedAvgServer
 from src.client.scaffold import SCAFFOLDClient
-from src.utils.tools import trainable_params, NestedNamespace
+from src.utils.tools import NestedNamespace
 
 
 def get_scaffold_args(args_list=None) -> Namespace:
@@ -26,7 +26,7 @@ class SCAFFOLDServer(FedAvgServer):
     ):
         super().__init__(args, algo, unique_model, use_fedavg_client_cls, return_diff)
         self.c_global = [
-            torch.zeros_like(param) for param in trainable_params(self.model)
+            torch.zeros_like(param) for param in self.public_model_params.values()
         ]
         self.c_local = [deepcopy(self.c_global) for _ in self.train_clients]
         self.init_trainer(SCAFFOLDClient)
@@ -41,15 +41,17 @@ class SCAFFOLDServer(FedAvgServer):
     def aggregate(self, clients_package: dict[int, dict[str, Any]]):
         c_delta_list = [package["c_delta"] for package in clients_package.values()]
         y_delta_list = [package["y_delta"] for package in clients_package.values()]
+        weights = torch.ones(len(y_delta_list)) / len(y_delta_list)
         for param, y_delta in zip(
-            self.global_model_params.values(), zip(*y_delta_list)
+            self.public_model_params.values(), zip(*y_delta_list)
         ):
-            param.data.add_(
-                self.args.scaffold.global_lr * torch.stack(y_delta, dim=-1).mean(dim=-1)
-            )
+            param.data += (
+                self.args.scaffold.global_lr
+                * torch.sum(torch.stack(y_delta, dim=-1) * weights, dim=-1)
+            ).to(param.dtype)
 
         # update global control
         for c_global, c_delta in zip(self.c_global, zip(*c_delta_list)):
-            c_global.data.add_(
+            c_global.data += (
                 torch.stack(c_delta, dim=-1).sum(dim=-1) / self.client_num
-            )
+            ).to(c_global.dtype)

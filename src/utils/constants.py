@@ -21,6 +21,7 @@ DEFAULT_COMMON_ARGS = {
     "straggler_ratio": 0,
     "straggler_min_local_epoch": 0,
     "external_model_params_file": "",
+    "buffers": "local",
     "optimizer": {
         "name": "sgd",  # [sgd, adam, adamw, rmsprop, adagrad]
         "lr": 0.01,

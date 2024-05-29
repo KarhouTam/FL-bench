@@ -4,9 +4,9 @@ from src.client.fedavg import FedAvgClient
 class FedPerClient(FedAvgClient):
     def __init__(self, **commons):
         super().__init__(**commons)
-        self.personal_params_name = [
-            name for name in self.model.state_dict().keys() if "classifier" in name
-        ]
+        self.personal_params_name.extend(
+            [name for name in self.model.state_dict().keys() if "classifier" in name]
+        )
 
     def finetune(self):
         self.model.train()

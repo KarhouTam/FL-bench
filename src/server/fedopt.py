@@ -5,7 +5,7 @@ from collections import OrderedDict
 import torch
 
 from src.server.fedavg import FedAvgServer
-from src.utils.tools import trainable_params, NestedNamespace
+from src.utils.tools import NestedNamespace
 from src.utils.models import DecoupledModel
 
 
@@ -37,7 +37,7 @@ class FedOptServer(FedAvgServer):
         super().__init__(args, algo, unique_model, use_fedavg_client_cls, return_diff)
         self.adaptive_optimizer = AdaptiveOptimizer(
             optimizer_type=self.args.fedopt.type,
-            model=self.model,
+            params_dict=self.public_model_params,
             beta1=self.args.fedopt.beta1,
             beta2=self.args.fedopt.beta2,
             lr=self.args.fedopt.server_lr,
@@ -57,16 +57,12 @@ class FedOptServer(FedAvgServer):
             weights=torch.tensor(clients_weight) / sum(clients_weight),
         )
 
-        self.global_model_params = OrderedDict(
-            zip(self.trainable_params_name, trainable_params(self.model, detach=True))
-        )
-
 
 class AdaptiveOptimizer:
     def __init__(
         self,
         optimizer_type: str,
-        model: DecoupledModel,
+        params_dict: OrderedDict[str, torch.Tensor],
         beta1: float,
         beta2: float,
         lr: float,
@@ -77,13 +73,13 @@ class AdaptiveOptimizer:
             "yogi": self._update_yogi,
             "adam": self._update_adam,
         }[optimizer_type]
-        self.model = model
+        self.params_dict = params_dict
         self.lr = lr
         self.tau = tau
         self.beta1 = beta1
         self.beta2 = beta2
         self.momentums = [
-            torch.zeros_like(param) for param in trainable_params(self.model)
+            torch.zeros_like(param) for param in self.params_dict.values()
         ]
         self.velocities = deepcopy(self.momentums)
         self.delta_list: list[torch.Tensor] = None
@@ -112,19 +108,23 @@ class AdaptiveOptimizer:
 
         # update model parameters
         for param, m, v in zip(
-            trainable_params(self.model), self.momentums, self.velocities
+            self.params_dict.values(), self.momentums, self.velocities
         ):
-            param.data = param.data - self.lr * (m / (v.sqrt() + self.tau))
+            param.data = (param.data - self.lr * (m / (v.sqrt() + self.tau))).to(
+                param.dtype
+            )
 
     def _update_adagrad(self, delta_list):
         for v, delta in zip(self.velocities, delta_list):
-            v.data = v + delta**2
+            v.data = (v + delta**2).to(v.dtype)
 
     def _update_yogi(self, delta_list):
         for v, delta in zip(self.velocities, delta_list):
             delta_pow2 = delta**2
-            v.data = v - (1 - self.beta2) * delta_pow2 * torch.sign(v - delta_pow2)
+            v.data = (
+                v - (1 - self.beta2) * delta_pow2 * torch.sign(v - delta_pow2)
+            ).to(v.dtype)
 
     def _update_adam(self, delta_list):
         for v, delta in zip(self.velocities, delta_list):
-            v.data = self.beta2 * v + (1 - self.beta2) * delta**2
+            v.data = (self.beta2 * v + (1 - self.beta2) * delta**2).to(v.dtype)
