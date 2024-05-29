@@ -82,21 +82,18 @@ class FedFomoClient(FedAvgClient):
         W.clip_(min=0)
         weight_sum = W.sum()
         if weight_sum > 0:
-            _, trainable_params_name = trainable_params(
-                self.eval_model, requires_name=True
-            )
-            aggregated_params = deepcopy(self.model.state_dict())
             W /= weight_sum
-            clients_model_params = []
-            for client_id, model_params in package[
-                "model_params_from_selected_clients"
-            ].items():
-                clients_model_params.append(
-                    [model_params[key] for key in trainable_params_name]
-                )
-            for key, params in zip(trainable_params_name, zip(*clients_model_params)):
-                aggregated_params[key] = torch.sum(
-                    torch.stack(params, dim=-1).to(self.device) * W, dim=-1
-                )
+            for key, param in self.model.state_dict(keep_vars=True).items():
+                clients_model_params = []
+                for model_params in package[
+                    "model_params_from_selected_clients"
+                ].values():
+                    if key in model_params.keys():
+                        clients_model_params.append(model_params[key])
 
-            self.model.load_state_dict(aggregated_params)
+                if len(clients_model_params) > 0:
+                    aggregated = torch.sum(
+                        torch.stack(clients_model_params, dim=-1).to(self.device) * W,
+                        dim=-1,
+                    )
+                    param.data = aggregated.to(param.dtype)

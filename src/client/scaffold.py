@@ -31,10 +31,9 @@ class SCAFFOLDClient(FedAvgClient):
             c_plus = []
             self.c_delta = []
 
-            for x, y_i in zip(
-                server_package["regular_model_params"].values(),
-                trainable_params(self.model),
-            ):
+            model_params = self.model.state_dict()
+            for key in server_package["regular_model_params"].keys():
+                x, y_i = server_package["regular_model_params"][key], model_params[key]
                 self.y_delta.append(y_i.cpu() - x)
 
             coef = 1 / (self.local_epoch * self.args.common.optimizer.lr)

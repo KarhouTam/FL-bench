@@ -38,9 +38,14 @@ class FedAvgClient:
         self.model = model.to(self.device)
         self.global_regular_model_params: OrderedDict[str, torch.Tensor]
         self.personal_params_name: list[str] = []
+        _, self.regular_params_name = trainable_params(self.model, requires_name=True)
         if self.args.common.buffers == "local":
             self.personal_params_name.extend(
                 [name for name, _ in self.model.named_buffers()]
+            )
+        elif self.args.common.buffers == "global":
+            self.regular_params_name.extend(
+                name for name, _ in self.model.named_buffers()
             )
         elif self.args.common.buffers == "drop":
             self.init_buffers = deepcopy(OrderedDict(self.model.named_buffers()))
@@ -147,14 +152,11 @@ class FedAvgClient:
             self.model.load_state_dict(self.init_buffers, strict=False)
 
         if self.return_diff:
-            _, trainable_param_keys = trainable_params(self.model, requires_name=True)
             model_params = self.model.state_dict()
             self.global_regular_model_params = OrderedDict(
-                (key, model_params[key].clone().cpu()) for key in trainable_param_keys
+                (key, model_params[key].clone().cpu())
+                for key in self.regular_params_name
             )
-            if self.args.common.buffers == "global":
-                for key, buffer in self.model.named_buffers():
-                    self.global_regular_model_params[key] = buffer.clone().cpu()
 
     def train(self, server_package: dict[str, Any]):
         self.set_parameters(server_package)
@@ -177,13 +179,12 @@ class FedAvgClient:
                 `lr_scheduler_state`: Client learning rate scheduler's state dict.
             }
         """
-        _, trainable_param_keys = trainable_params(self.model, requires_name=True)
         model_params = self.model.state_dict()
         client_package = dict(
             weight=len(self.trainset),
             eval_results=self.eval_results,
             regular_model_params={
-                key: model_params[key].clone().cpu() for key in trainable_param_keys
+                key: model_params[key].clone().cpu() for key in self.regular_params_name
             },
             personal_model_params={
                 key: model_params[key].clone().cpu()
@@ -196,11 +197,6 @@ class FedAvgClient:
                 else deepcopy(self.lr_scheduler.state_dict())
             ),
         )
-        if self.args.common.buffers == "global":
-            for key, buffer in self.model.named_buffers():
-                if "num_batches_tracked" in key:
-                    buffer.zero_()
-                client_package["regular_model_params"][key] = buffer.clone().cpu()
         if self.return_diff:
             client_package["model_params_diff"] = {
                 key: param_old - param_new

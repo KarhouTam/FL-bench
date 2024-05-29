@@ -50,10 +50,12 @@ class pFedSimServer(FedAvgServer):
         )
 
         for params_dict in self.clients_personal_model_params.values():
-            params_dict.update(self.global_model_params)
+            params_dict.update(self.public_model_params)
 
         self.params_name_join_aggregation = [
-            key for key in self.global_model_params.keys() if "classifier" not in key
+            key
+            for key in self.public_model_params.keys()
+            if "classifier" not in key
         ]
 
         for E in pfedsim_progress_bar:
@@ -79,7 +81,7 @@ class pFedSimServer(FedAvgServer):
                         {
                             key: self.clients_personal_model_params[client_id][key]
                             - clients_package[client_id]["model_params_diff"][key]
-                            for key in self.trainable_params_name
+                            for key in self.public_model_param_names
                         }
                     )
             self.update_weight_matrix()

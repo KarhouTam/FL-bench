@@ -63,7 +63,7 @@ class MetaFedServer(FedAvgServer):
                         (client_id + self.client_num - 1) % self.client_num
                     ][key],
                 )
-                for key in self.trainable_params_name
+                for key in self.public_model_param_names
             )
         return params_dict
 

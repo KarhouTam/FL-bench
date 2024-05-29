@@ -10,7 +10,7 @@ import torch.nn.functional as F
 from src.server.fedavg import FedAvgServer
 from src.client.fedsr import FedSRClient
 from src.utils.models import DecoupledModel
-from src.utils.constants import NUM_CLASSES
+from src.utils.constants import NUM_CLASSES, FLBENCH_ROOT
 from src.utils.tools import trainable_params, NestedNamespace
 
 
@@ -67,26 +67,25 @@ class FedSRServer(FedAvgServer):
         self.model = FedSRModel(self.model, self.args.common.dataset)
         self.model.check_avaliability()
 
-        _init_global_params, self.trainable_params_name = trainable_params(
+        _init_global_params, _init_global_params_name = trainable_params(
             self.model, detach=True, requires_name=True
         )
-        _init_personal_params = OrderedDict(self.model.named_buffers())
-        self.global_model_params = OrderedDict(
-            zip(self.trainable_params_name, _init_global_params)
+        self.public_model_params: OrderedDict[str, torch.Tensor] = OrderedDict(
+            zip(_init_global_params_name, _init_global_params)
         )
-        self.clients_personal_model_params = {
-            client_id: {
-                key: param.cpu().clone() for key, param in _init_personal_params.items()
-            }
-            for client_id in range(self.client_num)
-        }
+        if self.args.common.buffers == "global":
+            self.public_model_params.update(self.model.named_buffers())
+        self.public_model_param_names = list(self.public_model_params.keys())
 
-        if self.args.common.external_model_params_file and os.path.isfile(
-            self.args.common.external_model_params_file
+        model_params_file_path = str(
+            (FLBENCH_ROOT / self.args.common.external_model_params_file).absolute()
+        )
+        if (
+            os.path.isfile(model_params_file_path)
+            and model_params_file_path.find(".pt") != -1
         ):
-            # load pretrained params
-            self.global_model_params = torch.load(
-                self.args.common.external_model_params_file, map_location=self.device
+            self.public_model_params.update(
+                torch.load(model_params_file_path, map_location="cpu")
             )
 
         self.init_trainer(FedSRClient)

@@ -29,7 +29,7 @@ class ElasticServer(FedAvgServer):
     ):
         super().__init__(args, algo, unique_model, use_fedavg_client_cls, return_diff)
         self.init_trainer(ElasticClient)
-        layer_num = len(trainable_params(self.model))
+        layer_num = len(self.public_model_params)
         self.clients_sensitivity = [torch.zeros(layer_num) for _ in self.train_clients]
 
     def package(self, client_id: int):
@@ -52,7 +52,7 @@ class ElasticServer(FedAvgServer):
 
         zeta = 1 + self.args.elastic.tau - aggregated_sensitivity / max_sensitivity
 
-        for (key, global_param), coef in zip(self.global_model_params.items(), zeta):
+        for (key, global_param), coef in zip(self.public_model_params.items(), zeta):
             diffs = torch.stack(
                 [
                     package["model_params_diff"][key]
@@ -60,8 +60,6 @@ class ElasticServer(FedAvgServer):
                 ],
                 dim=-1,
             )
-            aggregated = torch.sum(
-                diffs * weights, dim=-1, dtype=global_param.dtype
-            ).to(global_param.device)
+            aggregated = torch.sum(diffs * weights, dim=-1)
 
-            global_param.data -= coef * aggregated
+            global_param.data -= (coef * aggregated).to(global_param.dtype)

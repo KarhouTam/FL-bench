@@ -23,7 +23,7 @@ class FedAvgMServer(FedAvgServer):
     ):
         super().__init__(args, algo, unique_model, use_fedavg_client_cls, return_diff)
         self.global_optmizer = torch.optim.SGD(
-            list(self.global_model_params.values()),
+            list(self.public_model_params.values()),
             lr=1.0,
             momentum=self.args.fedavgm.server_momentum,
             nesterov=True,
@@ -35,7 +35,7 @@ class FedAvgMServer(FedAvgServer):
 
         clients_weight = [package["weight"] for package in clients_package.values()]
         weights = torch.tensor(clients_weight) / sum(clients_weight)
-        for key, global_param in self.global_model_params.items():
+        for key, global_param in self.public_model_params.items():
             if "num_batches_tracked" not in key:
                 diffs = torch.stack(
                     [
@@ -45,6 +45,6 @@ class FedAvgMServer(FedAvgServer):
                     dim=-1,
                 )
                 aggregated = torch.sum(diffs * weights, dim=-1).to(global_param.device)
-                self.global_model_params[key].grad = aggregated
+                self.public_model_params[key].grad = aggregated
 
         self.global_optmizer.step()

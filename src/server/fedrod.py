@@ -66,7 +66,7 @@ class FedRoDServer(FedAvgServer):
             for package in clients_package.values()
         ]
         for old_param, zipped_new_param in zip(
-            self.global_model_params.values(), zip(*clients_model_params_list)
+            self.public_model_params.values(), zip(*clients_model_params_list)
         ):
             old_param.data = (torch.stack(zipped_new_param, dim=-1) * weights).sum(
                 dim=-1

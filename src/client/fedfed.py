@@ -127,34 +127,21 @@ class FedFedClient(FedAvgClient):
                 self.optimizer.step()
 
         VAE_regular_params, VAE_personal_params = {}, {}
-        for key, param in self.VAE.state_dict(keep_vars=True).items():
-            if param.requires_grad:
-                VAE_regular_params[key] = param.detach().cpu().clone()
-            else:
-                VAE_personal_params[key] = param.detach().cpu().clone()
-
-        _, regular_keys = trainable_params(self.model, requires_name=True)
-        model_params = self.model.state_dict(keep_vars=True)
-        client_package = dict(
-            weight=len(self.trainset),
-            regular_model_params={
-                key: model_params[key].detach().clone().cpu() for key in regular_keys
-            },
-            personal_model_params={
-                key: param.detach().clone().cpu()
-                for key, param in model_params.items()
-                if (not param.requires_grad) or (key in self.personal_params_name)
-            },
-            VAE_regular_params=VAE_regular_params,
-            VAE_personal_params=VAE_personal_params,
-            optimizer_state=deepcopy(self.optimizer.state_dict()),
-            VAE_optimizer_state=deepcopy(self.VAE_optimizer.state_dict()),
-        )
+        _, VAE_regular_param_names = trainable_params(self.VAE, requires_name=True)
         if self.args.common.buffers == "global":
-            for key, buffer in self.model.named_buffers():
-                if "num_batches_tracked" in key:
-                    buffer.zero_()
-                client_package["regular_model_params"][key] = buffer.clone().cpu()
+            VAE_regular_param_names.extend(name for name, _ in self.VAE.named_buffers())
+        VAE_model_params = self.VAE.state_dict()
+        for key, param in VAE_model_params.items():
+            if key in VAE_regular_param_names:
+                VAE_regular_params[key] = param.clone().cpu()
+            else:
+                VAE_personal_params[key] = param.clone().cpu()
+        client_package = super().package()
+        client_package["VAE_regular_params"] = VAE_regular_params
+        client_package["VAE_personal_params"] = VAE_personal_params
+        client_package["VAE_optimizer_state"] = deepcopy(
+            self.VAE_optimizer.state_dict()
+        )
         return client_package
 
     @torch.no_grad

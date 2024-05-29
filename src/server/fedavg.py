@@ -95,21 +95,19 @@ class FedAvgServer:
         )
         self.model.check_avaliability()
 
-        _init_global_params, self.trainable_params_name = trainable_params(
+        _init_global_params, _init_global_params_name = trainable_params(
             self.model, detach=True, requires_name=True
         )
-        self.global_model_params: OrderedDict[str, torch.Tensor] = OrderedDict(
-            zip(self.trainable_params_name, _init_global_params)
+        self.public_model_params: OrderedDict[str, torch.Tensor] = OrderedDict(
+            zip(_init_global_params_name, _init_global_params)
         )
         self.clients_personal_model_params = {i: {} for i in range(self.client_num)}
-        if self.args.common.buffers == "local":
-            for params_dict in self.clients_personal_model_params.values():
-                params_dict.update(self.model.named_buffers())
-        elif self.args.common.buffers == "global":
-            self.global_model_params.update(self.model.named_buffers())
+        if self.args.common.buffers == "global":
+            self.public_model_params.update(self.model.named_buffers())
+        self.public_model_param_names = list(self.public_model_params.keys())
         if self.unique_model:
             for params_dict in self.clients_personal_model_params.values():
-                params_dict.update(self.global_model_params)
+                params_dict.update(deepcopy(self.model.state_dict()))
 
         self.clients_optimizer_state = {i: {} for i in range(self.client_num)}
         self.clients_lr_scheduler_state = {i: {} for i in range(self.client_num)}
@@ -120,12 +118,12 @@ class FedAvgServer:
             os.path.isfile(model_params_file_path)
             and model_params_file_path.find(".pt") != -1
         ):
-            self.global_model_params = torch.load(
-                model_params_file_path, map_location="cpu"
+            self.public_model_params.update(
+                torch.load(model_params_file_path, map_location="cpu")
             )
             if self.unique_model:
                 for params_dict in self.clients_personal_model_params.values():
-                    params_dict.update(self.global_model_params)
+                    params_dict.update(self.public_model_params)
 
         # system heterogeneity (straggler) setting
         self.clients_local_epoch: list[int] = [
@@ -481,7 +479,7 @@ class FedAvgServer:
                 `personal_model_params`: Client personal model parameters that won't join aggregation.
             }
         """
-        regular_params = deepcopy(self.global_model_params)
+        regular_params = deepcopy(self.public_model_params)
         personal_params = self.clients_personal_model_params[client_id]
         return dict(
             regular_model_params=regular_params, personal_model_params=personal_params
@@ -505,7 +503,7 @@ class FedAvgServer:
         clients_weight = [package["weight"] for package in clients_package.values()]
         weights = torch.tensor(clients_weight) / sum(clients_weight)
         if self.return_diff:  # inputs are model params diff
-            for name, global_param in self.global_model_params.items():
+            for name, global_param in self.public_model_params.items():
                 diffs = torch.stack(
                     [
                         package["model_params_diff"][name]
@@ -516,9 +514,9 @@ class FedAvgServer:
                 aggregated = torch.sum(
                     diffs * weights, dim=-1, dtype=global_param.dtype
                 ).to(global_param.device)
-                self.global_model_params[name].data -= aggregated
+                self.public_model_params[name].data -= aggregated
         else:
-            for name, global_param in self.global_model_params.items():
+            for name, global_param in self.public_model_params.items():
                 client_params = torch.stack(
                     [
                         package["regular_model_params"][name]
@@ -767,4 +765,4 @@ class FedAvgServer:
                     self.clients_personal_model_params, self.output_dir / model_name
                 )
             else:
-                torch.save(self.global_model_params, self.output_dir / model_name)
+                torch.save(self.public_model_params, self.output_dir / model_name)

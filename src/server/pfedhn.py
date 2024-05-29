@@ -109,7 +109,7 @@ class pFedHNServer(FedAvgServer):
     def get_client_model_params(self, client_id) -> OrderedDict[str, torch.Tensor]:
         return dict(
             regular_model_params=OrderedDict(
-                zip(self.trainable_params_name, self.hypernet(torch.tensor(client_id)))
+                zip(self.public_model_param_names, self.hypernet(torch.tensor(client_id)))
             ),
             personal_model_params=self.clients_personal_model_params[client_id],
         )

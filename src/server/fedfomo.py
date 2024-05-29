@@ -47,7 +47,7 @@ class FedFomoServer(FedAvgServer):
             for i in similar_clients:
                 selected_params[i] = {
                     key: self.clients_personal_model_params[i][key]
-                    for key in self.trainable_params_name
+                    for key in self.public_model_param_names
                 }
         selected_params[client_id] = self.clients_personal_model_params[client_id]
         return dict(model_params_from_selected_clients=selected_params)

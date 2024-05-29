@@ -31,16 +31,11 @@ class pFedLAServer(FedAvgServer):
     ):
         if args.mode == "parallel":
             raise NotImplementedError("pFedHN does not support paralell mode.")
-        if args.common.buffers == "global":
-            raise NotImplementedError("pFedHN does not support global buffers.")
         algo = "pFedLA" if args.pfedla.k == 0 else "HeurpFedLA"
         super().__init__(args, algo, unique_model, use_fedavg_client_cls, return_diff)
-        if self.args.common.buffers == "global":
-            print("pFedLA does not support global buffers and is fallback to local.")
-            self.args.common.buffers = "local"
         self.hypernet = HyperNetwork(
             embedding_dim=self.args.pfedla.embedding_dim,
-            layer_num=len(self.trainable_params_name),
+            layer_num=len(self.public_model_param_names),
             client_num=self.client_num,
             hidden_dim=self.args.pfedla.hidden_dim,
             K=self.args.pfedla.k,
@@ -80,7 +75,7 @@ class pFedLAServer(FedAvgServer):
                 self.hypernet.state_dict()
             )
 
-            for key in self.trainable_params_name:
+            for key in self.public_model_param_names:
                 self.clients_personal_model_params[client_id][key] -= client_package[
                     client_id
                 ]["model_params_diff"][key].data.cpu()
@@ -89,10 +84,10 @@ class pFedLAServer(FedAvgServer):
         aggregated_params = OrderedDict()
         layer_params_dict = OrderedDict(
             zip(
-                self.trainable_params_name,
+                self.public_model_param_names,
                 zip(
                     *[
-                        [params_dict[key] for key in self.trainable_params_name]
+                        [params_dict[key] for key in self.public_model_param_names]
                         for params_dict in self.clients_personal_model_params.values()
                     ]
                 ),
@@ -112,13 +107,11 @@ class pFedLAServer(FedAvgServer):
                 (weights / weights.sum()) * torch.stack(params, dim=-1), dim=-1
             )
         self.pfedla_aggregated_model_params = list(aggregated_params.values())
-        detached = {
-            key: param.detach().clone() for key, param in aggregated_params.items()
-        }
-        self.clients_personal_model_params[client_id].update(detached)
 
         return dict(
-            regular_model_params=detached,
+            regular_model_params={
+                key: param.detach().clone() for key, param in aggregated_params.items()
+            },
             personal_model_params=self.clients_personal_model_params[client_id],
         )
 
