@@ -22,16 +22,21 @@ def prune_args(args: Namespace) -> dict:
     args_dict["val_ratio"] = args.val_ratio
     args_dict["seed"] = args.seed
     args_dict["split"] = args.split
+    args_dict["monitor_window_name_suffix"] = (
+        f"{args.dataset}-{args.client_num}clients"
+    )
 
     if args.dataset == "emnist":
         args_dict["emnist_split"] = args.emnist_split
     elif args.dataset == "cifar100":
         args_dict["super_class"] = bool(args.super_class)
+        args_dict["monitor_window_name_suffix"] += "-use20superclasses"
     elif args.dataset == "synthetic":
         args_dict["beta"] = args.beta
         args_dict["gamma"] = args.gamma
         args_dict["dimension"] = args.dimension
         args_dict["class_num"] = 10 if args.classes <= 0 else args.classes
+        args_dict["monitor_window_name_suffix"] += f"-beta{args.beta}-gamma{args.gamma}"
     elif args.dataset == "domain":
         with open(DATA_ROOT / "domain" / "metadata.json", "r") as f:
             metadata = json.load(f)
@@ -39,6 +44,7 @@ def prune_args(args: Namespace) -> dict:
             args_dict["image_size"] = metadata["image_size"]
             args_dict["class_num"] = metadata["class_num"]
             args_dict["preprocess_seed"] = metadata["seed"]
+            args_dict["monitor_window_name_suffix"] += f"-class{metadata['class_num']}"
     elif args.dataset in ["femnist", "celeba"]:
         with open(DATA_ROOT / args.dataset / "preprocess_args.json") as f:
             preprocess_args = json.load(f)
@@ -48,26 +54,35 @@ def prune_args(args: Namespace) -> dict:
         args_dict["sample_seed"] = preprocess_args["smplseed"]
         args_dict["split_seed"] = preprocess_args["spltseed"]
         args_dict["least_samples"] = preprocess_args["k"]
+        args_dict["monitor_window_name_suffix"] += f"-fraction{args_dict['fraction']}"
         if preprocess_args["s"] == "iid":
             args_dict["iid"] = True
+            args_dict["monitor_window_name_suffix"] += f"-IID"
     if args.iid == 1:
         args_dict["iid"] = True
+        args_dict["monitor_window_name_suffix"] += f"-IID"
     if args.ood_domains is not None:
         args_dict["ood_domains"] = args.ood_domains
+        args_dict["monitor_window_name_suffix"] += f"-{args.ood_domains}OODdomains"
     else:
         # Dirchlet
         if args.alpha > 0:
             args_dict["alpha"] = args.alpha
             args_dict["least_samples"] = args.least_samples
+            args_dict["monitor_window_name_suffix"] += f"-Dir({args.alpha})"
         # randomly assign classes
         elif args.classes > 0:
             args_dict["classes_per_client"] = args.classes
+            args_dict["monitor_window_name_suffix"] += f"-{args.classes}classes"
         # allocate shards
         elif args.shards > 0:
             args_dict["shards_per_client"] = args.shards
+            args_dict["monitor_window_name_suffix"] += f"-{args.shards}shards"
         elif args.semantic:
             args_dict["pca_components"] = args.pca_components
             args_dict["efficient_net_type"] = args.efficient_net_type
+            args_dict["monitor_window_name_suffix"] += f"-semantic"
+    args_dict["monitor_window_name_suffix"] += f"-seed{args.seed}"
     return args_dict
 
 

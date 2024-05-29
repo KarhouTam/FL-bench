@@ -202,23 +202,22 @@ class FedAvgServer:
         self.logger.log("Experiment Arguments:")
         self.logger.log(JSON(str(self.args)))
 
+        if self.args.common.visible is not None:
+            self.monitor_window_name_suffix = (
+                self.args.dataset.monitor_window_name_suffix
+            )
+
         if self.args.common.visible == "visdom":
             from visdom import Visdom
 
             self.viz = Visdom()
-            self.viz_win_name = (
-                f"{self.algo}"
-                + f"_{self.args.common.dataset}"
-                + f"_{self.args.common.global_epoch}"
-                + f"_{self.args.common.local_epoch}"
-                + f"_{start_time}"
-            )
         elif self.args.common.visible == "tensorboard":
             from torch.utils.tensorboard import SummaryWriter
 
             self.tensorboard = SummaryWriter(log_dir=self.output_dir)
             self.tensorboard.add_text(
-                "Experimental Arguments", f"<pre>{self.args}</pre>"
+                f"ExperimentalArguments-{self.monitor_window_name_suffix}",
+                f"<pre>{self.args}</pre>",
             )
         # init trainer
         self.trainer: FLbenchTrainer
@@ -587,20 +586,22 @@ class FedAvgServer:
                         self.viz.line(
                             [global_metrics.accuracy],
                             [self.current_epoch],
-                            win=self.viz_win_name,
+                            win=f"Accuracy-{self.monitor_window_name_suffix}/{split}set-{stage}LocalTraining",
                             update="append",
-                            name=f"{split}set-{stage}LocalTraining",
+                            name=self.algo,
                             opts=dict(
-                                title=f"{self.algo}-{self.args.common.dataset}",
+                                title=f"Accuracy-{self.monitor_window_name_suffix}/{split}set-{stage}LocalTraining",
                                 xlabel="Communication Rounds",
                                 ylabel="Accuracy",
+                                legend=[self.algo],
                             ),
                         )
                     elif self.args.common.visible == "tensorboard":
                         self.tensorboard.add_scalar(
-                            f"Accuracy/{split}set-{stage}LocalTraining",
+                            f"Accuracy-{self.monitor_window_name_suffix}/{split}set-{stage}LocalTraining",
                             global_metrics.accuracy,
                             self.current_epoch,
+                            new_style=True,
                         )
 
     def show_max_metrics(self):
@@ -687,7 +688,7 @@ class FedAvgServer:
         if self.args.common.visible == "tensorboard":
             for epoch, results in all_test_results.items():
                 self.tensorboard.add_text(
-                    "Test Results",
+                    f"Results-{self.monitor_window_name_suffix}",
                     text_string=f"<pre>{results}</pre>",
                     global_step=epoch,
                 )
