@@ -66,15 +66,10 @@ class FedFedServer(FedAvgServer):
         params, keys = trainable_params(
             dummy_VAE_model, detach=True, requires_name=True
         )
-        init_VAE_personal_params = OrderedDict(
-            (key, param)
-            for key, param in dummy_VAE_model.state_dict(keep_vars=True).items()
-            if not param.requires_grad
-        )
         self.global_VAE_params = OrderedDict(zip(keys, params))
-        self.client_VAE_personal_params = {
-            i: deepcopy(init_VAE_personal_params) for i in self.train_clients
-        }
+        if self.args.common.buffers == "global":
+            self.global_VAE_params.update(dummy_VAE_model.named_buffers())
+        self.client_VAE_personal_params = {i: {} for i in self.train_clients}
         self.client_VAE_optimizer_states = {
             i: deepcopy(dummy_VAE_optimizer.state_dict()) for i in self.train_clients
         }
@@ -100,7 +95,7 @@ class FedFedServer(FedAvgServer):
         num_join = max(1, int(self.args.common.join_ratio * len(self.train_clients)))
         for i in track(
             range(self.args.fedfed.VAE_train_global_epoch),
-            description="[green bold]Training VAE...",
+            description="[magenta bold]Training VAE...",
         ):
             selected_clients = random.sample(self.train_clients, num_join)
             client_packages = self.trainer.exec(
@@ -109,12 +104,11 @@ class FedFedServer(FedAvgServer):
                 package_func=_package_VAE,
             )
             for client_id, package in client_packages.items():
-                self.clients_personal_model_params[client_id].update(
-                    package["personal_model_params"]
-                )
-                self.clients_optimizer_state[client_id].update(
-                    package["optimizer_state"]
-                )
+                self.clients_personal_model_params[client_id] = package[
+                    "personal_model_params"
+                ]
+                self.clients_optimizer_state[client_id] = package["optimizer_state"]
+
                 self.client_VAE_personal_params[client_id] = package[
                     "VAE_personal_params"
                 ]
@@ -129,16 +123,19 @@ class FedFedServer(FedAvgServer):
                 dtype=torch.float,
             )
             weights /= weights.sum()
-            client_VAE_regular_params = [
-                list(package["VAE_regular_params"].values())
-                for package in client_packages.values()
-            ]
-            for global_param, zipped_new_params in zip(
-                self.global_VAE_params.values(), zip(*client_VAE_regular_params)
-            ):
-                global_param.data = torch.sum(
-                    torch.stack(zipped_new_params, dim=-1) * weights, dim=-1
+            for key, global_param in self.global_VAE_params.items():
+                client_VAE_regular_params = torch.stack(
+                    [
+                        package["VAE_regular_params"][key]
+                        for package in client_packages.values()
+                    ],
+                    dim=-1,
                 )
+                global_param.data = torch.sum(
+                    client_VAE_regular_params * weights,
+                    dim=-1,
+                    dtype=global_param.dtype,
+                ).to(global_param.device)
 
         # gather client performance-sensitive data
         client_packages = self.trainer.exec(

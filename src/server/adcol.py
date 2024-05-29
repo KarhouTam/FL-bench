@@ -70,7 +70,7 @@ class ADCOLServer(FedAvgServer):
         algo: str = "ADCOL",
         unique_model=False,
         use_fedavg_client_cls=False,
-        return_diff=True,
+        return_diff=False,
     ):
         super().__init__(args, algo, unique_model, use_fedavg_client_cls, return_diff)
         self.train_client_num = len(self.train_clients)

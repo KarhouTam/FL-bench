@@ -95,25 +95,19 @@ class FedAvgServer:
         )
         self.model.check_avaliability()
 
-        self.global_model_params: OrderedDict[str, torch.Tensor] = None
-
-        _init_global_params, self.trainable_params_name = trainable_params(
+        _init_global_params, _init_global_params_name = trainable_params(
             self.model, detach=True, requires_name=True
         )
-        _init_personal_params = OrderedDict(self.model.named_buffers())
-        self.global_model_params = OrderedDict(
-            zip(self.trainable_params_name, _init_global_params)
+        self.public_model_params: OrderedDict[str, torch.Tensor] = OrderedDict(
+            zip(_init_global_params_name, _init_global_params)
         )
-        self.clients_personal_model_params = {
-            client_id: OrderedDict(
-                (key, param.cpu().clone())
-                for key, param in _init_personal_params.items()
-            )
-            for client_id in range(self.client_num)
-        }
+        self.clients_personal_model_params = {i: {} for i in range(self.client_num)}
+        if self.args.common.buffers == "global":
+            self.public_model_params.update(self.model.named_buffers())
+        self.public_model_param_names = list(self.public_model_params.keys())
         if self.unique_model:
             for params_dict in self.clients_personal_model_params.values():
-                params_dict.update(self.global_model_params)
+                params_dict.update(deepcopy(self.model.state_dict()))
 
         self.clients_optimizer_state = {i: {} for i in range(self.client_num)}
         self.clients_lr_scheduler_state = {i: {} for i in range(self.client_num)}
@@ -124,12 +118,12 @@ class FedAvgServer:
             os.path.isfile(model_params_file_path)
             and model_params_file_path.find(".pt") != -1
         ):
-            self.global_model_params = torch.load(
-                model_params_file_path, map_location="cpu"
+            self.public_model_params.update(
+                torch.load(model_params_file_path, map_location="cpu")
             )
             if self.unique_model:
                 for params_dict in self.clients_personal_model_params.values():
-                    params_dict.update(self.global_model_params)
+                    params_dict.update(self.public_model_params)
 
         # system heterogeneity (straggler) setting
         self.clients_local_epoch: list[int] = [
@@ -484,7 +478,7 @@ class FedAvgServer:
                 `personal_model_params`: Client personal model parameters that won't join aggregation.
             }
         """
-        regular_params = deepcopy(self.global_model_params)
+        regular_params = deepcopy(self.public_model_params)
         personal_params = self.clients_personal_model_params[client_id]
         return dict(
             regular_model_params=regular_params, personal_model_params=personal_params
@@ -508,30 +502,32 @@ class FedAvgServer:
         clients_weight = [package["weight"] for package in clients_package.values()]
         weights = torch.tensor(clients_weight) / sum(clients_weight)
         if self.return_diff:  # inputs are model params diff
-            params_diff_list = [
-                list(package["model_params_diff"].values())
-                for package in clients_package.values()
-            ]
-            aggregated_params_diff = [
-                torch.sum(weights * torch.stack(diff, dim=-1), dim=-1)
-                for diff in zip(*params_diff_list)
-            ]
-
-            for param, diff in zip(
-                self.global_model_params.values(), aggregated_params_diff
-            ):
-                param.data -= diff
-        else:
-            params_list = [
-                list(package["regular_model_params"].values())
-                for package in clients_package.values()
-            ]
-            for old_param, zipped_new_param in zip(
-                self.global_model_params.values(), zip(*params_list)
-            ):
-                old_param.data = torch.sum(
-                    torch.stack(zipped_new_param, dim=-1) * weights, dim=-1
+            for name, global_param in self.public_model_params.items():
+                diffs = torch.stack(
+                    [
+                        package["model_params_diff"][name]
+                        for package in clients_package.values()
+                    ],
+                    dim=-1,
                 )
+                aggregated = torch.sum(
+                    diffs * weights, dim=-1, dtype=global_param.dtype
+                ).to(global_param.device)
+                self.public_model_params[name].data -= aggregated
+        else:
+            for name, global_param in self.public_model_params.items():
+                client_params = torch.stack(
+                    [
+                        package["regular_model_params"][name]
+                        for package in clients_package.values()
+                    ],
+                    dim=-1,
+                )
+                aggregated = torch.sum(
+                    client_params * weights, dim=-1, dtype=global_param.dtype
+                ).to(global_param.device)
+
+                global_param.data = aggregated
 
     def show_convergence(self):
         """Collect the number of epoches that FL method reach specific accuracies while training."""
@@ -770,4 +766,4 @@ class FedAvgServer:
                     self.clients_personal_model_params, self.output_dir / model_name
                 )
             else:
-                torch.save(self.global_model_params, self.output_dir / model_name)
+                torch.save(self.public_model_params, self.output_dir / model_name)

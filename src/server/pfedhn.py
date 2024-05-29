@@ -35,11 +35,13 @@ class pFedHNServer(FedAvgServer):
         return_diff=True,
     ):
         if args.mode == "parallel":
-            print("pFedHN does not support paralell mode and is fallback to serial.")
-            args.mode = "serial"
+            raise NotImplementedError("pFedHN does not support paralell mode.")
+        if args.common.buffers == "global":
+            raise NotImplementedError("pFedHN does not support global buffers.")
         algo = "pFedHN" if args.pfedhn.version == "pfedhn" else "pFedHN-PC"
         use_fedavg_client_cls = True if args.pfedhn.version == "pfedhn" else False
         super().__init__(args, algo, unique_model, use_fedavg_client_cls, return_diff)
+
         if self.args.pfedhn.version == "pfedhn_pc":
             self.init_trainer(FedPerClient)
 
@@ -107,7 +109,7 @@ class pFedHNServer(FedAvgServer):
     def get_client_model_params(self, client_id) -> OrderedDict[str, torch.Tensor]:
         return dict(
             regular_model_params=OrderedDict(
-                zip(self.trainable_params_name, self.hypernet(torch.tensor(client_id)))
+                zip(self.public_model_param_names, self.hypernet(torch.tensor(client_id)))
             ),
             personal_model_params=self.clients_personal_model_params[client_id],
         )

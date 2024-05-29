@@ -53,7 +53,7 @@ class pFedMeServer(FedAvgServer):
             for params in zip(*clients_local_model_params)
         ]
         for param_prev, param_new in zip(
-            self.global_model_params.values(), aggregated_params
+            self.public_model_params.values(), aggregated_params
         ):
             param_prev.data = (
                 1 - self.args.pfedme.beta

@@ -37,10 +37,22 @@ class FedAvgClient:
         self.dataset = dataset
         self.model = model.to(self.device)
         self.global_regular_model_params: OrderedDict[str, torch.Tensor]
-        self.personal_params_name: list[str] = []  # Some FL methods need it
+        self.personal_params_name: list[str] = []
+        _, self.regular_params_name = trainable_params(self.model, requires_name=True)
+        if self.args.common.buffers == "local":
+            self.personal_params_name.extend(
+                [name for name, _ in self.model.named_buffers()]
+            )
+        elif self.args.common.buffers == "global":
+            self.regular_params_name.extend(
+                name for name, _ in self.model.named_buffers()
+            )
+        elif self.args.common.buffers == "drop":
+            self.init_buffers = deepcopy(OrderedDict(self.model.named_buffers()))
 
         self.optimizer = optimizer_cls(params=trainable_params(self.model))
         self.init_optimizer_state = deepcopy(self.optimizer.state_dict())
+
         self.lr_scheduler: torch.optim.lr_scheduler.LRScheduler = None
         self.init_lr_scheduler_state: dict = None
         self.lr_scheduler_cls = None
@@ -136,10 +148,14 @@ class FedAvgClient:
 
         self.model.load_state_dict(package["regular_model_params"], strict=False)
         self.model.load_state_dict(package["personal_model_params"], strict=False)
+        if self.args.common.buffers == "drop":
+            self.model.load_state_dict(self.init_buffers, strict=False)
+
         if self.return_diff:
+            model_params = self.model.state_dict()
             self.global_regular_model_params = OrderedDict(
-                (key, param.detach().clone().cpu())
-                for param, key in zip(*trainable_params(self.model, requires_name=True))
+                (key, model_params[key].clone().cpu())
+                for key in self.regular_params_name
             )
 
     def train(self, server_package: dict[str, Any]):
@@ -163,18 +179,16 @@ class FedAvgClient:
                 `lr_scheduler_state`: Client learning rate scheduler's state dict.
             }
         """
-        _, regular_keys = trainable_params(self.model, requires_name=True)
-        model_params = self.model.state_dict(keep_vars=True)
+        model_params = self.model.state_dict()
         client_package = dict(
             weight=len(self.trainset),
             eval_results=self.eval_results,
             regular_model_params={
-                key: model_params[key].detach().clone().cpu() for key in regular_keys
+                key: model_params[key].clone().cpu() for key in self.regular_params_name
             },
             personal_model_params={
-                key: param.detach().clone().cpu()
-                for key, param in model_params.items()
-                if (not param.requires_grad) or (key in self.personal_params_name)
+                key: model_params[key].clone().cpu()
+                for key in self.personal_params_name
             },
             optimizer_state=deepcopy(self.optimizer.state_dict()),
             lr_scheduler_state=(

@@ -3,7 +3,7 @@ from typing import Any, OrderedDict
 import torch
 
 from src.server.fedavg import FedAvgServer
-from src.utils.tools import NestedNamespace
+from src.utils.tools import NestedNamespace, trainable_params
 
 
 def get_fedavgm_args(args_list=None) -> Namespace:
@@ -23,7 +23,7 @@ class FedAvgMServer(FedAvgServer):
     ):
         super().__init__(args, algo, unique_model, use_fedavg_client_cls, return_diff)
         self.global_optmizer = torch.optim.SGD(
-            list(self.global_model_params.values()),
+            list(self.public_model_params.values()),
             lr=1.0,
             momentum=self.args.fedavgm.server_momentum,
             nesterov=True,
@@ -31,20 +31,20 @@ class FedAvgMServer(FedAvgServer):
 
     @torch.no_grad()
     def aggregate(self, clients_package: OrderedDict[int, dict[str, Any]]):
+        self.global_optmizer.zero_grad()
+
         clients_weight = [package["weight"] for package in clients_package.values()]
         weights = torch.tensor(clients_weight) / sum(clients_weight)
-        params_diff = [
-            list(package["model_params_diff"].values())
-            for package in clients_package.values()
-        ]
+        for key, global_param in self.public_model_params.items():
+            if "num_batches_tracked" not in key:
+                diffs = torch.stack(
+                    [
+                        package["model_params_diff"][key]
+                        for package in clients_package.values()
+                    ],
+                    dim=-1,
+                )
+                aggregated = torch.sum(diffs * weights, dim=-1).to(global_param.device)
+                self.public_model_params[key].grad = aggregated
 
-        aggregated_diff = []
-        for layer_diff in zip(*params_diff):
-            aggregated_diff.append(
-                torch.sum(torch.stack(layer_diff, dim=-1) * weights, dim=-1)
-            )
-
-        self.global_optmizer.zero_grad()
-        for param, diff in zip(self.global_model_params.values(), aggregated_diff):
-            param.grad = diff.data
         self.global_optmizer.step()

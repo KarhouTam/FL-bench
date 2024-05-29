@@ -12,8 +12,6 @@ from src.utils.tools import trainable_params
 class ElasticClient(FedAvgClient):
     def __init__(self, **commons):
         super().__init__(**commons)
-        self.layer_num = len(trainable_params(self.model))
-        self.sensitivity = torch.zeros(self.layer_num, device=self.device)
         self.sampled_trainset = Subset(self.dataset, indices=[])
         self.sampled_trainloader = DataLoader(
             self.sampled_trainset, self.args.common.batch_size

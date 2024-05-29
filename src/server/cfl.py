@@ -100,12 +100,18 @@ class CFLServer(FedAvgServer):
                 for i in cluster
                 if self.clients_model_params_diff[i] is not None
             ]
+            weights = torch.ones(len(model_params_diff_list)) * (
+                1 / len(model_params_diff_list)
+            )
             aggregated_diff = [
-                torch.stack(diff).mean(dim=0) for diff in zip(*model_params_diff_list)
+                torch.sum(torch.stack(diff, dim=-1) * weights, dim=-1)
+                for diff in zip(*model_params_diff_list)
             ]
             for i in cluster:
-                for key, diff in zip(self.trainable_params_name, aggregated_diff):
-                    self.clients_personal_model_params[i][key].data += diff
+                for (name, param), diff in zip(
+                    self.clients_personal_model_params[i].items(), aggregated_diff
+                ):
+                    param.data += diff.to(param.dtype)
 
         self.clients_model_params_diff = [None for _ in self.train_clients]
 
