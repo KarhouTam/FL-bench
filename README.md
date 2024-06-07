@@ -180,7 +180,7 @@ python main.py fedavg
 ### How To Customize FL method Arguments 🤖
 - By modifying config file
 - By explicitly setting in CLI, e.g., `python main.py fedprox config/my_cfg.yml --mu 0.01`.
-- By modifying the default value in `src/utils/constants.py/DEFAULT_COMMON_ARGS` or `src/server/<method>.py/get_<method>_args()`
+- By modifying the default value in `src/utils/constants.py/DEFAULT_COMMON_ARGS` or `get_hyperparams()` of the method
 
 ⚠ For the same FL method argument, the priority of argument setting is **CLI > Config file > Default value**. 
 
