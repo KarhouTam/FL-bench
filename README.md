@@ -187,10 +187,14 @@ python main.py fedavg
 For example, the default value of `fedprox.mu` is `1`, 
 ```python
 # src/server/fedprox.py
-def get_fedprox_args(args_list=None) -> Namespace:
-    parser = ArgumentParser()
-    parser.add_argument("--mu", type=float, default=1.0)
-    return parser.parse_args(args_list)
+class FedProxServer(FedAvgServer):
+
+    @staticmethod
+    def get_hyperparams(args_list=None) -> Namespace:
+        parser = ArgumentParser()
+        parser.add_argument("--mu", type=float, default=1.0)
+        return parser.parse_args(args_list)
+
 ```
 and your `.yml` config file has
 ```yaml

@@ -17,7 +17,7 @@ class CCVRClient(FedAvgClient):
         feature_length = None
         for x, y in self.trainloader:
             x, y = x.to(self.device), y.to(self.device)
-            features.append(self.model.get_final_features(x))
+            features.append(self.model.get_last_features(x))
             targets.append(y)
 
         targets = torch.cat(targets)

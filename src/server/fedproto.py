@@ -8,13 +8,14 @@ from src.utils.constants import NUM_CLASSES
 from src.utils.tools import NestedNamespace
 
 
-def get_fedproto_args(args_list=None) -> Namespace:
-    parser = ArgumentParser()
-    parser.add_argument("--lamda", type=float, default=1)
-    return parser.parse_args(args_list)
-
-
 class FedProtoServer(FedAvgServer):
+
+    @staticmethod
+    def get_hyperparams(args_list=None) -> Namespace:
+        parser = ArgumentParser()
+        parser.add_argument("--lamda", type=float, default=1)
+        return parser.parse_args(args_list)
+
     def __init__(
         self,
         args: NestedNamespace,

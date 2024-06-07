@@ -10,17 +10,18 @@ from src.server.fedavg import FedAvgServer
 from src.utils.tools import NestedNamespace
 
 
-def get_pfedla_args(args_list=None) -> Namespace:
-    parser = ArgumentParser()
-    parser.add_argument("--k", type=int, default=0)
-    parser.add_argument("--hn_lr", type=float, default=5e-3)
-    parser.add_argument("--hn_momentum", type=float, default=0.0)
-    parser.add_argument("--embedding_dim", type=int, default=100)
-    parser.add_argument("--hidden_dim", type=int, default=100)
-    return parser.parse_args(args_list)
-
-
 class pFedLAServer(FedAvgServer):
+
+    @staticmethod
+    def get_hyperparams(args_list=None) -> Namespace:
+        parser = ArgumentParser()
+        parser.add_argument("--k", type=int, default=0)
+        parser.add_argument("--hn_lr", type=float, default=5e-3)
+        parser.add_argument("--hn_momentum", type=float, default=0.0)
+        parser.add_argument("--embedding_dim", type=int, default=100)
+        parser.add_argument("--hidden_dim", type=int, default=100)
+        return parser.parse_args(args_list)
+
     def __init__(
         self,
         args: NestedNamespace,

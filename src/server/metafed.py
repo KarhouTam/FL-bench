@@ -10,17 +10,18 @@ from src.client.metafed import MetaFedClient
 from src.utils.tools import NestedNamespace
 
 
-def get_metafed_args(args_list=None) -> Namespace:
-    parser = ArgumentParser()
-    parser.add_argument("--valset_ratio", type=float, default=0.2)
-    parser.add_argument("--warmup_round", type=int, default=30)
-    parser.add_argument("--lamda", type=float, default=1.0)
-    parser.add_argument("--threshold_1", type=float, default=0.6)
-    parser.add_argument("--threshold_2", type=float, default=0.5)
-    return parser.parse_args(args_list)
-
-
 class MetaFedServer(FedAvgServer):
+
+    @staticmethod
+    def get_hyperparams(args_list=None) -> Namespace:
+        parser = ArgumentParser()
+        parser.add_argument("--valset_ratio", type=float, default=0.2)
+        parser.add_argument("--warmup_round", type=int, default=30)
+        parser.add_argument("--lamda", type=float, default=1.0)
+        parser.add_argument("--threshold_1", type=float, default=0.6)
+        parser.add_argument("--threshold_2", type=float, default=0.5)
+        return parser.parse_args(args_list)
+
     def __init__(
         self,
         args: NestedNamespace,
