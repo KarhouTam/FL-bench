@@ -2,7 +2,6 @@ from argparse import ArgumentParser
 from collections import OrderedDict
 from typing import Any
 
-import numpy as np
 import torch
 import cvxpy as cvx
 
@@ -103,7 +102,7 @@ class FedPACServer(FedAvgServer):
             else:
                 # QP solver
                 eigenvals, eigenvecs = torch.linalg.eigh(P)
-                eigenvals, eigenvals.to(self.device)
+                eigenvals = eigenvals.to(self.device)
                 eigenvecs = eigenvecs.to(self.device)
                 # for numerical stablity
                 P = torch.zeros((num_clients, num_clients), device=self.device)
