@@ -23,6 +23,19 @@ class FedPACClient(FedAvgClient):
 
         self.v = None
         self.h_ref = None
+        self.optimizer = commons["optimizer_cls"](
+            params=[
+                {
+                    "params": self.model.base.parameters(),
+                    "lr": self.args.common.optimizer.lr,
+                },
+                {
+                    "params": self.model.classifier.parameters(),
+                    "lr": self.args.fedpac.classifier_lr,
+                },
+            ]
+        )
+        self.init_optimizer_state = deepcopy(self.optimizer.state_dict())
 
     @torch.no_grad
     def extract_stats(self):
@@ -114,17 +127,13 @@ class FedPACClient(FedAvgClient):
                     loss_ce = self.criterion(logits, y)
 
                     loss_mse = 0
+                    target_prototypes = features.clone().detach()
                     if self.global_prototypes is not None:
                         for i, label in enumerate(y.cpu().tolist()):
-                            if label in self.global_prototypes.keys():
-                                loss_mse += torch.nn.functional.mse_loss(
-                                    self.global_prototypes[label].to(self.device),
-                                    features[i],
-                                )
-                            else:
-                                loss_mse += torch.nn.functional.mse_loss(
-                                    local_prototypes[label], features[i]
-                                )
+                            target_prototypes[i] = self.global_prototypes.get(
+                                label, local_prototypes[label]
+                            )
+                    loss_mse = torch.nn.functional.mse_loss(features, target_prototypes)
                     loss = loss_ce + self.args.fedpac.lamda * loss_mse
                     self.optimizer.zero_grad()
                     loss.backward()

@@ -15,6 +15,7 @@ def get_fedpac_args(args_list=None):
     parser = ArgumentParser()
     parser.add_argument("--train_classifier_round", type=int, default=1)
     parser.add_argument("--lamda", type=float, default=1.0)
+    parser.add_argument("--classifier_lr", type=float, default=0.1)
     return parser.parse_args(args_list)
 
 
