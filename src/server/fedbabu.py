@@ -13,6 +13,8 @@ class FedBabuServer(FedAvgServer):
         return_diff=False,
     ):
         # Fine-tuning is indispensable to FedBabu.
-        args.common.finetune_epoch = max(1, args.common.finetune_epoch)
+        assert (
+            args.common.finetune_epoch > 0
+        ), f"FedBABU needs finetuning. Now finetune_epoch = {args.common.finetune_epoch}"
         super().__init__(args, algo, unique_model, use_fedavg_client_cls, return_diff)
         self.init_trainer(FedBabuClient)

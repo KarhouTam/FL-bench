@@ -9,13 +9,14 @@ from src.client.scaffold import SCAFFOLDClient
 from src.utils.tools import NestedNamespace
 
 
-def get_scaffold_args(args_list=None) -> Namespace:
-    parser = ArgumentParser()
-    parser.add_argument("--global_lr", type=float, default=1.0)
-    return parser.parse_args(args_list)
-
-
 class SCAFFOLDServer(FedAvgServer):
+
+    @staticmethod
+    def get_hyperparams(args_list=None) -> Namespace:
+        parser = ArgumentParser()
+        parser.add_argument("--global_lr", type=float, default=1.0)
+        return parser.parse_args(args_list)
+
     def __init__(
         self,
         args: NestedNamespace,

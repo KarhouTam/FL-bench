@@ -6,14 +6,15 @@ from src.client.ditto import DittoClient
 from src.utils.tools import NestedNamespace
 
 
-def get_ditto_args(args_list=None) -> Namespace:
-    parser = ArgumentParser()
-    parser.add_argument("--pers_epoch", type=int, default=1)
-    parser.add_argument("--lamda", type=float, default=1)
-    return parser.parse_args(args_list)
-
-
 class DittoServer(FedAvgServer):
+
+    @staticmethod
+    def get_hyperparams(args_list=None) -> Namespace:
+        parser = ArgumentParser()
+        parser.add_argument("--pers_epoch", type=int, default=1)
+        parser.add_argument("--lamda", type=float, default=1)
+        return parser.parse_args(args_list)
+
     def __init__(
         self,
         args: NestedNamespace,

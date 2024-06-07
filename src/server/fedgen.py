@@ -14,27 +14,28 @@ from src.utils.tools import trainable_params, NestedNamespace
 from src.utils.constants import DATA_SHAPE, NUM_CLASSES
 
 
-def get_fedgen_args(args_list=None) -> Namespace:
-    parser = ArgumentParser()
-    parser.add_argument("--ensemble_lr", type=float, default=3e-4)
-    parser.add_argument("--gen_batch_size", type=int, default=32)
-    parser.add_argument("--generative_alpha", type=float, default=10)
-    parser.add_argument("--generative_beta", type=float, default=10)
-    parser.add_argument("--ensemble_alpha", type=float, default=1)
-    parser.add_argument("--ensemble_beta", type=float, default=0)
-    parser.add_argument("--ensemble_eta", type=float, default=0)
-    parser.add_argument("--noise_dim", type=int, default=32)
-    parser.add_argument("--hidden_dim", type=int, default=32)
-    parser.add_argument("--use_embedding", type=int, default=0)
-    parser.add_argument("--coef_decay", type=float, default=0.98)
-    parser.add_argument("--coef_decay_epoch", type=int, default=1)
-    parser.add_argument("--ensemble_epoch", type=int, default=50)
-    parser.add_argument("--train_generator_epoch", type=int, default=5)
-    parser.add_argument("--min_samples_per_label", type=int, default=1)
-    return parser.parse_args(args_list)
-
-
 class FedGenServer(FedAvgServer):
+
+    @staticmethod
+    def get_hyperparams(args_list=None) -> Namespace:
+        parser = ArgumentParser()
+        parser.add_argument("--ensemble_lr", type=float, default=3e-4)
+        parser.add_argument("--gen_batch_size", type=int, default=32)
+        parser.add_argument("--generative_alpha", type=float, default=10)
+        parser.add_argument("--generative_beta", type=float, default=10)
+        parser.add_argument("--ensemble_alpha", type=float, default=1)
+        parser.add_argument("--ensemble_beta", type=float, default=0)
+        parser.add_argument("--ensemble_eta", type=float, default=0)
+        parser.add_argument("--noise_dim", type=int, default=32)
+        parser.add_argument("--hidden_dim", type=int, default=32)
+        parser.add_argument("--use_embedding", type=int, default=0)
+        parser.add_argument("--coef_decay", type=float, default=0.98)
+        parser.add_argument("--coef_decay_epoch", type=int, default=1)
+        parser.add_argument("--ensemble_epoch", type=int, default=50)
+        parser.add_argument("--train_generator_epoch", type=int, default=5)
+        parser.add_argument("--min_samples_per_label", type=int, default=1)
+        return parser.parse_args(args_list)
+
     def __init__(
         self,
         args: NestedNamespace,

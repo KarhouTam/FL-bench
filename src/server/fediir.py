@@ -7,14 +7,15 @@ from src.client.fediir import FedIIRClient
 from src.utils.tools import NestedNamespace
 
 
-def get_fediir_args(args_list=None) -> Namespace:
-    parser = ArgumentParser()
-    parser.add_argument("--ema", type=float, default=0.95)
-    parser.add_argument("--penalty", type=float, default=1e-3)
-    return parser.parse_args(args_list)
-
-
 class FedIIRServer(FedAvgServer):
+
+    @staticmethod
+    def get_hyperparams(args_list=None) -> Namespace:
+        parser = ArgumentParser()
+        parser.add_argument("--ema", type=float, default=0.95)
+        parser.add_argument("--penalty", type=float, default=1e-3)
+        return parser.parse_args(args_list)
+
     def __init__(
         self,
         args: NestedNamespace,

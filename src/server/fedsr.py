@@ -14,15 +14,16 @@ from src.utils.constants import NUM_CLASSES, FLBENCH_ROOT
 from src.utils.tools import trainable_params, NestedNamespace
 
 
-def get_fedsr_args(args_list=None) -> Namespace:
-    parser = ArgumentParser()
-    parser.add_argument("--L2R_coeff", type=float, default=1e-2)
-    parser.add_argument("--CMI_coeff", type=float, default=5e-4)
-    return parser.parse_args(args_list)
-
-
 class FedSRModel(DecoupledModel):
     # modify base model to suit FedSR
+
+    @staticmethod
+    def get_hyperparams(args_list=None) -> Namespace:
+        parser = ArgumentParser()
+        parser.add_argument("--L2R_coeff", type=float, default=1e-2)
+        parser.add_argument("--CMI_coeff", type=float, default=5e-4)
+        return parser.parse_args(args_list)
+
     def __init__(self, base_model: DecoupledModel, dataset) -> None:
         super().__init__()
         self.z_dim = base_model.classifier.in_features

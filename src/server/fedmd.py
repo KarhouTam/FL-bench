@@ -11,15 +11,6 @@ from src.utils.constants import DATA_MEAN, DATA_STD, FLBENCH_ROOT
 from data.utils.datasets import DATASETS
 
 
-def get_fedmd_args(args_list=None) -> Namespace:
-    parser = ArgumentParser()
-    parser.add_argument("--digest_epoch", type=int, default=1)
-    parser.add_argument("--public_dataset", type=str, default="mnist")
-    parser.add_argument("--public_batch_size", type=int, default=32)
-    parser.add_argument("--public_batch_num", type=int, default=5)
-    return parser.parse_args(args_list)
-
-
 class FedMDServer(FedAvgServer):
     """
     NOTE:
@@ -30,6 +21,15 @@ class FedMDServer(FedAvgServer):
     1. (public: MNIST, private: FEMNIST / EMNIST);
     2. (public: CIFAR10, private: CIFAR100 but under 20 superclasses)
     """
+
+    @staticmethod
+    def get_hyperparams(args_list=None) -> Namespace:
+        parser = ArgumentParser()
+        parser.add_argument("--digest_epoch", type=int, default=1)
+        parser.add_argument("--public_dataset", type=str, default="mnist")
+        parser.add_argument("--public_batch_size", type=int, default=32)
+        parser.add_argument("--public_batch_num", type=int, default=5)
+        return parser.parse_args(args_list)
 
     def __init__(
         self,

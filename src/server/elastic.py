@@ -10,15 +10,16 @@ from src.client.elastic import ElasticClient
 from src.utils.tools import NestedNamespace, trainable_params
 
 
-def get_elastic_args(args_list=None) -> Namespace:
-    parser = ArgumentParser()
-    parser.add_argument("--sample_ratio", type=float, default=0.3)  # opacue
-    parser.add_argument("--tau", type=float, default=0.5)
-    parser.add_argument("--mu", type=float, default=0.95)
-    return parser.parse_args(args_list)
-
-
 class ElasticServer(FedAvgServer):
+
+    @staticmethod
+    def get_hyperparams(args_list=None) -> Namespace:
+        parser = ArgumentParser()
+        parser.add_argument("--sample_ratio", type=float, default=0.3)  # opacue
+        parser.add_argument("--tau", type=float, default=0.5)
+        parser.add_argument("--mu", type=float, default=0.95)
+        return parser.parse_args(args_list)
+
     def __init__(
         self,
         args: NestedNamespace,

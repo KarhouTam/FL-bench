@@ -6,13 +6,14 @@ from src.server.fedavg import FedAvgServer
 from src.utils.tools import NestedNamespace, trainable_params
 
 
-def get_fedavgm_args(args_list=None) -> Namespace:
-    parser = ArgumentParser()
-    parser.add_argument("--server_momentum", type=float, default=0.9)
-    return parser.parse_args(args_list)
-
-
 class FedAvgMServer(FedAvgServer):
+
+    @staticmethod
+    def get_hyperparams(args_list=None) -> Namespace:
+        parser = ArgumentParser()
+        parser.add_argument("--server_momentum", type=float, default=0.9)
+        return parser.parse_args(args_list)
+
     def __init__(
         self,
         args: NestedNamespace,

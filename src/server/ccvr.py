@@ -12,13 +12,14 @@ from src.utils.tools import trainable_params, NestedNamespace
 from src.utils.constants import NUM_CLASSES
 
 
-def get_ccvr_args(args_list=None) -> Namespace:
-    parser = ArgumentParser()
-    parser.add_argument("--sample_per_class", type=int, default=200)
-    return parser.parse_args(args_list)
-
-
 class CCVRServer(FedAvgServer):
+
+    @staticmethod
+    def get_hyperparams(args_list=None) -> Namespace:
+        parser = ArgumentParser()
+        parser.add_argument("--sample_per_class", type=int, default=200)
+        return parser.parse_args(args_list)
+
     def __init__(
         self,
         args: NestedNamespace,

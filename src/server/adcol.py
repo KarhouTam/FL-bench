@@ -10,21 +10,6 @@ from src.client.adcol import ADCOLClient
 from src.utils.tools import NestedNamespace
 
 
-def get_adcol_args(args_list=None) -> Namespace:
-    parser = ArgumentParser()
-    parser.add_argument("--mu", type=float, default=0.5)
-    parser.add_argument(
-        "--dis_lr", type=float, default=0.01, help="learning rate for discriminator"
-    )
-    parser.add_argument(
-        "--dis_epoch",
-        type=int,
-        default=3,
-        help="epochs for trainig discriminator. larger dis_epoch is recommende when mu is large",
-    )
-    return parser.parse_args(args_list)
-
-
 class Discriminator(nn.Module):
     # discriminator for adversarial training in ADCOL
     def __init__(self, base_model, client_num):
@@ -64,6 +49,22 @@ class DiscriminateDataset(Dataset):
 
 
 class ADCOLServer(FedAvgServer):
+    
+    @staticmethod
+    def get_hyperparams(args_list=None) -> Namespace:
+        parser = ArgumentParser()
+        parser.add_argument("--mu", type=float, default=0.5)
+        parser.add_argument(
+            "--dis_lr", type=float, default=0.01, help="learning rate for discriminator"
+        )
+        parser.add_argument(
+            "--dis_epoch",
+            type=int,
+            default=3,
+            help="epochs for trainig discriminator. larger dis_epoch is recommende when mu is large",
+        )
+        return parser.parse_args(args_list)
+
     def __init__(
         self,
         args: NestedNamespace,

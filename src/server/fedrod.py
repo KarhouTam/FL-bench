@@ -11,17 +11,18 @@ from src.utils.tools import trainable_params, NestedNamespace
 from src.utils.constants import NUM_CLASSES
 
 
-def get_fedrod_args(args_list=None) -> Namespace:
-    parser = ArgumentParser()
-    parser.add_argument("--gamma", type=float, default=1)
-    parser.add_argument("--hyper", type=int, default=0)
-    parser.add_argument("--hyper_lr", type=float, default=0.1)
-    parser.add_argument("--hyper_hidden_dim", type=int, default=32)
-    parser.add_argument("--eval_per", type=int, default=1)
-    return parser.parse_args(args_list)
-
-
 class FedRoDServer(FedAvgServer):
+
+    @staticmethod
+    def get_hyperparams(args_list=None) -> Namespace:
+        parser = ArgumentParser()
+        parser.add_argument("--gamma", type=float, default=1)
+        parser.add_argument("--hyper", type=int, default=0)
+        parser.add_argument("--hyper_lr", type=float, default=0.1)
+        parser.add_argument("--hyper_hidden_dim", type=int, default=32)
+        parser.add_argument("--eval_per", type=int, default=1)
+        return parser.parse_args(args_list)
+
     def __init__(
         self,
         args: NestedNamespace,
