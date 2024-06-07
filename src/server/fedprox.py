@@ -5,13 +5,14 @@ from src.client.fedprox import FedProxClient
 from src.utils.tools import NestedNamespace
 
 
-def get_fedprox_args(args_list=None) -> Namespace:
-    parser = ArgumentParser()
-    parser.add_argument("--mu", type=float, default=1.0)
-    return parser.parse_args(args_list)
-
-
 class FedProxServer(FedAvgServer):
+
+    @staticmethod
+    def get_hyperparams(args_list=None) -> Namespace:
+        parser = ArgumentParser()
+        parser.add_argument("--mu", type=float, default=1.0)
+        return parser.parse_args(args_list)
+
     def __init__(
         self,
         args: NestedNamespace,

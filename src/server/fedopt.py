@@ -9,22 +9,23 @@ from src.utils.tools import NestedNamespace
 from src.utils.models import DecoupledModel
 
 
-def get_fedopt_args(args_list=None) -> Namespace:
-    parser = ArgumentParser()
-    parser.add_argument(
-        "--type", choices=["adagrad", "yogi", "adam"], type=str, default="adam"
-    )
-    parser.add_argument("--beta1", type=float, default=0.9)
-    parser.add_argument("--beta2", type=float, default=0.999)
-    parser.add_argument("--server_lr", type=float, default=1e-1)
-    parser.add_argument("--tau", type=float, default=1e-3)
-    return parser.parse_args(args_list)
-
-
 ALGO_NAMES = {"adagrad": "FedAdagrad", "yogi": "FedYogi", "adam": "FedAdam"}
 
 
 class FedOptServer(FedAvgServer):
+
+    @staticmethod
+    def get_hyperparams(args_list=None) -> Namespace:
+        parser = ArgumentParser()
+        parser.add_argument(
+            "--type", choices=["adagrad", "yogi", "adam"], type=str, default="adam"
+        )
+        parser.add_argument("--beta1", type=float, default=0.9)
+        parser.add_argument("--beta2", type=float, default=0.999)
+        parser.add_argument("--server_lr", type=float, default=1e-1)
+        parser.add_argument("--tau", type=float, default=1e-3)
+        return parser.parse_args(args_list)
+
     def __init__(
         self,
         args: NestedNamespace,

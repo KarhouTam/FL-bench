@@ -7,14 +7,15 @@ from src.client.fedfomo import FedFomoClient
 from src.utils.tools import NestedNamespace
 
 
-def get_fedfomo_args(args_list=None) -> Namespace:
-    parser = ArgumentParser()
-    parser.add_argument("--M", type=int, default=5)
-    parser.add_argument("--valset_ratio", type=float, default=0.2)
-    return parser.parse_args(args_list)
-
-
 class FedFomoServer(FedAvgServer):
+
+    @staticmethod
+    def get_hyperparams(args_list=None) -> Namespace:
+        parser = ArgumentParser()
+        parser.add_argument("--M", type=int, default=5)
+        parser.add_argument("--valset_ratio", type=float, default=0.2)
+        return parser.parse_args(args_list)
+
     def __init__(
         self,
         args: NestedNamespace,

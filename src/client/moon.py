@@ -2,7 +2,7 @@ from copy import deepcopy
 from typing import Any
 
 import torch
-from torch.nn.functional import cosine_similarity, relu
+from torch.nn.functional import cosine_similarity
 
 from src.client.fedavg import FedAvgClient
 
@@ -30,11 +30,11 @@ class MOONClient(FedAvgClient):
                     continue
 
                 x, y = x.to(self.device), y.to(self.device)
-                z_curr = self.model.get_final_features(x, detach=False)
-                z_global = self.global_model.get_final_features(x, detach=True)
-                z_prev = self.prev_model.get_final_features(x, detach=True)
-                logit = self.model.classifier(relu(z_curr))
-                loss_sup = self.criterion(logit, y)
+                z_curr = self.model.get_last_features(x, detach=False)
+                z_global = self.global_model.get_last_features(x, detach=True)
+                z_prev = self.prev_model.get_last_features(x, detach=True)
+                logits = self.model.classifier(z_curr)
+                loss_sup = self.criterion(logits, y)
                 loss_con = -torch.log(
                     torch.exp(
                         cosine_similarity(z_curr.flatten(1), z_global.flatten(1))

@@ -9,28 +9,28 @@ from src.server.fedavg import FedAvgServer
 from src.utils.tools import NestedNamespace
 
 
-def get_pfedsim_args(args_list=None) -> Namespace:
-    parser = ArgumentParser()
-    parser.add_argument("-wr", "--warmup_round", type=float, default=0.5)
-    return parser.parse_args(args_list)
-
-
 class pFedSimServer(FedAvgServer):
-    def __init__(self, args: NestedNamespace, algo: str = "pFedSim"):
-        super().__init__(args, algo)
-        self.weight_matrix = torch.eye(self.client_num)
 
+    @staticmethod
+    def get_hyperparams(args_list=None) -> Namespace:
+        parser = ArgumentParser()
+        parser.add_argument("-wr", "--warmup_round", type=float, default=0.5)
+        return parser.parse_args(args_list)
+
+    def __init__(self, args: NestedNamespace, algo: str = "pFedSim"):
         self.warmup_round = 0
-        if 0 <= self.args.pfedsim.warmup_round <= 1:
+        if 0 <= args.pfedsim.warmup_round <= 1:
             self.warmup_round = int(
-                self.args.common.global_epoch * self.args.pfedsim.warmup_round
+                args.common.global_epoch * args.pfedsim.warmup_round
             )
-        elif 1 < self.args.pfedsim.warmup_round < self.args.common.global_epoch:
-            self.warmup_round = int(self.args.pfedsim.warmup_round)
+        elif 1 < args.pfedsim.warmup_round < args.common.global_epoch:
+            self.warmup_round = int(args.pfedsim.warmup_round)
         else:
-            raise RuntimeError(
+            raise ValueError(
                 "warmup_round need to be set in the range of [0, 1) or [1, global_epoch)."
             )
+        super().__init__(args, algo)
+        self.weight_matrix = torch.eye(self.client_num)
 
     def train(self):
         # Warm-up Phase
@@ -53,9 +53,7 @@ class pFedSimServer(FedAvgServer):
             params_dict.update(self.public_model_params)
 
         self.params_name_join_aggregation = [
-            key
-            for key in self.public_model_params.keys()
-            if "classifier" not in key
+            key for key in self.public_model_params.keys() if "classifier" not in key
         ]
 
         for E in pfedsim_progress_bar:

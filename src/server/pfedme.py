@@ -9,17 +9,18 @@ from src.client.pfedme import pFedMeClient
 from src.utils.tools import NestedNamespace
 
 
-def get_pfedme_args(args_list=None) -> Namespace:
-    parser = ArgumentParser()
-    parser.add_argument("--beta", type=float, default=1.0)
-    parser.add_argument("--lamda", type=float, default=15)
-    parser.add_argument("--pers_lr", type=float, default=0.01)
-    parser.add_argument("--mu", type=float, default=1e-3)
-    parser.add_argument("--k", type=int, default=5)
-    return parser.parse_args(args_list)
-
-
 class pFedMeServer(FedAvgServer):
+
+    @staticmethod
+    def get_hyperparams(args_list=None) -> Namespace:
+        parser = ArgumentParser()
+        parser.add_argument("--beta", type=float, default=1.0)
+        parser.add_argument("--lamda", type=float, default=15)
+        parser.add_argument("--pers_lr", type=float, default=0.01)
+        parser.add_argument("--mu", type=float, default=1e-3)
+        parser.add_argument("--k", type=int, default=5)
+        return parser.parse_args(args_list)
+
     def __init__(
         self,
         args: NestedNamespace,

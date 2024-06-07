@@ -4,7 +4,6 @@ from typing import Optional
 
 import torch
 import torch.nn as nn
-import torch.nn.functional as F
 import torchvision.models as models
 from torch import Tensor
 
@@ -48,7 +47,7 @@ class DecoupledModel(nn.Module):
     def forward(self, x: Tensor) -> Tensor:
         return self.classifier(self.base(x))
 
-    def get_final_features(self, x: Tensor, detach=True) -> Tensor:
+    def get_last_features(self, x: Tensor, detach=True) -> Tensor:
         if len(self.dropout) > 0:
             for dropout in self.dropout:
                 dropout.eval()
@@ -102,6 +101,7 @@ class FedAvgCNN(DecoupledModel):
         "svhn": 1600,
         "usps": 800,
     }
+
     def __init__(self, dataset: str):
         super(FedAvgCNN, self).__init__()
         self.base = nn.Sequential(
@@ -114,12 +114,10 @@ class FedAvgCNN(DecoupledModel):
                 pool2=nn.MaxPool2d(2),
                 flatten=nn.Flatten(),
                 fc1=nn.Linear(self.feature_length[dataset], 512),
+                activation3=nn.ReLU(),
             )
         )
         self.classifier = nn.Linear(512, NUM_CLASSES[dataset])
-
-    def forward(self, x):
-        return self.classifier(F.relu(self.base(x)))
 
 
 class LeNet5(DecoupledModel):
@@ -140,6 +138,7 @@ class LeNet5(DecoupledModel):
         "usps": 200,
         "tiny_imagenet": 2704,
     }
+
     def __init__(self, dataset: str) -> None:
         super(LeNet5, self).__init__()
         self.base = nn.Sequential(
@@ -156,13 +155,11 @@ class LeNet5(DecoupledModel):
                 fc1=nn.Linear(self.feature_length[dataset], 120),
                 activation3=nn.ReLU(),
                 fc2=nn.Linear(120, 84),
+                activation4=nn.ReLU(),
             )
         )
 
         self.classifier = nn.Linear(84, NUM_CLASSES[dataset])
-
-    def forward(self, x):
-        return self.classifier(F.relu(self.base(x)))
 
 
 class TwoNN(DecoupledModel):
@@ -181,17 +178,17 @@ class TwoNN(DecoupledModel):
         "usps": 1536,
         "synthetic": DATA_SHAPE["synthetic"],
     }
+
     def __init__(self, dataset):
         super(TwoNN, self).__init__()
         self.base = nn.Sequential(
             nn.Linear(self.feature_length[dataset], 200),
-            nn.ReLU(inplace=True),
+            nn.ReLU(),
             nn.Linear(200, 200),
-            nn.ReLU(inplace=True),
+            nn.ReLU(),
         )
         # self.base = nn.Linear(features_length[dataset], 200)
         self.classifier = nn.Linear(200, NUM_CLASSES[dataset])
-        self.activation = nn.ReLU()
 
     def need_all_features(self):
         return
@@ -201,7 +198,7 @@ class TwoNN(DecoupledModel):
         x = self.classifier(self.base(x))
         return x
 
-    def get_final_features(self, x, detach=True):
+    def get_last_features(self, x, detach=True):
         func = (lambda x: x.clone().detach()) if detach else (lambda x: x)
         x = torch.flatten(x, start_dim=1)
         x = self.base(x)

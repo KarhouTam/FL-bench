@@ -7,6 +7,8 @@ from pathlib import Path
 import yaml
 import pynvml
 
+from src.server.fedavg import FedAvgServer
+
 FLBENCH_ROOT = Path(__file__).parent.absolute()
 if FLBENCH_ROOT not in sys.path:
     sys.path.append(FLBENCH_ROOT.as_posix())
@@ -27,7 +29,7 @@ if __name__ == "__main__":
     cli_method_args = []
     if len(sys.argv) > 2:
         if ".yaml" in sys.argv[2] or ".yml" in sys.argv[2]:  # ***.yml or ***.yaml
-            config_file_path = sys.argv[2]
+            config_file_path = Path(sys.argv[2]).absolute()
             cli_method_args = sys.argv[3:]
         else:
             cli_method_args = sys.argv[2:]
@@ -36,8 +38,6 @@ if __name__ == "__main__":
     except:
         raise ImportError(f"Can't import `src.server.{method_name}`.")
 
-    get_method_args_func = getattr(fl_method_server_module, f"get_{method_name}_args", None)
-
     module_attributes = inspect.getmembers(fl_method_server_module)
     server_class = [
         attribute
@@ -45,21 +45,39 @@ if __name__ == "__main__":
         if attribute[0].lower() == method_name + "server"
     ][0][1]
 
+    get_method_hyperparams_func = getattr(server_class, f"get_hyperparams", None)
+
     config_file_args = None
-    if config_file_path is not None and os.path.isfile(
-        Path(config_file_path).absolute()
-    ):
-        with open(Path(config_file_path).absolute(), "r") as f:
+    if config_file_path is not None and os.path.isfile(config_file_path):
+        with open(config_file_path, "r") as f:
             try:
                 config_file_args = yaml.safe_load(f)
             except:
                 raise TypeError(
-                    f"Config file's type should be yaml, now is {Path(config_file_path).absolute()}"
+                    f"Config file's type should be yaml, now is {config_file_path}"
                 )
 
     ARGS = parse_args(
-        config_file_args, method_name, get_method_args_func, cli_method_args
+        config_file_args, method_name, get_method_hyperparams_func, cli_method_args
     )
+
+    # target method is not inherited from FedAvgServer
+    if server_class.__bases__[0] != FedAvgServer and server_class != FedAvgServer:
+        parent_server_class = server_class.__bases__[0]
+        get_parent_method_hyperparams_func = getattr(
+            parent_server_class, f"get_hyperparams", None
+        )
+        # class name: ***Server, only want ***
+        parent_method_name = parent_server_class.__name__.lower()[:-6]
+        # extract the hyperparams of parent method
+        PARENT_ARGS = parse_args(
+            config_file_args,
+            parent_method_name,
+            get_parent_method_hyperparams_func,
+            cli_method_args,
+        )
+        setattr(ARGS, parent_method_name, getattr(PARENT_ARGS, parent_method_name))
+
     if ARGS.mode == "parallel":
         import ray
 

@@ -16,32 +16,33 @@ from src.utils.constants import DATA_SHAPE
 from src.utils.tools import NestedNamespace, trainable_params
 
 
-def get_fedfed_args(arg_list=None) -> Namespace:
-    parser = ArgumentParser()
-    parser.add_argument("--VAE_train_global_epoch", type=int, default=15)
-    parser.add_argument("--VAE_train_local_epoch", type=int, default=1)
-    parser.add_argument("--VAE_lr", type=float, default=1e-3)
-    parser.add_argument("--VAE_weight_decay", type=float, default=1e-6)
-    parser.add_argument("--VAE_alpha", type=float, default=2.0)
-    parser.add_argument("--VAE_noise_mean", type=float, default=0)
-    parser.add_argument("--VAE_noise_std1", type=float, default=0.15)
-    parser.add_argument("--VAE_noise_std2", type=float, default=0.25)
-    parser.add_argument("--VAE_re", type=float, default=5.0)
-    parser.add_argument("--VAE_x_ce", type=float, default=0.4)
-    parser.add_argument("--VAE_kl", type=float, default=0.005)
-    parser.add_argument("--VAE_ce", type=float, default=2.0)
-    parser.add_argument("--VAE_batch_size", type=int, default=64)
-    parser.add_argument("--VAE_block_depth", type=int, default=32)
-    parser.add_argument(
-        "--VAE_noise_type",
-        type=str,
-        choices=["laplace", "gaussian"],
-        default="gaussian",
-    )
-    return parser.parse_args(arg_list)
-
-
 class FedFedServer(FedAvgServer):
+
+    @staticmethod
+    def get_hyperparams(arg_list=None) -> Namespace:
+        parser = ArgumentParser()
+        parser.add_argument("--VAE_train_global_epoch", type=int, default=15)
+        parser.add_argument("--VAE_train_local_epoch", type=int, default=1)
+        parser.add_argument("--VAE_lr", type=float, default=1e-3)
+        parser.add_argument("--VAE_weight_decay", type=float, default=1e-6)
+        parser.add_argument("--VAE_alpha", type=float, default=2.0)
+        parser.add_argument("--VAE_noise_mean", type=float, default=0)
+        parser.add_argument("--VAE_noise_std1", type=float, default=0.15)
+        parser.add_argument("--VAE_noise_std2", type=float, default=0.25)
+        parser.add_argument("--VAE_re", type=float, default=5.0)
+        parser.add_argument("--VAE_x_ce", type=float, default=0.4)
+        parser.add_argument("--VAE_kl", type=float, default=0.005)
+        parser.add_argument("--VAE_ce", type=float, default=2.0)
+        parser.add_argument("--VAE_batch_size", type=int, default=64)
+        parser.add_argument("--VAE_block_depth", type=int, default=32)
+        parser.add_argument(
+            "--VAE_noise_type",
+            type=str,
+            choices=["laplace", "gaussian"],
+            default="gaussian",
+        )
+        return parser.parse_args(arg_list)
+
     def __init__(
         self,
         args: NestedNamespace,

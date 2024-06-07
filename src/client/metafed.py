@@ -86,11 +86,11 @@ class MetaFedClient(FedAvgClient):
             for x, y in self.trainloader:
                 x, y = x.to(self.device), y.to(self.device)
 
-                stu_feature = self.model.get_final_features(x, detach=False)
+                stu_feature = self.model.get_last_features(x, detach=False)
                 logit = self.model.classifier(F.relu(stu_feature))
                 loss = self.criterion(logit, y)
                 if self.client_flag:
-                    tea_feature = self.teacher.get_final_features(x)
+                    tea_feature = self.teacher.get_last_features(x)
                     loss += self.lamda * F.mse_loss(stu_feature, tea_feature)
                 self.optimizer.zero_grad()
                 loss.backward()

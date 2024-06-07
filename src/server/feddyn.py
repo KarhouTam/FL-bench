@@ -10,14 +10,15 @@ from src.utils.tools import NestedNamespace, vectorize
 from src.utils.tools import NestedNamespace
 
 
-def get_feddyn_args(args_list=None) -> Namespace:
-    parser = ArgumentParser()
-    parser.add_argument("--alpha", type=float, default=0.01)
-    parser.add_argument("--max_grad_norm", type=float, default=10)
-    return parser.parse_args(args_list)
-
-
 class FedDynServer(FedAvgServer):
+
+    @staticmethod
+    def get_hyperparams(args_list=None) -> Namespace:
+        parser = ArgumentParser()
+        parser.add_argument("--alpha", type=float, default=0.01)
+        parser.add_argument("--max_grad_norm", type=float, default=10)
+        return parser.parse_args(args_list)
+
     def __init__(
         self,
         args: NestedNamespace,

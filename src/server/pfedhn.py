@@ -9,23 +9,24 @@ from src.client.fedper import FedPerClient
 from src.utils.tools import trainable_params, NestedNamespace
 
 
-def get_pfedhn_args(args_list=None) -> Namespace:
-    parser = ArgumentParser()
-    parser.add_argument(
-        "--version", type=str, choices=["pfedhn", "pfedhn_pc"], default="pfedhn"
-    )
-    parser.add_argument("--embed_dim", type=int, default=-1)
-    parser.add_argument("--hn_lr", type=float, default=1e-2)
-    parser.add_argument("--embed_lr", type=float, default=None)
-    parser.add_argument("--hn_momentum", type=float, default=0.9)
-    parser.add_argument("--hn_weight_decay", type=float, default=1e-3)
-    parser.add_argument("--hidden_dim", type=int, default=100)
-    parser.add_argument("--hidden_num", type=int, default=3)
-    parser.add_argument("--norm_clip", type=int, default=50)
-    return parser.parse_args(args_list)
-
-
 class pFedHNServer(FedAvgServer):
+
+    @staticmethod
+    def get_hyperparams(args_list=None) -> Namespace:
+        parser = ArgumentParser()
+        parser.add_argument(
+            "--version", type=str, choices=["pfedhn", "pfedhn_pc"], default="pfedhn"
+        )
+        parser.add_argument("--embed_dim", type=int, default=-1)
+        parser.add_argument("--hn_lr", type=float, default=1e-2)
+        parser.add_argument("--embed_lr", type=float, default=None)
+        parser.add_argument("--hn_momentum", type=float, default=0.9)
+        parser.add_argument("--hn_weight_decay", type=float, default=1e-3)
+        parser.add_argument("--hidden_dim", type=int, default=100)
+        parser.add_argument("--hidden_num", type=int, default=3)
+        parser.add_argument("--norm_clip", type=int, default=50)
+        return parser.parse_args(args_list)
+
     def __init__(
         self,
         args: NestedNamespace,
@@ -109,7 +110,10 @@ class pFedHNServer(FedAvgServer):
     def get_client_model_params(self, client_id) -> OrderedDict[str, torch.Tensor]:
         return dict(
             regular_model_params=OrderedDict(
-                zip(self.public_model_param_names, self.hypernet(torch.tensor(client_id)))
+                zip(
+                    self.public_model_param_names,
+                    self.hypernet(torch.tensor(client_id)),
+                )
             ),
             personal_model_params=self.clients_personal_model_params[client_id],
         )

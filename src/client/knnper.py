@@ -26,7 +26,7 @@ class kNNPerClient(FedAvgClient):
             for x, y in self.trainloader:
                 x, y = x.to(self.device), y.to(self.device)
 
-                train_features.append(target_model.get_final_features(x))
+                train_features.append(target_model.get_last_features(x))
                 train_targets.append(y)
 
             def _knnper_eval(dataloader):
@@ -36,7 +36,7 @@ class kNNPerClient(FedAvgClient):
                 for x, y in dataloader:
                     x, y = x.to(self.device), y.to(self.device)
 
-                    feature = target_model.get_final_features(x)
+                    feature = target_model.get_last_features(x)
                     features.append(feature)
                     model_logits.append(target_model.classifier(torch.relu(feature)))
                     targets.append(y)

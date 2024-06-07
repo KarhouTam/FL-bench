@@ -8,16 +8,17 @@ from src.server.fedavg import FedAvgServer
 from src.utils.tools import vectorize, NestedNamespace
 
 
-def get_cfl_args(args_list=None) -> Namespace:
-    parser = ArgumentParser()
-    parser.add_argument("--eps_1", type=float, default=0.4)
-    parser.add_argument("--eps_2", type=float, default=1.6)
-    parser.add_argument("--min_cluster_size", type=int, default=2)
-    parser.add_argument("--start_clustering_round", type=int, default=20)
-    return parser.parse_args(args_list)
-
-
 class CFLServer(FedAvgServer):
+
+    @staticmethod
+    def get_hyperparams(args_list=None) -> Namespace:
+        parser = ArgumentParser()
+        parser.add_argument("--eps_1", type=float, default=0.4)
+        parser.add_argument("--eps_2", type=float, default=1.6)
+        parser.add_argument("--min_cluster_size", type=int, default=2)
+        parser.add_argument("--start_clustering_round", type=int, default=20)
+        return parser.parse_args(args_list)
+
     def __init__(
         self,
         args: NestedNamespace,

@@ -22,9 +22,7 @@ def prune_args(args: Namespace) -> dict:
     args_dict["val_ratio"] = args.val_ratio
     args_dict["seed"] = args.seed
     args_dict["split"] = args.split
-    args_dict["monitor_window_name_suffix"] = (
-        f"{args.dataset}-{args.client_num}clients"
-    )
+    args_dict["monitor_window_name_suffix"] = f"{args.dataset}-{args.client_num}clients"
 
     if args.dataset == "emnist":
         args_dict["emnist_split"] = args.emnist_split
@@ -543,7 +541,7 @@ def plot_distribution(client_num: int, label_counts: np.ndarray, save_path: str)
         ax.barh(client_ids, width=cnts, label=y, left=left)
         left += cnts
     ax.set_yticks([])
-    ax.spines['right'].set_visible(False)
-    ax.spines['top'].set_visible(False)
+    ax.spines["right"].set_visible(False)
+    ax.spines["top"].set_visible(False)
     ax.legend(bbox_to_anchor=(1.2, 1))
     plt.savefig(save_path, bbox_inches="tight")

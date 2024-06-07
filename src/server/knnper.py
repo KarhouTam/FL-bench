@@ -5,16 +5,17 @@ from src.client.knnper import kNNPerClient
 from src.utils.tools import NestedNamespace
 
 
-def get_knnper_args(args_list=None) -> Namespace:
-    parser = ArgumentParser()
-    parser.add_argument("--capacity", type=int, default=500)
-    parser.add_argument("--weight", type=float, default=0.5)
-    parser.add_argument("--scale", type=float, default=1)
-    parser.add_argument("--k", type=int, default=5)
-    return parser.parse_args(args_list)
-
-
 class kNNPerServer(FedAvgServer):
+
+    @staticmethod
+    def get_hyperparams(args_list=None) -> Namespace:
+        parser = ArgumentParser()
+        parser.add_argument("--capacity", type=int, default=500)
+        parser.add_argument("--weight", type=float, default=0.5)
+        parser.add_argument("--scale", type=float, default=1)
+        parser.add_argument("--k", type=int, default=5)
+        return parser.parse_args(args_list)
+
     def __init__(
         self,
         args: NestedNamespace,

@@ -107,6 +107,8 @@ Having Fun with Federated Learning.
 
 - ***FedProto*** -- [FedProto: Federated prototype learning across heterogeneous clients](https://arxiv.org/abs/2105.00243) (AAAI'22)
 
+- ***FedPAC*** -- [Personalized Federated Learning with Feature Alignment and Classifier Collaboration](https://arxiv.org/abs/2306.11867v1) (ICLR'23)
+
 </details>
 
 
@@ -185,10 +187,14 @@ python main.py fedavg
 For example, the default value of `fedprox.mu` is `1`, 
 ```python
 # src/server/fedprox.py
-def get_fedprox_args(args_list=None) -> Namespace:
-    parser = ArgumentParser()
-    parser.add_argument("--mu", type=float, default=1.0)
-    return parser.parse_args(args_list)
+class FedProxServer(FedAvgServer):
+
+    @staticmethod
+    def get_hyperparams(args_list=None) -> Namespace:
+        parser = ArgumentParser()
+        parser.add_argument("--mu", type=float, default=1.0)
+        return parser.parse_args(args_list)
+
 ```
 and your `.yml` config file has
 ```yaml
