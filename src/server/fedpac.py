@@ -121,7 +121,7 @@ class FedPACServer(FedAvgServer):
             classifier_weights[client_id] = W / W.sum()
 
         classifier_params_name = [
-            name for name in self.trainable_params_name if "classifier" in name
+            name for name in self.public_model_param_names if "classifier" in name
         ]
         for layer in classifier_params_name:
             parameters = torch.stack(
