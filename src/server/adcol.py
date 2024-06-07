@@ -49,7 +49,7 @@ class DiscriminateDataset(Dataset):
 
 
 class ADCOLServer(FedAvgServer):
-    
+
     @staticmethod
     def get_hyperparams(args_list=None) -> Namespace:
         parser = ArgumentParser()

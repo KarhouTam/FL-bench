@@ -5,15 +5,14 @@ from src.client.lgfedavg import LGFedAvgClient
 from src.utils.tools import NestedNamespace
 
 
-
-
 class LGFedAvgServer(FedAvgServer):
-    
+
     @staticmethod
     def get_hyperparams(args_list=None) -> Namespace:
         parser = ArgumentParser()
         parser.add_argument("--num_global_layers", type=int, default=1)
         return parser.parse_args(args_list)
+
     def __init__(
         self,
         args: NestedNamespace,

@@ -62,7 +62,7 @@ if __name__ == "__main__":
     )
 
     # target method is not inherited from FedAvgServer
-    if server_class.__bases__[0] != FedAvgServer:
+    if server_class.__bases__[0] != FedAvgServer and server_class != FedAvgServer:
         parent_server_class = server_class.__bases__[0]
         get_parent_method_hyperparams_func = getattr(
             parent_server_class, f"get_hyperparams", None

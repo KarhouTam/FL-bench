@@ -41,8 +41,8 @@ class CFLServer(FedAvgServer):
 
         for client_id in self.selected_clients:
             self.clients_model_params_diff[client_id] = [
-                -diff
-                for diff in clients_package[client_id]["model_params_diff"].values()
+                -clients_package[client_id]["model_params_diff"][key]
+                for key in self.clients_personal_model_params[client_id].keys()
             ]
 
         self.compute_pairwise_similarity()

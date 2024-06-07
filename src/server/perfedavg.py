@@ -5,10 +5,8 @@ from src.client.perfedavg import PerFedAvgClient
 from src.utils.tools import NestedNamespace
 
 
-
-
 class PerFedAvgServer(FedAvgServer):
-    
+
     @staticmethod
     def get_hyperparams(args_list=None) -> Namespace:
         parser = ArgumentParser()
@@ -16,6 +14,7 @@ class PerFedAvgServer(FedAvgServer):
         parser.add_argument("--beta", type=float, default=1e-3)
         parser.add_argument("--delta", type=float, default=1e-3)
         return parser.parse_args(args_list)
+
     def __init__(
         self,
         args: NestedNamespace,

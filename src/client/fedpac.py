@@ -67,7 +67,7 @@ class FedPACClient(FedAvgClient):
         for x, y in self.trainloader:
             if len(y) <= 1:
                 continue
-            features = self.model.get_final_features(x.to(self.device))
+            features = self.model.get_last_features(x.to(self.device))
             for i, label in enumerate(y.tolist()):
                 prototypes[label].append(features[i])
 
@@ -122,7 +122,7 @@ class FedPACClient(FedAvgClient):
                     if len(y) <= 1:
                         continue
                     x, y = x.to(self.device), y.to(self.device)
-                    features = self.model.get_final_features(x, detach=False)
+                    features = self.model.get_last_features(x, detach=False)
                     logits = self.model.classifier(features)
                     loss_ce = self.criterion(logits, y)
 
