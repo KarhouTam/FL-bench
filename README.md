@@ -1,7 +1,7 @@
 <p align="center">
 <img src=".github/images/logo.svg" alt="Image"/>
 </p>
-
+<!-- 
 <p align="center">
   <a href="https://github.com/KarhouTam/FL-bench/blob/master/LICENSE">
     <img alt="GitHub License" src="https://img.shields.io/github/license/KarhouTam/FL-bench?style=for-the-badge&logo=github&color=8386e0"/>
@@ -16,9 +16,10 @@
     <img alt="GitHub Repo forks" src="https://img.shields.io/github/forks/KarhouTam/FL-bench?style=for-the-badge&logo=github&color=8386e0">
   </a>
 </p>
+   -->
 <h4 align="center"><i>
-  
-Evaluating Federated Learning Methods.
+
+Benchmarking Federated Learning Methods.
 
 Realizing Your Brilliant Ideas.
 
@@ -315,20 +316,22 @@ About the default values of specific FL method arguments, go check corresponding
 
 
 
-## Supported Models 🚀
+## Models 🤖
 
-This benchmark supports bunch of models that common and integrated in Torchvision:
+This benchmark supports bunch of models that common and integrated in Torchvision (check [here](src/utils/models.py) for all):
 
 - ResNet family
 - EfficientNet family
 - DenseNet family
 - MobileNet family
 - LeNet5
-...
+- ...
 
-🤗 You can define your own custom model by filling the `CustomModel` class in [`src/utils/models.py`](src/utils/models.py) and use it by defining `model: custom`.
 
-## Supported Datasets 🎨
+
+🤗 You can define your own custom model by filling the `CustomModel` class in [`src/utils/models.py`](src/utils/models.py) and use it by defining `model: custom` in your `.yaml` config file.
+
+## Datasets and [Partition Strategies](data/README.md) 🎨
 
 Regular Image Datasets
 
