@@ -1,6 +1,8 @@
 import json
 import os
 import pickle
+import random
+from copy import deepcopy
 from collections import Counter
 from argparse import ArgumentParser
 from pathlib import Path
@@ -38,7 +40,9 @@ def main(args):
 
     client_num = args.client_num
     partition = {"separation": None, "data_indices": [[] for _ in range(client_num)]}
-    stats = {}
+    # x: num of samples,
+    # y: label distribution
+    stats = {i: {"x": 0, "y": {}} for i in range(args.client_num)}
     dataset: BaseDataset = None
 
     if args.dataset == "femnist":
@@ -54,10 +58,11 @@ def main(args):
         # and partition data according to the new `targets` array.
         dataset = DATASETS[args.dataset](dataset_root, args)
         targets = np.array(dataset.targets, dtype=np.int32)
-        label_set = set(range(len(dataset.classes)))
+        target_indices = np.arange(len(targets), dtype=np.int32)
+        valid_label_set = set(range(len(dataset.classes)))
         if args.dataset in ["domain"] and args.ood_domains:
             metadata = json.load(open(dataset_root / "metadata.json", "r"))
-            label_set, targets, client_num = exclude_domain(
+            valid_label_set, targets, client_num = exclude_domain(
                 client_num=client_num,
                 domain_map=metadata["domain_map"],
                 targets=targets,
@@ -67,48 +72,67 @@ def main(args):
                 stats=stats,
             )
 
-        if args.iid:  # iid partition
-            iid_partition(
-                targets=targets,
-                label_set=label_set,
-                client_num=client_num,
-                partition=partition,
-                stats=stats,
+        iid_data_partition = deepcopy(partition)
+        iid_stats = deepcopy(stats)
+        if 0 < args.iid <= 1.0:  # iid partition
+            sampled_indices = np.array(
+                random.sample(
+                    target_indices.tolist(), int(len(target_indices) * args.iid)
+                )
             )
-        elif args.alpha > 0:  # Dirichlet(alpha)
+
+            # if args.iid < 1.0, then residual indices will be processed by another partition method
+            target_indices = np.array(
+                list(set(target_indices) - set(sampled_indices)), dtype=np.int32
+            )
+
+            iid_partition(
+                targets=targets[sampled_indices],
+                target_indices=sampled_indices,
+                label_set=valid_label_set,
+                client_num=client_num,
+                partition=iid_data_partition,
+                stats=iid_stats,
+            )
+
+        if len(target_indices) > 0 and args.alpha > 0:  # Dirichlet(alpha)
             dirichlet(
-                targets=targets,
-                label_set=label_set,
+                targets=targets[target_indices],
+                target_indices=target_indices,
+                label_set=valid_label_set,
                 client_num=client_num,
                 alpha=args.alpha,
                 least_samples=args.least_samples,
                 partition=partition,
                 stats=stats,
             )
-        elif args.classes != 0:  # randomly assign classes
+        elif len(target_indices) > 0 and args.classes != 0:  # randomly assign classes
             args.classes = max(1, min(args.classes, len(dataset.classes)))
             randomly_assign_classes(
-                targets=targets,
-                label_set=label_set,
+                targets=targets[target_indices],
+                target_indices=target_indices,
+                label_set=valid_label_set,
                 client_num=client_num,
                 class_num=args.classes,
                 partition=partition,
                 stats=stats,
             )
-        elif args.shards > 0:  # allocate shards
+        elif len(target_indices) > 0 and args.shards > 0:  # allocate shards
             allocate_shards(
-                targets=targets,
-                label_set=label_set,
+                targets=targets[target_indices],
+                target_indices=target_indices,
+                label_set=valid_label_set,
                 client_num=client_num,
                 shard_num=args.shards,
                 partition=partition,
                 stats=stats,
             )
-        elif args.semantic:
+        elif len(target_indices) > 0 and args.semantic:
             semantic_partition(
                 dataset=dataset,
-                targets=targets,
-                label_set=label_set,
+                targets=targets[target_indices],
+                target_indices=target_indices,
+                label_set=valid_label_set,
                 efficient_net_type=args.efficient_net_type,
                 client_num=client_num,
                 pca_components=args.pca_components,
@@ -119,16 +143,40 @@ def main(args):
                 partition=partition,
                 stats=stats,
             )
-        elif args.dataset in ["domain"] and args.ood_domains is None:
+        elif (
+            len(target_indices) > 0
+            and args.dataset in ["domain"]
+            and args.ood_domains is None
+        ):
             with open(dataset_root / "original_partition.pkl", "rb") as f:
                 partition = {}
                 partition["data_indices"] = pickle.load(f)
                 partition["separation"] = None
                 args.client_num = len(partition["data_indices"])
-        else:
+        elif len(target_indices) > 0:
             raise RuntimeError(
-                "Please set arbitrary one arg from [--alpha, --classes, --shards] for partitioning."
+                "Part of data indices are ignored. Please set arbitrary one arg from"
+                " [--alpha, --classes, --shards, --semantic] for partitioning."
             )
+
+    # merge the iid and niid partition results
+    if 0 < args.iid < 1.0:
+        num_samples = []
+        for i in range(args.client_num):
+            partition["data_indices"][i] = np.concatenate(
+                [partition["data_indices"][i], iid_data_partition["data_indices"][i]]
+            ).astype(np.int32)
+            stats[i]["x"] += iid_stats[i]["x"]
+            stats[i]["y"] = {
+                cls: stats[i]["y"].get(cls, 0) + iid_stats[i]["y"].get(cls, 0)
+                for cls in dataset.classes
+            }
+            num_samples.append(stats[i]["x"])
+        num_samples = np.array(num_samples)
+        stats["samples_per_client"] = {
+            "mean": num_samples.mean().item(),
+            "stddev": num_samples.std().item(),
+        }
 
     if partition["separation"] is None:
         if args.split == "user":
@@ -236,7 +284,7 @@ def main(args):
             plot_distribution(
                 client_num=args.client_num,
                 label_counts=counts,
-                save_path=f"{dataset_root}/class_distribution.pdf",
+                save_path=f"{dataset_root}/class_distribution.png",
             )
             # domain distribution
             counts = np.zeros(
@@ -249,7 +297,7 @@ def main(args):
             plot_distribution(
                 client_num=args.client_num,
                 label_counts=counts,
-                save_path=f"{dataset_root}/domain_distribution.pdf",
+                save_path=f"{dataset_root}/domain_distribution.png",
             )
 
         else:
@@ -261,7 +309,7 @@ def main(args):
             plot_distribution(
                 client_num=args.client_num,
                 label_counts=counts,
-                save_path=f"{dataset_root}/class_distribution.pdf",
+                save_path=f"{dataset_root}/class_distribution.png",
             )
 
     with open(dataset_root / "partition.pkl", "wb") as f:
@@ -279,7 +327,7 @@ if __name__ == "__main__":
     parser.add_argument(
         "-d", "--dataset", type=str, choices=DATASETS.keys(), required=True
     )
-    parser.add_argument("--iid", type=int, default=0)
+    parser.add_argument("--iid", type=float, default=0.0)
     parser.add_argument("-cn", "--client_num", type=int, default=20)
     parser.add_argument("--seed", type=int, default=42)
     parser.add_argument(

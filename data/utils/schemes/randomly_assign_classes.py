@@ -7,6 +7,7 @@ import numpy as np
 
 def randomly_assign_classes(
     targets: np.ndarray,
+    target_indices: np.ndarray,
     label_set: set,
     client_num: int,
     class_num: int,
@@ -17,6 +18,8 @@ def randomly_assign_classes(
 
     Args:
         targets (np.ndarray): Data label array.
+        target_indices (np.ndarray): Indices of targets. If you haven't set `--iid`, then it will be np.arange(len(targets))
+        Otherwise, it will be the absolute indices of the full targets.
         label_set (set): Label set.
         client_num (int): Number of clients.
         class_num (int): Class num.
@@ -24,7 +27,7 @@ def randomly_assign_classes(
         stats (Dict): Output dict that recording clients data distribution.
     """
 
-    data_idx_for_each_label = {i: np.where(targets == i)[0].tolist() for i in label_set}
+    class_indices = {i: sorted(np.where(targets == i)[0].tolist()) for i in label_set}
     assigned_labels = []
     selected_times = {i: 0 for i in label_set}
     label_sequence = sorted(label_set)
@@ -45,27 +48,24 @@ def randomly_assign_classes(
 
     for i in range(client_num):
         for cls in assigned_labels[i]:
-            if len(data_idx_for_each_label[cls]) < 2 * batch_sizes[cls]:
-                batch_size = len(data_idx_for_each_label[cls])
+            if len(class_indices[cls]) < 2 * batch_sizes[cls]:
+                batch_size = len(class_indices[cls])
             else:
                 batch_size = batch_sizes[cls]
-            selected_idx = random.sample(data_idx_for_each_label[cls], batch_size)
+            selected_idxs = random.sample(class_indices[cls], batch_size)
             partition["data_indices"][i] = np.concatenate(
-                [partition["data_indices"][i], selected_idx]
+                [partition["data_indices"][i], selected_idxs]
             ).astype(np.int64)
-            data_idx_for_each_label[cls] = list(
-                set(data_idx_for_each_label[cls]) - set(selected_idx)
-            )
-
-        partition["data_indices"][i] = partition["data_indices"][i].tolist()
+            class_indices[cls] = list(set(class_indices[cls]) - set(selected_idxs))
 
     for i in range(client_num):
         stats[i] = {"x": None, "y": None}
-        stats[i]["x"] = len(targets[partition["data_indices"][i]])
+        stats[i]["x"] = len(partition["data_indices"][i])
         stats[i]["y"] = dict(Counter(targets[partition["data_indices"][i]].tolist()))
+        partition["data_indices"][i] = target_indices[partition["data_indices"][i]]
 
     num_samples = np.array(list(map(lambda stat_i: stat_i["x"], stats.values())))
-    stats["sample per client"] = {
+    stats["samples_per_client"] = {
         "std": num_samples.mean().item(),
         "stddev": num_samples.std().item(),
     }
