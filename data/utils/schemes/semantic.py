@@ -2,7 +2,6 @@ import random
 import sys
 from collections import Counter
 from pathlib import Path
-from typing import Dict
 
 import torch
 import numpy as np
@@ -62,6 +61,7 @@ def pairwise_kl_div(
 def semantic_partition(
     dataset: Dataset,
     targets: np.ndarray,
+    target_indices: np.ndarray,
     label_set: set,
     efficient_net_type: int,
     client_num: int,
@@ -78,7 +78,7 @@ def semantic_partition(
     logger = Console()
 
     # build pre-trained EfficientNet
-    logger.log(f"Buliding model: EfficientNet-B{efficient_net_type}")
+    logger.log(f"Use model: EfficientNet-B{efficient_net_type}")
     model, weights = EFFICIENT_NETS[efficient_net_type]
     efficient_net = model(weights=weights)
     efficient_net.classifier = torch.nn.Flatten()
@@ -191,19 +191,15 @@ def semantic_partition(
             )
 
     for i in range(client_num):
-        partition["data_indices"][i] = np.array(
-            partition["data_indices"][i], dtype=np.int64
-        )
         stats[i] = {"x": None, "y": None}
         stats[i]["x"] = len(targets[partition["data_indices"][i]])
         stats[i]["y"] = dict(Counter(targets[partition["data_indices"][i]].tolist()))
+        partition["data_indices"][i] = target_indices[partition["data_indices"][i]]
 
     num_samples = np.array(list(map(lambda stat_i: stat_i["x"], stats.values())))
-    stats["sample per client"] = {
+    stats["samples_per_client"] = {
         "std": num_samples.mean().item(),
         "stddev": num_samples.std().item(),
     }
 
     logger.log("All is Done!")
-
-    return partition, stats

@@ -22,7 +22,10 @@ def prune_args(args: Namespace) -> dict:
     args_dict["val_ratio"] = args.val_ratio
     args_dict["seed"] = args.seed
     args_dict["split"] = args.split
-    args_dict["monitor_window_name_suffix"] = f"{args.dataset}-{args.client_num}clients"
+    args_dict["IID_ratio"] = args.iid
+    args_dict["monitor_window_name_suffix"] = (
+        f"{args.dataset}-{args.client_num}clients-{int(args.iid * 100)}%IID"
+    )
 
     if args.dataset == "emnist":
         args_dict["emnist_split"] = args.emnist_split
@@ -56,9 +59,7 @@ def prune_args(args: Namespace) -> dict:
         if preprocess_args["s"] == "iid":
             args_dict["iid"] = True
             args_dict["monitor_window_name_suffix"] += f"-IID"
-    if args.iid == 1:
-        args_dict["iid"] = True
-        args_dict["monitor_window_name_suffix"] += f"-IID"
+
     if args.ood_domains is not None:
         args_dict["ood_domains"] = args.ood_domains
         args_dict["monitor_window_name_suffix"] += f"-{args.ood_domains}OODdomains"
@@ -133,7 +134,7 @@ def process_femnist(args, partition: dict, stats: dict):
         clients_4_train = list(range(client_cnt))
 
         num_samples = np.array(list(map(lambda stat_i: stat_i["x"], stats.values())))
-        stats["sample per client"] = {
+        stats["samples_per_client"] = {
             "std": num_samples.mean(),
             "stddev": num_samples.std(),
         }
@@ -166,7 +167,7 @@ def process_femnist(args, partition: dict, stats: dict):
         num_samples = np.array(
             list(map(lambda stat_i: stat_i["x"], stats["train"].values()))
         )
-        stats["train"]["sample per client"] = {
+        stats["train"]["samples_per_client"] = {
             "std": num_samples.mean(),
             "stddev": num_samples.std(),
         }
@@ -197,7 +198,7 @@ def process_femnist(args, partition: dict, stats: dict):
         num_samples = np.array(
             list(map(lambda stat_i: stat_i["x"], stats["test"].values()))
         )
-        stats["test"]["sample per client"] = {
+        stats["test"]["samples_per_client"] = {
             "std": num_samples.mean(),
             "stddev": num_samples.std(),
         }
@@ -290,7 +291,7 @@ def process_celeba(args, partition: dict, stats: dict):
         clients_4_train = list(range(client_cnt))
         clients_4_test = list(range(client_cnt))
         num_samples = np.array(list(map(lambda stat_i: stat_i["x"], stats.values())))
-        stats["sample per client"] = {
+        stats["samples_per_client"] = {
             "std": num_samples.mean(),
             "stddev": num_samples.std(),
         }
@@ -332,7 +333,7 @@ def process_celeba(args, partition: dict, stats: dict):
         num_samples = np.array(
             list(map(lambda stat_i: stat_i["x"], stats["train"].values()))
         )
-        stats["sample per client"] = {
+        stats["samples_per_client"] = {
             "std": num_samples.mean(),
             "stddev": num_samples.std(),
         }
@@ -373,7 +374,7 @@ def process_celeba(args, partition: dict, stats: dict):
         num_samples = np.array(
             list(map(lambda stat_i: stat_i["x"], stats["test"].values()))
         )
-        stats["sample per client"] = {
+        stats["samples_per_client"] = {
             "std": num_samples.mean().item(),
             "stddev": num_samples.std().item(),
         }
@@ -473,7 +474,7 @@ def generate_synthetic_data(args, partition: dict, stats: dict):
     np.save(DATA_ROOT / "synthetic" / "targets", np.concatenate(all_targets))
 
     num_samples = np.array(list(map(lambda stat_i: stat_i["x"], stats.values())))
-    stats["sample per client"] = {
+    stats["samples_per_client"] = {
         "std": num_samples.mean().item(),
         "stddev": num_samples.std().item(),
     }

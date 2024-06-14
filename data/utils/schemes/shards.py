@@ -7,6 +7,7 @@ import numpy as np
 
 def allocate_shards(
     targets: np.ndarray,
+    target_indices: np.ndarray,
     label_set: Set[int],
     client_num: int,
     shard_num: int,
@@ -17,6 +18,8 @@ def allocate_shards(
 
     Args:
         targets (np.ndarray): Data label array.
+        target_indices (np.ndarray): Indices of targets. If you haven't set `--iid`, then it will be np.arange(len(targets))
+        Otherwise, it will be the absolute indices of the full targets.
         label_set (set): Label set.
         client_num (int): Number of clients.
         shard_num (int): Number of shards. A shard means a sub-list of data indices.
@@ -47,15 +50,15 @@ def allocate_shards(
                     idxs_argsorted[rand * size_of_shards : (rand + 1) * size_of_shards],
                 ]
             ).astype(np.int64)
-        partition["data_indices"][i] = partition["data_indices"][i].tolist()
 
     for i in range(client_num):
         stats[i] = {"x": None, "y": None}
         stats[i]["x"] = len(targets[partition["data_indices"][i]])
         stats[i]["y"] = dict(Counter(targets[partition["data_indices"][i]].tolist()))
+        partition["data_indices"][i] = target_indices[partition["data_indices"][i]]
 
     num_samples = np.array(list(map(lambda stat_i: stat_i["x"], stats.values())))
-    stats["sample per client"] = {
+    stats["samples_per_client"] = {
         "std": num_samples.mean().item(),
         "stddev": num_samples.std().item(),
     }
