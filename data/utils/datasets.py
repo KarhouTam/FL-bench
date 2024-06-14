@@ -97,7 +97,7 @@ class Synthetic(BaseDataset):
 
         self.data = torch.from_numpy(data).float()
         self.targets = torch.from_numpy(targets).long()
-        self.classes = list(range(len(self.targets.unique())))
+        self.classes = sorted(self.targets.unique().tolist())
 
 
 class CelebA(BaseDataset):
@@ -263,7 +263,7 @@ class MNIST(BaseDataset):
         test_targets = torch.Tensor(test_part.targets).long().squeeze()
         self.data = torch.cat([train_data, test_data])
         self.targets = torch.cat([train_targets, test_targets])
-        self.classes = train_part.classes
+        self.classes = list(range(10))
         self.test_data_transform = test_data_transform
         self.test_target_transform = test_target_transform
         self.train_data_transform = train_data_transform
@@ -289,7 +289,7 @@ class FashionMNIST(BaseDataset):
         test_targets = torch.Tensor(test_part.targets).long().squeeze()
         self.data = torch.cat([train_data, test_data])
         self.targets = torch.cat([train_targets, test_targets])
-        self.classes = train_part.classes
+        self.classes = list(range(10))
         self.test_data_transform = test_data_transform
         self.test_target_transform = test_target_transform
         self.train_data_transform = train_data_transform
@@ -324,7 +324,7 @@ class EMNIST(BaseDataset):
         test_targets = torch.Tensor(test_part.targets).long().squeeze()
         self.data = torch.cat([train_data, test_data])
         self.targets = torch.cat([train_targets, test_targets])
-        self.classes = train_part.classes
+        self.classes = list(range(len(train_part.classes)))
         self.test_data_transform = test_data_transform
         self.test_target_transform = test_target_transform
         self.train_data_transform = train_data_transform
@@ -350,7 +350,7 @@ class CIFAR10(BaseDataset):
         test_targets = torch.Tensor(test_part.targets).long().squeeze()
         self.data = torch.cat([train_data, test_data])
         self.targets = torch.cat([train_targets, test_targets])
-        self.classes = train_part.classes
+        self.classes = list(range(10))
         self.test_data_transform = test_data_transform
         self.test_target_transform = test_target_transform
         self.train_data_transform = train_data_transform
@@ -376,7 +376,7 @@ class CIFAR100(BaseDataset):
         test_targets = torch.Tensor(test_part.targets).long().squeeze()
         self.data = torch.cat([train_data, test_data])
         self.targets = torch.cat([train_targets, test_targets])
-        self.classes = train_part.classes
+        self.classes = list(range(100))
         self.test_data_transform = test_data_transform
         self.test_target_transform = test_target_transform
         self.train_data_transform = train_data_transform
@@ -419,6 +419,7 @@ class CIFAR100(BaseDataset):
             for cls in self.targets:
                 new_targets.append(mapping[self.classes[cls]])
             self.targets = torch.tensor(new_targets, dtype=torch.long)
+            self.classes = list(range(20))
 
 
 class TinyImagenet(BaseDataset):
@@ -478,6 +479,7 @@ class TinyImagenet(BaseDataset):
 
         self.data = torch.load(root / "data.pt")
         self.targets = torch.load(root / "targets.pt")
+        self.classes = list(range(len(self.classes)))
         self.test_data_transform = test_data_transform
         self.test_target_transform = test_target_transform
         self.train_data_transform = train_data_transform
@@ -534,6 +536,7 @@ class CINIC10(BaseDataset):
 
         self.data = torch.load(root / "data.pt")
         self.targets = torch.load(root / "targets.pt")
+        self.classes = list(range(self.classes))
         self.test_data_transform = test_data_transform
         self.test_target_transform = test_target_transform
         self.train_data_transform = train_data_transform
