@@ -29,6 +29,9 @@ Having Fun with Federated Learning.
 
 <h5 align="center"><i>🎉 FL-bench now can perform FL training in parallel (with the help of <a href=https://github.com/ray-project/ray>ray</a>)！ 🎉</i></h5> 
 
+<p align="center">
+<a href=https://zhuanlan.zhihu.com/p/703576051>FL-bench 的简单介绍</a>
+</p>
 
 
 ## Methods 🧬
