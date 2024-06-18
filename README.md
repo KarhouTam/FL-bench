@@ -27,8 +27,6 @@ Having Fun with Federated Learning.
 
 </i></h4>
 
-<h5 align="center"><i>🎉 FL-bench now can perform FL training in parallel (with the help of <a href=https://github.com/ray-project/ray>ray</a>)！ 🎉</i></h5> 
-
 <p align="center">
 <a href=https://zhuanlan.zhihu.com/p/703576051>FL-bench 的简单介绍</a>
 </p>
@@ -38,7 +36,7 @@ Having Fun with Federated Learning.
 
 
 
-<details>
+<!-- <details> -->
 <summary><b>Traditional FL Methods</b></summary>
 
 - ***FedAvg*** -- [Communication-Efficient Learning of Deep Networks from Decentralized Data](https://arxiv.org/abs/1602.05629) (AISTATS'17)
@@ -64,9 +62,9 @@ Having Fun with Federated Learning.
 - ***Elastic Aggregation*** -- [Elastic Aggregation for Federated Optimization](https://openaccess.thecvf.com/content/CVPR2023/html/Chen_Elastic_Aggregation_for_Federated_Optimization_CVPR_2023_paper.html) (CVPR'23)
 
 - ***FedFed*** -- [FedFed: Feature Distillation against Data Heterogeneity in Federated Learning](http://arxiv.org/abs/2310.05077) (NIPS'23)
-</details>
+<!-- </details> -->
 
-<details>
+<!-- <details> -->
 <summary><b>Personalized FL Methods</b></summary>
 
 - ***pFedSim (My Work⭐)*** -- [pFedSim: Similarity-Aware Model Aggregation Towards Personalized Federated Learning](https://arxiv.org/abs/2305.15706) (ArXiv'23)
@@ -113,10 +111,10 @@ Having Fun with Federated Learning.
 
 - ***FedPAC*** -- [Personalized Federated Learning with Feature Alignment and Classifier Collaboration](https://arxiv.org/abs/2306.11867v1) (ICLR'23)
 
-</details>
+<!-- </details> -->
 
 
-<details>
+<!-- <details> -->
 <summary><b>FL Domain Generalization Methods</b></summary>
 
 - ***FedSR*** -- [FedSR: A Simple and Effective Domain Generalization Method for Federated Learning](https://openreview.net/forum?id=mrt90D00aQX) (NIPS'22)
@@ -125,7 +123,7 @@ Having Fun with Federated Learning.
   
 - ***FedIIR*** -- [Out-of-Distribution Generalization of Federated Learning via Implicit Invariant Relationships](https://openreview.net/pdf?id=JC05k0E2EM) (ICML'23)
 
-</details>
+<!-- </details> -->
 
 ## Environment Preparation 🧩
 
