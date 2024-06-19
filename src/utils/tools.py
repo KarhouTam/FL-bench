@@ -3,7 +3,7 @@ import os
 import random
 from argparse import Namespace
 from collections import OrderedDict
-from typing import Callable, Sequence, Union
+from typing import Callable, Iterator, Sequence, Union
 from pathlib import Path
 
 import torch
@@ -81,6 +81,8 @@ def vectorize(
         return torch.cat([func(param).flatten() for param in src.values()])
     elif isinstance(src, torch.nn.Module):
         return torch.cat([func(param).flatten() for param in src.state_dict().values()])
+    elif isinstance(src, Iterator):
+        return torch.cat([func(param).flatten() for param in src])
 
 
 @torch.no_grad()
