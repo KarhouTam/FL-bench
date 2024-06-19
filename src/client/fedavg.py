@@ -5,12 +5,7 @@ from typing import Any
 import torch
 from torch.utils.data import DataLoader, Subset
 
-from src.utils.tools import (
-    NestedNamespace,
-    get_optimal_cuda_device,
-    trainable_params,
-    evalutate_model,
-)
+from src.utils.tools import NestedNamespace, get_optimal_cuda_device, evalutate_model
 from src.utils.metrics import Metrics
 from src.utils.models import DecoupledModel
 from data.utils.datasets import BaseDataset
@@ -38,7 +33,7 @@ class FedAvgClient:
         self.model = model.to(self.device)
         self.global_regular_model_params: OrderedDict[str, torch.Tensor]
         self.personal_params_name: list[str] = []
-        _, self.regular_params_name = trainable_params(self.model, requires_name=True)
+        self.regular_params_name = list(key for key, _ in self.model.named_parameters())
         if self.args.common.buffers == "local":
             self.personal_params_name.extend(
                 [name for name, _ in self.model.named_buffers()]
@@ -50,7 +45,7 @@ class FedAvgClient:
         elif self.args.common.buffers == "drop":
             self.init_buffers = deepcopy(OrderedDict(self.model.named_buffers()))
 
-        self.optimizer = optimizer_cls(params=trainable_params(self.model))
+        self.optimizer = optimizer_cls(params=self.model.parameters())
         self.init_optimizer_state = deepcopy(self.optimizer.state_dict())
 
         self.lr_scheduler: torch.optim.lr_scheduler.LRScheduler = None

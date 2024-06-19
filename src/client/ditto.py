@@ -3,14 +3,13 @@ from collections import OrderedDict
 from typing import Any
 
 from src.client.fedavg import FedAvgClient
-from src.utils.tools import trainable_params
 
 
 class DittoClient(FedAvgClient):
     def __init__(self, **commons):
         super().__init__(**commons)
         self.pers_model = deepcopy(self.model).to(self.device)
-        self.optimizer.add_param_group({"params": trainable_params(self.pers_model)})
+        self.optimizer.add_param_group({"params": self.pers_model.parameters()})
         self.init_optimizer_state = deepcopy(self.optimizer.state_dict())
 
     def set_parameters(self, package: dict[str, Any]):
@@ -52,7 +51,7 @@ class DittoClient(FedAvgClient):
                 self.optimizer.zero_grad()
                 loss.backward()
                 for pers_param, global_param in zip(
-                    trainable_params(self.pers_model), self.global_params.values()
+                    self.pers_model.parameters(), self.global_params.values()
                 ):
                     pers_param.grad.data += self.args.ditto.lamda * (
                         pers_param.data - global_param.data

@@ -5,7 +5,6 @@ import torch
 from torch.utils.data import DataLoader
 
 from src.client.fedavg import FedAvgClient
-from src.utils.tools import trainable_params
 
 
 class PerFedAvgClient(FedAvgClient):
@@ -13,7 +12,7 @@ class PerFedAvgClient(FedAvgClient):
         super(PerFedAvgClient, self).__init__(**commons)
         self.iter_trainloader: Iterator[DataLoader] = None
         self.meta_optimizer = torch.optim.SGD(
-            trainable_params(self.model), lr=self.args.perfedavg.beta
+            self.model.parameters(), lr=self.args.perfedavg.beta
         )
         if self.args.perfedavg.version == "hf":
             self.model_plus = deepcopy(self.model)
@@ -53,9 +52,9 @@ class PerFedAvgClient(FedAvgClient):
                     x2, y2 = self.get_data_batch()
 
                     for param_p, param_m, param_cur in zip(
-                        trainable_params(self.model_plus),
-                        trainable_params(self.model_minus),
-                        trainable_params(self.model),
+                        self.model_plus.parameters(),
+                        self.model_minus.parameters(),
+                        self.model.parameters(),
                     ):
                         param_p.data += self.args.perfedavg.delta * param_cur.grad
                         param_m.data -= self.args.perfedavg.delta * param_cur.grad
@@ -70,9 +69,9 @@ class PerFedAvgClient(FedAvgClient):
                     loss_minus.backward()
 
                     for param_cur, param_plus, param_minus in zip(
-                        trainable_params(self.model),
-                        trainable_params(self.model_plus),
-                        trainable_params(self.model_minus),
+                        self.model.parameters(),
+                        self.model_plus.parameters(),
+                        self.model_minus.parameters(),
                     ):
                         param_cur.grad = (
                             param_cur.grad

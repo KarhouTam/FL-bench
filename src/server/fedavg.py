@@ -34,7 +34,6 @@ from src.utils.tools import (
     Logger,
     NestedNamespace,
     fix_random_seed,
-    trainable_params,
     get_optimal_cuda_device,
 )
 
@@ -95,9 +94,10 @@ class FedAvgServer:
         )
         self.model.check_avaliability()
 
-        _init_global_params, _init_global_params_name = trainable_params(
-            self.model, detach=True, requires_name=True
-        )
+        _init_global_params, _init_global_params_name = [], []
+        for key, param in self.model.named_parameters():
+            _init_global_params.append(param.data.clone())
+            _init_global_params_name.append(key)
         self.public_model_params: OrderedDict[str, torch.Tensor] = OrderedDict(
             zip(_init_global_params_name, _init_global_params)
         )

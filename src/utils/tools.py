@@ -12,7 +12,6 @@ import numpy as np
 from torch.utils.data import DataLoader
 from rich.console import Console
 
-from data.utils.datasets import BaseDataset
 from src.utils.metrics import Metrics
 from src.utils.constants import DEFAULT_COMMON_ARGS, DEFAULT_PARALLEL_ARGS
 
@@ -60,41 +59,6 @@ def get_optimal_cuda_device(use_cuda: bool) -> torch.device:
     gpu_memory = np.array(gpu_memory)
     best_gpu_id = np.argmax(gpu_memory)
     return torch.device(f"cuda:{best_gpu_id}")
-
-
-def trainable_params(
-    src: Union[OrderedDict[str, torch.Tensor], torch.nn.Module],
-    detach=False,
-    requires_name=False,
-) -> Union[list[torch.Tensor], tuple[list[torch.Tensor], list[str]]]:
-    """Collect all parameters in `src` that `.requires_grad = True` into a list and return it.
-
-    Args:
-        src (Union[OrderedDict[str, torch.Tensor], torch.nn.Module]): The source that contains parameters.
-        requires_name (bool, optional): If set to `True`, The names of parameters would also return in another list. Defaults to False.
-        detach (bool, optional): If set to `True`, the list would contain `param.detach().clone()` rather than `param`. Defaults to False.
-
-    Returns:
-        List of parameters [, names of parameters].
-    """
-    func = (lambda x: x.detach().clone()) if detach else (lambda x: x)
-    parameters = []
-    keys = []
-    if isinstance(src, OrderedDict):
-        for name, param in src.items():
-            if param.requires_grad:
-                parameters.append(func(param))
-                keys.append(name)
-    elif isinstance(src, torch.nn.Module):
-        for name, param in src.state_dict(keep_vars=True).items():
-            if param.requires_grad:
-                parameters.append(func(param))
-                keys.append(name)
-
-    if requires_name:
-        return parameters, keys
-    else:
-        return parameters
 
 
 def vectorize(

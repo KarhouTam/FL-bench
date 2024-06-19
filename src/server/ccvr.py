@@ -8,7 +8,7 @@ from torch.utils.data import Dataset, DataLoader
 
 from src.client.ccvr import CCVRClient
 from src.server.fedavg import FedAvgServer
-from src.utils.tools import trainable_params, NestedNamespace
+from src.utils.tools import NestedNamespace
 from src.utils.constants import NUM_CLASSES
 
 
@@ -129,7 +129,7 @@ class CCVRServer(FedAvgServer):
         )
         criterion = torch.nn.CrossEntropyLoss()
         optimizer = torch.optim.SGD(
-            trainable_params(self.model.classifier), lr=self.args.common.optimizer.lr
+            self.model.classifier.parameters(), lr=self.args.common.optimizer.lr
         )
 
         self.model.load_state_dict(self.public_model_params, strict=False)

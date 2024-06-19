@@ -7,7 +7,6 @@ import torch
 import torch.nn.functional as F
 
 from src.client.fedavg import FedAvgClient
-from src.utils.tools import trainable_params
 
 
 class FedFedClient(FedAvgClient):
@@ -15,7 +14,7 @@ class FedFedClient(FedAvgClient):
         super().__init__(**commons)
         self.VAE: torch.nn.Module = VAE_cls(self.args).to(self.device)
         self.VAE_optimizer: torch.optim.Optimizer = VAE_optimizer_cls(
-            params=trainable_params(self.VAE)
+            params=self.VAE.parameters()
         )
         self.offset_ori_dataset = len(self.dataset)
         self.distilling = True
@@ -127,7 +126,7 @@ class FedFedClient(FedAvgClient):
                 self.optimizer.step()
 
         VAE_regular_params, VAE_personal_params = {}, {}
-        _, VAE_regular_param_names = trainable_params(self.VAE, requires_name=True)
+        VAE_regular_param_names = list(key for key, _ in self.VAE.named_parameters())
         if self.args.common.buffers == "global":
             VAE_regular_param_names.extend(name for name, _ in self.VAE.named_buffers())
         VAE_model_params = self.VAE.state_dict()

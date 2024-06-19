@@ -6,7 +6,6 @@ import torch
 from torch.optim import Optimizer
 
 from src.client.fedavg import FedAvgClient
-from src.utils.tools import trainable_params
 
 
 class pFedMeClient(FedAvgClient):
@@ -15,7 +14,7 @@ class pFedMeClient(FedAvgClient):
         self.local_parameters: list[torch.Tensor] = None
         self.personalized_params_dict: dict[str, OrderedDict[str, torch.Tensor]] = {}
         self.optimzier = pFedMeOptimizer(
-            trainable_params(self.model),
+            self.model.parameters(),
             self.args.pfedme.pers_lr,
             self.args.pfedme.lamda,
             self.args.pfedme.mu,
@@ -53,7 +52,7 @@ class pFedMeClient(FedAvgClient):
                     self.optimzier.step(self.local_parameters)
 
                 for param_p, param_l in zip(
-                    trainable_params(self.model), self.local_parameters
+                    self.model.parameters(), self.local_parameters
                 ):
                     param_l.data = (
                         param_l.data

@@ -10,7 +10,7 @@ import torch.nn.functional as F
 
 from src.server.fedavg import FedAvgServer
 from src.client.fedgen import FedGenClient
-from src.utils.tools import trainable_params, NestedNamespace
+from src.utils.tools import NestedNamespace
 from src.utils.constants import DATA_SHAPE, NUM_CLASSES
 
 
@@ -48,7 +48,7 @@ class FedGenServer(FedAvgServer):
         self.generator = Generator(self)
         self.init_trainer(FedGenClient, generator=self.generator)
         self.generator_optimizer = torch.optim.Adam(
-            trainable_params(self.generator), self.args.fedgen.ensemble_lr
+            self.generator.parameters(), self.args.fedgen.ensemble_lr
         )
         self.generator_lr_scheduler = torch.optim.lr_scheduler.ExponentialLR(
             self.generator_optimizer, gamma=0.98

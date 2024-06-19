@@ -8,7 +8,6 @@ import torch.nn.functional as F
 
 from src.client.fedavg import FedAvgClient
 from src.utils.models import DecoupledModel
-from src.utils.tools import trainable_params
 
 
 def balanced_softmax_loss(
@@ -33,7 +32,7 @@ class FedRoDClient(FedAvgClient):
         if self.args.fedrod.hyper:
             self.hypernetwork = hypernetwork.to(self.device)
             self.hyper_optimizer = torch.optim.SGD(
-                trainable_params(self.hypernetwork), lr=self.args.fedrod.hyper_lr
+                self.hypernetwork.parameters(), lr=self.args.fedrod.hyper_lr
             )
             self.first_time_selected = True
         self.personal_params_name.extend(

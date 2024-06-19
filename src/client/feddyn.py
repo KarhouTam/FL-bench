@@ -3,7 +3,7 @@ from typing import Any
 import torch
 
 from src.client.fedavg import FedAvgClient
-from src.utils.tools import trainable_params, vectorize
+from src.utils.tools import vectorize
 
 
 class FedDynClient(FedAvgClient):
@@ -19,9 +19,7 @@ class FedDynClient(FedAvgClient):
         if self.args.common.buffers == "global":
             self.flatten_global_params = vectorize(self.model, detach=True)
         else:
-            self.flatten_global_params = vectorize(
-                trainable_params(self.model), detach=True
-            )
+            self.flatten_global_params = vectorize(self.model.parameters(), detach=True)
         self.nabla = package["nabla"].to(self.device)
         self.alpha = package["alpha"]
 
@@ -42,7 +40,7 @@ class FedDynClient(FedAvgClient):
                     )
                 else:
                     flatten_curr_params = vectorize(
-                        trainable_params(self.model), detach=False
+                        self.model.parameters(), detach=False
                     )
                 loss_algo = self.alpha * torch.sum(
                     flatten_curr_params * (-self.flatten_global_params + self.nabla)
@@ -51,8 +49,7 @@ class FedDynClient(FedAvgClient):
                 self.optimizer.zero_grad()
                 loss.backward()
                 torch.nn.utils.clip_grad.clip_grad_norm_(
-                    trainable_params(self.model),
-                    max_norm=self.args.feddyn.max_grad_norm,
+                    self.model.parameters(), max_norm=self.args.feddyn.max_grad_norm
                 )
                 self.optimizer.step()
 

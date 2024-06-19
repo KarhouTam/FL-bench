@@ -6,7 +6,7 @@ import torch.nn as nn
 
 from src.server.fedavg import FedAvgServer
 from src.client.fedper import FedPerClient
-from src.utils.tools import trainable_params, NestedNamespace
+from src.utils.tools import NestedNamespace
 
 
 class pFedHNServer(FedAvgServer):
@@ -133,7 +133,10 @@ class HyperNetwork(nn.Module):
             mlp_layers.append(nn.Linear(args.hidden_dim, args.hidden_dim))
         self.mlp = nn.Sequential(*mlp_layers)
 
-        parameters, self.params_name = trainable_params(backbone, requires_name=True)
+        parameters, self.params_name = [], []
+        for key, param in backbone.named_parameters():
+            parameters.append(param.data.clone())
+            self.params_name.append(key)
         self.params_shape = {
             name: backbone.state_dict()[name].shape for name in self.params_name
         }

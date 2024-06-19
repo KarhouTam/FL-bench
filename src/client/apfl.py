@@ -4,7 +4,6 @@ from typing import Any
 import torch
 
 from src.client.fedavg import FedAvgClient
-from src.utils.tools import trainable_params
 
 
 class APFLClient(FedAvgClient):
@@ -24,7 +23,7 @@ class APFLClient(FedAvgClient):
                     module.reset_parameters()
             return deepcopy(target.state_dict())
 
-        self.optimizer.add_param_group({"params": trainable_params(self.local_model)})
+        self.optimizer.add_param_group({"params": self.local_model.parameters()})
         self.init_optimizer_state = deepcopy(self.optimizer.state_dict())
 
     def set_parameters(self, package: dict[str, Any]):
@@ -74,7 +73,7 @@ class APFLClient(FedAvgClient):
     def update_alpha(self):
         alpha_grad = 0
         for local_param, global_param in zip(
-            trainable_params(self.local_model), trainable_params(self.model)
+            self.local_model.parameters(), self.model.parameters()
         ):
             diff = (local_param.data - global_param.data).flatten()
             grad = (

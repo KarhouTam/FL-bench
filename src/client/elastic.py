@@ -6,7 +6,6 @@ import torch
 from torch.utils.data import DataLoader, Subset
 
 from src.client.fedavg import FedAvgClient
-from src.utils.tools import trainable_params
 
 
 class ElasticClient(FedAvgClient):
@@ -40,9 +39,7 @@ class ElasticClient(FedAvgClient):
             loss = self.criterion(logits, y)
             grads_norm = [
                 torch.norm(layer_grad[0]) ** 2
-                for layer_grad in torch.autograd.grad(
-                    loss, trainable_params(self.model)
-                )
+                for layer_grad in torch.autograd.grad(loss, self.model.parameters())
             ]
             for i in range(len(grads_norm)):
                 self.sensitivity[i] = (

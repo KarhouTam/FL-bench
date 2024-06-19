@@ -1,5 +1,4 @@
 from src.client.fedavg import FedAvgClient
-from src.utils.tools import trainable_params
 
 
 class FedProxClient(FedAvgClient):
@@ -9,7 +8,7 @@ class FedProxClient(FedAvgClient):
     def fit(self):
         self.model.train()
         self.dataset.train()
-        global_params = trainable_params(self.model, detach=True)
+        global_params = list(self.model.parameters())
         for _ in range(self.local_epoch):
             for x, y in self.trainloader:
                 if len(x) <= 1:
@@ -20,7 +19,7 @@ class FedProxClient(FedAvgClient):
                 loss = self.criterion(logit, y)
                 self.optimizer.zero_grad()
                 loss.backward()
-                for w, w_t in zip(trainable_params(self.model), global_params):
+                for w, w_t in zip(self.model.parameters(), global_params):
                     w.grad.data += self.args.fedprox.mu * (w.data - w_t.data)
                 self.optimizer.step()
 

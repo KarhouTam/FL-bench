@@ -13,7 +13,7 @@ from rich.progress import track
 from src.server.fedavg import FedAvgServer
 from src.client.fedfed import FedFedClient
 from src.utils.constants import DATA_SHAPE
-from src.utils.tools import NestedNamespace, trainable_params
+from src.utils.tools import NestedNamespace
 
 
 class FedFedServer(FedAvgServer):
@@ -58,16 +58,13 @@ class FedFedServer(FedAvgServer):
             lr=self.args.fedfed.VAE_lr,
             weight_decay=self.args.fedfed.VAE_weight_decay,
         )
-        dummy_VAE_optimizer = VAE_optimizer_cls(
-            params=trainable_params(dummy_VAE_model)
-        )
+        dummy_VAE_optimizer = VAE_optimizer_cls(params=dummy_VAE_model.parameters())
         self.init_trainer(
             FedFedClient, VAE_cls=VAE, VAE_optimizer_cls=VAE_optimizer_cls
         )
-        params, keys = trainable_params(
-            dummy_VAE_model, detach=True, requires_name=True
-        )
-        self.global_VAE_params = OrderedDict(zip(keys, params))
+        self.global_VAE_params = OrderedDict()
+        for key, param in dummy_VAE_model.named_parameters():
+            self.global_VAE_params[key] = param.data.clone()
         if self.args.common.buffers == "global":
             self.global_VAE_params.update(dummy_VAE_model.named_buffers())
         self.client_VAE_personal_params = {i: {} for i in self.train_clients}

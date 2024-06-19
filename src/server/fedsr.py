@@ -11,7 +11,7 @@ from src.server.fedavg import FedAvgServer
 from src.client.fedsr import FedSRClient
 from src.utils.models import DecoupledModel
 from src.utils.constants import NUM_CLASSES, FLBENCH_ROOT
-from src.utils.tools import trainable_params, NestedNamespace
+from src.utils.tools import NestedNamespace
 
 
 class FedSRModel(DecoupledModel):
@@ -68,12 +68,10 @@ class FedSRServer(FedAvgServer):
         self.model = FedSRModel(self.model, self.args.common.dataset)
         self.model.check_avaliability()
 
-        _init_global_params, _init_global_params_name = trainable_params(
-            self.model, detach=True, requires_name=True
-        )
-        self.public_model_params: OrderedDict[str, torch.Tensor] = OrderedDict(
-            zip(_init_global_params_name, _init_global_params)
-        )
+        _init_global_params, _init_global_params_name = [], []
+        for key, param in self.model.named_parameters():
+            _init_global_params.append(param.data.clone())
+            _init_global_params_name.append(key)
         if self.args.common.buffers == "global":
             self.public_model_params.update(self.model.named_buffers())
         self.public_model_param_names = list(self.public_model_params.keys())

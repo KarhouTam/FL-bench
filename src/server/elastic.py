@@ -7,7 +7,7 @@ import torch
 from torch._tensor import Tensor
 from src.server.fedavg import FedAvgServer
 from src.client.elastic import ElasticClient
-from src.utils.tools import NestedNamespace, trainable_params
+from src.utils.tools import NestedNamespace
 
 
 class ElasticServer(FedAvgServer):

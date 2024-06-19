@@ -3,7 +3,7 @@ from typing import Any, OrderedDict
 import torch
 
 from src.server.fedavg import FedAvgServer
-from src.utils.tools import NestedNamespace, trainable_params
+from src.utils.tools import NestedNamespace
 
 
 class FedAvgMServer(FedAvgServer):

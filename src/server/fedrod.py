@@ -7,7 +7,7 @@ import torch.nn as nn
 
 from src.server.fedavg import FedAvgServer
 from src.client.fedrod import FedRoDClient
-from src.utils.tools import trainable_params, NestedNamespace
+from src.utils.tools import NestedNamespace
 from src.utils.constants import NUM_CLASSES
 
 
@@ -43,10 +43,9 @@ class FedRoDServer(FedAvgServer):
             self.hypernetwork = HyperNetwork(
                 input_dim, self.args.fedrod.hyper_hidden_dim, output_dim
             )
-            params, keys = trainable_params(
-                self.hypernetwork, detach=True, requires_name=True
-            )
-            self.hyper_params_dict = OrderedDict(zip(keys, params))
+            self.hyper_params_dict = OrderedDict()
+            for key, param in self.hypernetwork.named_parameters():
+                self.hyper_params_dict[key] = param.data.clone()
         self.first_time_selected = [True for _ in self.train_clients]
         self.init_trainer(FedRoDClient, hypernetwork=self.hypernetwork)
 

@@ -4,7 +4,6 @@ import torch
 from torch.utils.data import DataLoader
 
 from src.client.fedavg import FedAvgClient
-from src.utils.tools import trainable_params
 
 
 class SCAFFOLDClient(FedAvgClient):
@@ -63,7 +62,7 @@ class SCAFFOLDClient(FedAvgClient):
             self.optimizer.zero_grad()
             loss.backward()
             for param, c, c_i in zip(
-                trainable_params(self.model), self.c_global, self.c_local
+                self.model.parameters(), self.c_global, self.c_local
             ):
                 param.grad.data += (c - c_i).to(self.device)
             self.optimizer.step()
