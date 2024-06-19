@@ -103,7 +103,13 @@ if __name__ == "__main__":
                 ignore_reinit_error=True,
             )
         except ValueError:
-            ray.init(namespace=method_name, ignore_reinit_error=True)
+            # have existing cluster
+            # then no pass num_cpus and num_gpus
+            ray.init(
+                address=ARGS.parallel.ray_cluster_addr,
+                namespace=method_name,
+                ignore_reinit_error=True,
+            )
 
         cluster_resources = ray.cluster_resources()
         ARGS.parallel.num_cpus = cluster_resources["CPU"]
