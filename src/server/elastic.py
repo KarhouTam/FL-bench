@@ -33,11 +33,6 @@ class ElasticServer(FedAvgServer):
         layer_num = len(self.public_model_params)
         self.clients_sensitivity = [torch.zeros(layer_num) for _ in self.train_clients]
 
-    def package(self, client_id: int):
-        server_package = super().package(client_id)
-        server_package["sensitivity"] = self.clients_sensitivity[client_id]
-        return server_package
-
     def aggregate(self, clients_package: OrderedDict[int, dict[str, Any]]):
         sensitivities = []
         weights = []
@@ -62,5 +57,4 @@ class ElasticServer(FedAvgServer):
                 dim=-1,
             )
             aggregated = torch.sum(diffs * weights, dim=-1)
-
-            global_param.data -= (coef * aggregated).to(global_param.dtype)
+            global_param.data -= coef * aggregated

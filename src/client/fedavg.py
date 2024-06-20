@@ -38,10 +38,6 @@ class FedAvgClient:
             self.personal_params_name.extend(
                 [name for name, _ in self.model.named_buffers()]
             )
-        elif self.args.common.buffers == "global":
-            self.regular_params_name.extend(
-                name for name, _ in self.model.named_buffers()
-            )
         elif self.args.common.buffers == "drop":
             self.init_buffers = deepcopy(OrderedDict(self.model.named_buffers()))
 

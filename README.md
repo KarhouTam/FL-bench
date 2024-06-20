@@ -305,7 +305,6 @@ About the default values of specific FL method arguments, go check corresponding
 | `save_model`                 | `bool`  | `true` for saving output model(s) parameters in `out/<method>/<start_time>`.pt`.                                                                                                                                                                                                                       |
 | `save_fig`                   | `bool`  | `true` for saving the accuracy curves showed on Visdom into a `.pdf` file at `out/<method>/<start_time>`.                                                                                                                                                                                              |
 | `save_metrics`               | `bool`  | `true` for saving metrics stats into a `.csv` file at `out/<method>/<start_time>`.                                                                                                                                                                                                                     |
-| `check_convergence`          | `bool`  | `true` for reporting convergence result after experiment ends.                                                                                                                                                                                                                                         |
 
 ### Parallel Training Arguments 👯‍♂️
 

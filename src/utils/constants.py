@@ -20,7 +20,7 @@ DEFAULT_COMMON_ARGS = {
     "test_interval": 100,
     "straggler_ratio": 0,
     "straggler_min_local_epoch": 0,
-    "external_model_params_file": "",
+    "external_model_params_file": None,
     "buffers": "local",
     "optimizer": {
         "name": "sgd",  # [sgd, adam, adamw, rmsprop, adagrad]
@@ -43,7 +43,6 @@ DEFAULT_COMMON_ARGS = {
     "save_model": False,
     "save_fig": True,
     "save_metrics": True,
-    "check_convergence": True,
 }
 
 DEFAULT_PARALLEL_ARGS = {

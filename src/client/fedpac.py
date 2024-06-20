@@ -104,8 +104,6 @@ class FedPACClient(FedAvgClient):
         local_prototypes = self.calculate_prototypes(mean=True)
         for E in range(self.local_epoch):
             if E < self.args.fedpac.train_classifier_round:
-                self.model.base.requires_grad_(False)
-                self.model.classifier.requires_grad_(True)
                 for x, y in self.trainloader:
                     if len(y) <= 1:
                         continue
@@ -114,10 +112,9 @@ class FedPACClient(FedAvgClient):
                     loss = self.criterion(logits, y)
                     self.optimizer.zero_grad()
                     loss.backward()
+                    self.model.base.zero_grad()
                     self.optimizer.step()
             else:
-                self.model.base.requires_grad_(True)
-                self.model.classifier.requires_grad_(False)
                 for x, y in self.trainloader:
                     if len(y) <= 1:
                         continue
@@ -137,6 +134,5 @@ class FedPACClient(FedAvgClient):
                     loss = loss_ce + self.args.fedpac.lamda * loss_mse
                     self.optimizer.zero_grad()
                     loss.backward()
+                    self.model.classifier.zero_grad()
                     self.optimizer.step()
-
-        self.model.requires_grad_(True)

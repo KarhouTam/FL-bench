@@ -65,8 +65,6 @@ class FedFedServer(FedAvgServer):
         self.global_VAE_params = OrderedDict()
         for key, param in dummy_VAE_model.named_parameters():
             self.global_VAE_params[key] = param.data.clone()
-        if self.args.common.buffers == "global":
-            self.global_VAE_params.update(dummy_VAE_model.named_buffers())
         self.client_VAE_personal_params = {i: {} for i in self.train_clients}
         self.client_VAE_optimizer_states = {
             i: deepcopy(dummy_VAE_optimizer.state_dict()) for i in self.train_clients
@@ -130,10 +128,8 @@ class FedFedServer(FedAvgServer):
                     dim=-1,
                 )
                 global_param.data = torch.sum(
-                    client_VAE_regular_params * weights,
-                    dim=-1,
-                    dtype=global_param.dtype,
-                ).to(global_param.device)
+                    client_VAE_regular_params * weights, dim=-1
+                )
 
         # gather client performance-sensitive data
         client_packages = self.trainer.exec(
@@ -265,6 +261,19 @@ class VAE(nn.Module):
         self.fc_mu = nn.Linear(self.feature_length, self.feature_length)
         self.fc_logvar = nn.Linear(self.feature_length, self.feature_length)
         self.decoder_input = nn.Linear(self.feature_length, self.feature_length)
+
+        if args.common.buffers == "global":
+            for module in self.modules():
+                if isinstance(module, torch.nn.BatchNorm2d):
+                    buffers_list = list(module.named_buffers())
+                    for name_buffer, buffer in buffers_list:
+                        # transform buffer to parameter
+                        # for showing out in parameters()
+                        delattr(module, name_buffer)
+                        module.register_parameter(
+                            name_buffer,
+                            torch.nn.Parameter(buffer.float(), requires_grad=False),
+                        )
 
     def add_noise(self, data: torch.Tensor, mean, std):
         if self.args.fedfed.VAE_noise_type == "gaussian":

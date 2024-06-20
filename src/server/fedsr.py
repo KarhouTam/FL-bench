@@ -66,14 +66,12 @@ class FedSRServer(FedAvgServer):
         super().__init__(args, algo, unique_model, use_fedavg_client_cls, return_diff)
         # reload the model
         self.model = FedSRModel(self.model, self.args.common.dataset)
-        self.model.check_avaliability()
+        self.model.check_and_preprocess(self.args)
 
         _init_global_params, _init_global_params_name = [], []
         for key, param in self.model.named_parameters():
             _init_global_params.append(param.data.clone())
             _init_global_params_name.append(key)
-        if self.args.common.buffers == "global":
-            self.public_model_params.update(self.model.named_buffers())
         self.public_model_param_names = list(self.public_model_params.keys())
 
         model_params_file_path = str(

@@ -46,13 +46,10 @@ class SCAFFOLDServer(FedAvgServer):
         for param, y_delta in zip(
             self.public_model_params.values(), zip(*y_delta_list)
         ):
-            param.data += (
-                self.args.scaffold.global_lr
-                * torch.sum(torch.stack(y_delta, dim=-1) * weights, dim=-1)
-            ).to(param.dtype)
+            param.data += self.args.scaffold.global_lr * torch.sum(
+                torch.stack(y_delta, dim=-1) * weights, dim=-1
+            )
 
         # update global control
         for c_global, c_delta in zip(self.c_global, zip(*c_delta_list)):
-            c_global.data += (
-                torch.stack(c_delta, dim=-1).sum(dim=-1) / self.client_num
-            ).to(c_global.dtype)
+            c_global.data += torch.stack(c_delta, dim=-1).sum(dim=-1) / self.client_num

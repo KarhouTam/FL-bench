@@ -36,7 +36,7 @@ class FedAvgMServer(FedAvgServer):
 
         clients_weight = [package["weight"] for package in clients_package.values()]
         weights = torch.tensor(clients_weight) / sum(clients_weight)
-        for key, global_param in self.public_model_params.items():
+        for key in self.public_model_params.keys():
             if "num_batches_tracked" not in key:
                 diffs = torch.stack(
                     [
@@ -45,7 +45,7 @@ class FedAvgMServer(FedAvgServer):
                     ],
                     dim=-1,
                 )
-                aggregated = torch.sum(diffs * weights, dim=-1).to(global_param.device)
+                aggregated = torch.sum(diffs * weights, dim=-1)
                 self.public_model_params[key].grad = aggregated
 
         self.global_optmizer.step()

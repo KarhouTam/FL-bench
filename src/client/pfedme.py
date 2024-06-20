@@ -77,11 +77,12 @@ class pFedMeOptimizer(Optimizer):
 
     @torch.no_grad()
     def step(self, local_parameters: list[torch.Tensor]):
-        group = None
         for group in self.param_groups:
             for param_p, param_l in zip(group["params"], local_parameters):
-                param_p.data = param_p.data - group["lr"] * (
-                    param_p.grad.data
-                    + group["lamda"] * (param_p.data - param_l.data.to(param_p.device))
-                    + group["mu"] * param_p.data
-                )
+                if param_p.requires_grad:
+                    param_p.data = param_p.data - group["lr"] * (
+                        param_p.grad.data
+                        + group["lamda"]
+                        * (param_p.data - param_l.data.to(param_p.device))
+                        + group["mu"] * param_p.data
+                    )

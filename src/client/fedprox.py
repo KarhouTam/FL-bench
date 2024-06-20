@@ -20,7 +20,8 @@ class FedProxClient(FedAvgClient):
                 self.optimizer.zero_grad()
                 loss.backward()
                 for w, w_t in zip(self.model.parameters(), global_params):
-                    w.grad.data += self.args.fedprox.mu * (w.data - w_t.data)
+                    if w.requires_grad:
+                        w.grad.data += self.args.fedprox.mu * (w.data - w_t.data)
                 self.optimizer.step()
 
             if self.lr_scheduler is not None:

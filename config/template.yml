@@ -27,7 +27,7 @@ common:
   test_interval: 100
   straggler_ratio: 0
   straggler_min_local_epoch: 0
-  external_model_params_file: ""
+  external_model_params_file: null
   buffers: local # [local, global, drop]
   optimizer:
     name: sgd # [sgd, adam, adamw, rmsprop, adagrad]
@@ -55,7 +55,6 @@ common:
   save_model: false
   save_fig: true
   save_metrics: true
-  check_convergence: true
 
 # You can set specific arguments for FL methods also
 # FL-bench uses FL method arguments by args.<method>.<arg>

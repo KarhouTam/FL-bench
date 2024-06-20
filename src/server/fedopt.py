@@ -6,10 +6,6 @@ import torch
 
 from src.server.fedavg import FedAvgServer
 from src.utils.tools import NestedNamespace
-from src.utils.models import DecoupledModel
-
-
-ALGO_NAMES = {"adagrad": "FedAdagrad", "yogi": "FedYogi", "adam": "FedAdam"}
 
 
 class FedOptServer(FedAvgServer):
@@ -26,6 +22,8 @@ class FedOptServer(FedAvgServer):
         parser.add_argument("--tau", type=float, default=1e-3)
         return parser.parse_args(args_list)
 
+    algo_names = {"adagrad": "FedAdagrad", "yogi": "FedYogi", "adam": "FedAdam"}
+
     def __init__(
         self,
         args: NestedNamespace,
@@ -34,7 +32,7 @@ class FedOptServer(FedAvgServer):
         use_fedavg_client_cls=True,
         return_diff=True,
     ):
-        algo = ALGO_NAMES[args.fedopt.type]
+        algo = self.algo_names[args.fedopt.type]
         super().__init__(args, algo, unique_model, use_fedavg_client_cls, return_diff)
         self.adaptive_optimizer = AdaptiveOptimizer(
             optimizer_type=self.args.fedopt.type,
@@ -111,21 +109,17 @@ class AdaptiveOptimizer:
         for param, m, v in zip(
             self.params_dict.values(), self.momentums, self.velocities
         ):
-            param.data = (param.data - self.lr * (m / (v.sqrt() + self.tau))).to(
-                param.dtype
-            )
+            param.data = param.data + self.lr * (m / (v.sqrt() + self.tau))
 
     def _update_adagrad(self, delta_list):
         for v, delta in zip(self.velocities, delta_list):
-            v.data = (v + delta**2).to(v.dtype)
+            v.data = v + delta**2
 
     def _update_yogi(self, delta_list):
         for v, delta in zip(self.velocities, delta_list):
             delta_pow2 = delta**2
-            v.data = (
-                v - (1 - self.beta2) * delta_pow2 * torch.sign(v - delta_pow2)
-            ).to(v.dtype)
+            v.data = v - (1 - self.beta2) * delta_pow2 * torch.sign(v - delta_pow2)
 
     def _update_adam(self, delta_list):
         for v, delta in zip(self.velocities, delta_list):
-            v.data = (self.beta2 * v + (1 - self.beta2) * delta**2).to(v.dtype)
+            v.data = self.beta2 * v + (1 - self.beta2) * delta**2

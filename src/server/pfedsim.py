@@ -89,7 +89,8 @@ class pFedSimServer(FedAvgServer):
             )
 
         self.logger.log(
-            f"{self.algo}'s average time taken by each global epoch: {int(avg_round_time // 60)} min {(avg_round_time % 60):.2f} sec."
+            f"{self.algo}'s average time taken by each global epoch: "
+            f"{int(avg_round_time // 60)} min {(avg_round_time % 60):.2f} sec."
         )
 
     @torch.no_grad()

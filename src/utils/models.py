@@ -8,6 +8,7 @@ import torchvision.models as models
 from torch import Tensor
 
 from src.utils.constants import DATA_SHAPE, NUM_CLASSES, INPUT_CHANNELS
+from src.utils.tools import NestedNamespace
 
 
 class DecoupledModel(nn.Module):
@@ -33,7 +34,7 @@ class DecoupledModel(nn.Module):
         for module in target_modules:
             module.register_forward_hook(_get_feature_hook_fn)
 
-    def check_avaliability(self):
+    def check_and_preprocess(self, args: NestedNamespace):
         if self.base is None or self.classifier is None:
             raise RuntimeError(
                 "You need to re-write the base and classifier in your custom model class."
@@ -43,6 +44,18 @@ class DecoupledModel(nn.Module):
             for module in list(self.base.modules()) + list(self.classifier.modules())
             if isinstance(module, nn.Dropout)
         ]
+        if args.common.buffers == "global":
+            for module in self.modules():
+                if isinstance(module, torch.nn.BatchNorm2d):
+                    buffers_list = list(module.named_buffers())
+                    for name_buffer, buffer in buffers_list:
+                        # transform buffer to parameter
+                        # for showing out in model.parameters()
+                        delattr(module, name_buffer)
+                        module.register_parameter(
+                            name_buffer,
+                            torch.nn.Parameter(buffer.float(), requires_grad=False),
+                        )
 
     def forward(self, x: Tensor) -> Tensor:
         return self.classifier(self.base(x))

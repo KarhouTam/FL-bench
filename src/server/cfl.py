@@ -41,8 +41,8 @@ class CFLServer(FedAvgServer):
 
         for client_id in self.selected_clients:
             self.clients_model_params_diff[client_id] = [
-                -clients_package[client_id]["model_params_diff"][key]
-                for key in self.clients_personal_model_params[client_id].keys()
+                -diff
+                for diff in clients_package[client_id]["model_params_diff"].values()
             ]
 
         self.compute_pairwise_similarity()
@@ -109,10 +109,8 @@ class CFLServer(FedAvgServer):
                 for diff in zip(*model_params_diff_list)
             ]
             for i in cluster:
-                for (name, param), diff in zip(
-                    self.clients_personal_model_params[i].items(), aggregated_diff
-                ):
-                    param.data += diff.to(param.dtype)
+                for key, diff in zip(self.public_model_param_names, aggregated_diff):
+                    self.clients_personal_model_params[i][key].data += diff
 
         self.clients_model_params_diff = [None for _ in self.train_clients]
 

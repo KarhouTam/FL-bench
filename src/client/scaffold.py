@@ -64,7 +64,8 @@ class SCAFFOLDClient(FedAvgClient):
             for param, c, c_i in zip(
                 self.model.parameters(), self.c_global, self.c_local
             ):
-                param.grad.data += (c - c_i).to(self.device)
+                if param.requires_grad:
+                    param.grad.data += (c - c_i).to(self.device)
             self.optimizer.step()
 
             if self.lr_scheduler is not None:

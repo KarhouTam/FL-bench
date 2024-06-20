@@ -52,9 +52,7 @@ class FedFedClient(FedAvgClient):
                 if len(y) <= 1:
                     continue
                 x, y = x.to(self.device), y.to(self.device)
-                x_mixed, y_ori, y_rand, lamda = mixup_data(
-                    x, y, self.args.fedfed.VAE_alpha
-                )
+                x_mixed, y_ori, y_rand, lamda = self.mixup_data(x, y)
 
                 logits = self.model(x_mixed)
                 loss_classifier = lamda * F.cross_entropy(logits, y_ori) + (
@@ -127,8 +125,6 @@ class FedFedClient(FedAvgClient):
 
         VAE_regular_params, VAE_personal_params = {}, {}
         VAE_regular_param_names = list(key for key, _ in self.VAE.named_parameters())
-        if self.args.common.buffers == "global":
-            VAE_regular_param_names.extend(name for name, _ in self.VAE.named_buffers())
         VAE_model_params = self.VAE.state_dict()
         for key, param in VAE_model_params.items():
             if key in VAE_regular_param_names:
@@ -182,6 +178,8 @@ class FedFedClient(FedAvgClient):
     def accept_global_shared_data(self, package: dict[str, Any]):
         # avoid loading multiple times
         # only trigger once per worker (worker != client)
+        # serial training mode (1 worker)
+        # parallel training mode (args.parallel.num_workers workers (>= 2))
         if self.distilling:
             self.distilling = False
 
@@ -197,13 +195,12 @@ class FedFedClient(FedAvgClient):
                 [self.dataset.targets, package["targets"], package["targets"]]
             )
 
+    def mixup_data(self, x: torch.Tensor, y: torch.Tensor):
+        if self.args.fedfed.alpha > 0:
+            lamda = np.random.beta(self.args.fedfed.alpha, self.args.fedfed.alpha)
+        else:
+            lamda = 1.0
 
-def mixup_data(x: torch.Tensor, y: torch.Tensor, alpha: float):
-    if alpha > 0:
-        lamda = np.random.beta(alpha, alpha)
-    else:
-        lamda = 1.0
-
-    shfl_idxs = np.random.permutation(x.shape[0])
-    x_mixed = lamda * x + (1 - lamda) * x[shfl_idxs, :]
-    return x_mixed, y, y[shfl_idxs], lamda
+        shfl_idxs = np.random.permutation(x.shape[0])
+        x_mixed = lamda * x + (1 - lamda) * x[shfl_idxs, :]
+        return x_mixed, y, y[shfl_idxs], lamda

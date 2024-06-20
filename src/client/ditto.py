@@ -53,9 +53,10 @@ class DittoClient(FedAvgClient):
                 for pers_param, global_param in zip(
                     self.pers_model.parameters(), self.global_params.values()
                 ):
-                    pers_param.grad.data += self.args.ditto.lamda * (
-                        pers_param.data - global_param.data
-                    )
+                    if pers_param.requires_grad:
+                        pers_param.grad.data += self.args.ditto.lamda * (
+                            pers_param.data - global_param.data
+                        )
                 self.optimizer.step()
 
             if self.lr_scheduler is not None:

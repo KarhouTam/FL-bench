@@ -75,12 +75,13 @@ class APFLClient(FedAvgClient):
         for local_param, global_param in zip(
             self.local_model.parameters(), self.model.parameters()
         ):
-            diff = (local_param.data - global_param.data).flatten()
-            grad = (
-                self.alpha * local_param.grad.data
-                + (1 - self.alpha) * global_param.grad.data
-            ).flatten()
-            alpha_grad += diff @ grad
+            if local_param.requires_grad:
+                diff = (local_param.data - global_param.data).flatten()
+                grad = (
+                    self.alpha * local_param.grad.data
+                    + (1 - self.alpha) * global_param.grad.data
+                ).flatten()
+                alpha_grad += diff @ grad
 
         alpha_grad += 0.02 * self.alpha
         self.alpha.data -= self.args.common.optimizer.lr * alpha_grad

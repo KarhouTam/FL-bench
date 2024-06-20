@@ -96,4 +96,4 @@ class FedFomoClient(FedAvgClient):
                         torch.stack(clients_model_params, dim=-1).to(self.device) * W,
                         dim=-1,
                     )
-                    param.data = aggregated.to(param.dtype)
+                    param.data = aggregated

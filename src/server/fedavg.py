@@ -92,43 +92,50 @@ class FedAvgServer:
         self.model: DecoupledModel = MODELS[self.args.common.model](
             dataset=self.args.common.dataset
         )
-        self.model.check_avaliability()
+        self.model.check_and_preprocess(self.args)
 
         _init_global_params, _init_global_params_name = [], []
         for key, param in self.model.named_parameters():
             _init_global_params.append(param.data.clone())
             _init_global_params_name.append(key)
+
+        self.public_model_param_names = _init_global_params_name
         self.public_model_params: OrderedDict[str, torch.Tensor] = OrderedDict(
             zip(_init_global_params_name, _init_global_params)
         )
+
+        if self.args.common.external_model_params_file is not None:
+            file_path = str(
+                (FLBENCH_ROOT / self.args.common.external_model_params_file).absolute()
+            )
+            if os.path.isfile(file_path) and file_path.find(".pt") != -1:
+                external_params = torch.load(file_path, map_location="cpu")
+                self.public_model_params.update(external_params)
+            elif not os.path.isfile(file_path):
+                raise FileNotFoundError(f"{file_path} is not a valid file path.")
+            elif file_path.find(".pt") == -1:
+                raise TypeError(f"{file_path} is not a valid .pt file.")
+
         self.clients_personal_model_params = {i: {} for i in range(self.client_num)}
-        if self.args.common.buffers == "global":
-            self.public_model_params.update(self.model.named_buffers())
-        self.public_model_param_names = list(self.public_model_params.keys())
+
+        if self.args.common.buffers == "local":
+            _init_buffers = OrderedDict(self.model.named_buffers())
+            for i in range(self.client_num):
+                self.clients_personal_model_params[i] = deepcopy(_init_buffers)
+
         if self.unique_model:
             for params_dict in self.clients_personal_model_params.values():
                 params_dict.update(deepcopy(self.model.state_dict()))
 
         self.clients_optimizer_state = {i: {} for i in range(self.client_num)}
-        self.clients_lr_scheduler_state = {i: {} for i in range(self.client_num)}
-        model_params_file_path = str(
-            (FLBENCH_ROOT / self.args.common.external_model_params_file).absolute()
-        )
-        if (
-            os.path.isfile(model_params_file_path)
-            and model_params_file_path.find(".pt") != -1
-        ):
-            self.public_model_params.update(
-                torch.load(model_params_file_path, map_location="cpu")
-            )
-            if self.unique_model:
-                for params_dict in self.clients_personal_model_params.values():
-                    params_dict.update(self.public_model_params)
 
-        # system heterogeneity (straggler) setting
+        self.clients_lr_scheduler_state = {i: {} for i in range(self.client_num)}
+
         self.clients_local_epoch: list[int] = [
             self.args.common.local_epoch
         ] * self.client_num
+
+        # system heterogeneity (straggler) setting
         if (
             self.args.common.straggler_ratio > 0
             and self.args.common.local_epoch
@@ -148,7 +155,8 @@ class FedAvgServer:
             random.shuffle(self.clients_local_epoch)
 
         # To make sure all algorithms run through the same client sampling stream.
-        # Some algorithms' implicit operations at client side may disturb the stream if sampling happens at each FL round's beginning.
+        # Some algorithms' implicit operations at client side may
+        # disturb the stream if sampling happens at each FL round's beginning.
         self.client_sample_stream = [
             random.sample(
                 self.train_clients,
@@ -176,14 +184,14 @@ class FedAvgServer:
         }
 
         self.verbose = False
-        stdout = Console(log_path=False, log_time=False)
+        stdout = Console(log_path=False, log_time=False, soft_wrap=True)
         self.logger = Logger(
             stdout=stdout,
             enable_log=self.args.common.save_log,
             logfile_path=OUT_DIR
             / self.algo
             / self.output_dir
-            / f"{self.args.common.dataset}_log.html",
+            / f"{self.args.common.dataset}.log",
         )
         self.test_results: dict[int, dict[str, dict[str, Metrics]]] = {}
         self.train_progress_bar = track(
@@ -214,7 +222,7 @@ class FedAvgServer:
                 f"<pre>{self.args}</pre>",
             )
         # init trainer
-        self.trainer: FLbenchTrainer
+        self.trainer: FLbenchTrainer = None
         if use_fedavg_client_cls:
             self.init_trainer()
 
@@ -279,7 +287,7 @@ class FedAvgServer:
             FileNotFoundError: When the target dataset has not beed processed.
 
         Returns:
-            FL dataset.
+            BaseDataset: The target FL dataset.
         """
         try:
             partition_path = (
@@ -304,6 +312,16 @@ class FedAvgServer:
         return dataset
 
     def get_dataset_transforms(self):
+        """Define data preprocessing schemes. These schemes will work for every client.
+        Consider to overwrite this function for your unique data preprocessing.
+
+        Returns:
+            Dict[str, Callable], which includes keys:
+                `train_data_transform`: The transform for training data.
+                `train_target_transform`: The transform for training targets.
+                `test_data_transform`: The transform for testing data.
+                `test_target_transform`: The transform for testing targets.
+        """
         test_data_transform = transforms.Compose(
             [
                 transforms.Normalize(
@@ -400,11 +418,14 @@ class FedAvgServer:
             )
 
         self.logger.log(
-            f"{self.algo}'s average time taken by each global epoch: {int(avg_round_time // 60)} min {(avg_round_time % 60):.2f} sec."
+            f"{self.algo}'s average time taken by each global epoch: "
+            f"{int(avg_round_time // 60)} min {(avg_round_time % 60):.2f} sec."
         )
 
     def train_one_round(self):
-        """The function of indicating specific things FL method need to do (at server side) in each communication round."""
+        """The function of indicating specific things FL method 
+        need to do (at server side) in each communication round.
+        """
 
         clients_package = self.trainer.train()
         self.aggregate(clients_package)
@@ -510,9 +531,7 @@ class FedAvgServer:
                     ],
                     dim=-1,
                 )
-                aggregated = torch.sum(
-                    diffs * weights, dim=-1, dtype=global_param.dtype
-                ).to(global_param.device)
+                aggregated = torch.sum(diffs * weights, dim=-1)
                 self.public_model_params[name].data -= aggregated
         else:
             for name, global_param in self.public_model_params.items():
@@ -523,9 +542,7 @@ class FedAvgServer:
                     ],
                     dim=-1,
                 )
-                aggregated = torch.sum(
-                    client_params * weights, dim=-1, dtype=global_param.dtype
-                ).to(global_param.device)
+                aggregated = torch.sum(client_params * weights, dim=-1)
 
                 global_param.data = aggregated
 
@@ -543,7 +560,8 @@ class FedAvgServer:
             for split in ["train", "val", "test"]:
                 if len(self.global_metrics[stage][split]) > 0:
                     self.logger.log(
-                        f"[{colors[split]}]{split}[/{colors[split]}] [{colors[stage]}]({stage} local training):"
+                        f"[{colors[split]}]{split}[/{colors[split]}] "
+                        f"[{colors[stage]}]({stage} local training):"
                     )
                     acc_range = [90.0, 80.0, 70.0, 60.0, 50.0, 40.0, 30.0, 20.0, 10.0]
                     min_acc_idx = 10
@@ -640,7 +658,9 @@ class FedAvgServer:
                                 key=lambda tup: tup[1],
                             )
                             self.logger.log(
-                                f"[{colors[split]}]({split})[/{colors[split]}] [{colors[stage]}]{stage}[/{colors[stage]}] fine-tuning: {max_acc:.2f}% at epoch {epoch}"
+                                f"[{colors[split]}]({split})[/{colors[split]}] "
+                                f"[{colors[stage]}]{stage}[/{colors[stage]}] "
+                                f"fine-tuning: {max_acc:.2f}% at epoch {epoch}"
                             )
 
     def run(self):
@@ -654,11 +674,12 @@ class FedAvgServer:
         end = time.time()
         total = end - begin
         self.logger.log(
-            f"{self.algo}'s total running time: {int(total // 3600)} h {int((total % 3600) // 60)} m {int(total % 60)} s."
+            f"{self.algo}'s total running time: "
+            f"{int(total // 3600)} h {int((total % 3600) // 60)} m {int(total % 60)} s."
         )
         self.logger.log("=" * 20, self.algo, "Experiment Results:", "=" * 20)
         self.logger.log(
-            "Format: [green](before local fine-tuning) -> [blue](after local fine-tuning)",
+            "Format: [green](before local fine-tuning) -> [blue](after local fine-tuning)\n",
             "So if finetune_epoch = 0, x.xx% -> 0.00% is normal.",
         )
         all_test_results = {
@@ -689,11 +710,12 @@ class FedAvgServer:
                     global_step=epoch,
                 )
 
-        if self.args.common.check_convergence:
-            self.show_convergence()
+        self.show_convergence()
         self.show_max_metrics()
+
         self.logger.close()
 
+        # plot the training curves
         if self.args.common.save_fig:
             import matplotlib
             from matplotlib import pyplot as plt
@@ -724,9 +746,11 @@ class FedAvgServer:
                 OUT_DIR
                 / self.algo
                 / self.output_dir
-                / f"{self.args.common.dataset}.pdf",
+                / f"{self.args.common.dataset}.png",
                 bbox_inches="tight",
             )
+
+        # save each round's metrics stats
         if self.args.common.save_metrics:
             import pandas as pd
 
@@ -758,7 +782,8 @@ class FedAvgServer:
                 index=True,
                 index_label="epoch",
             )
-        # save trained model(s)
+
+        # save trained model(s) parameters
         if self.args.common.save_model:
             model_name = f"{self.args.common.dataset}_{self.args.common.global_epoch}_{self.args.common.model}.pt"
             if self.unique_model:

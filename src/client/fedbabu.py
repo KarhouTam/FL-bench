@@ -20,7 +20,8 @@ class FedBabuClient(FedAvgClient):
                 loss.backward()
                 # fix head(classifier)
                 for param in self.model.classifier.parameters():
-                    param.grad.zero_()
+                    if param.requires_grad:
+                        param.grad.zero_()
                 self.optimizer.step()
 
             if self.lr_scheduler is not None:
