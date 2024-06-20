@@ -1,8 +1,8 @@
 from typing import Any
 
 import torch
-import torch.nn.functional as F
 import torch.autograd as autograd
+import torch.nn.functional as F
 
 from src.client.fedavg import FedAvgClient
 

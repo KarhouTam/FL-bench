@@ -3,10 +3,10 @@ from copy import deepcopy
 
 import torch
 import torch.nn as nn
-from torch.utils.data import Dataset, DataLoader
+from torch.utils.data import DataLoader, Dataset
 
-from src.server.fedavg import FedAvgServer
 from src.client.adcol import ADCOLClient
+from src.server.fedavg import FedAvgServer
 from src.utils.tools import NestedNamespace
 
 

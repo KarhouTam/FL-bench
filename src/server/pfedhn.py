@@ -4,8 +4,8 @@ from collections import OrderedDict
 import torch
 import torch.nn as nn
 
-from src.server.fedavg import FedAvgServer
 from src.client.fedper import FedPerClient
+from src.server.fedavg import FedAvgServer
 from src.utils.tools import NestedNamespace
 
 

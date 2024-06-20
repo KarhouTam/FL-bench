@@ -4,9 +4,9 @@ from copy import deepcopy
 from typing import Any
 
 import torch.nn.functional as F
+from torch.utils.data import DataLoader, Subset
 
 from src.client.fedavg import FedAvgClient
-from torch.utils.data import Subset, DataLoader
 from src.utils.tools import evalutate_model
 
 

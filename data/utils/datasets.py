@@ -5,14 +5,14 @@ from argparse import Namespace
 from pathlib import Path
 from typing import List
 
-import torch
 import numpy as np
-import torchvision
 import pandas as pd
+import torch
+import torchvision
 from PIL import Image
+from torch.utils.data import Dataset
 from torchvision import transforms
 from torchvision.transforms.functional import pil_to_tensor
-from torch.utils.data import Dataset
 
 
 class BaseDataset(Dataset):

@@ -1,5 +1,5 @@
-from src.server.fedavg import FedAvgServer
 from src.client.fedbabu import FedBabuClient
+from src.server.fedavg import FedAvgServer
 from src.utils.tools import NestedNamespace
 
 

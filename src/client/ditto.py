@@ -1,5 +1,5 @@
-from copy import deepcopy
 from collections import OrderedDict
+from copy import deepcopy
 from typing import Any
 
 from src.client.fedavg import FedAvgClient

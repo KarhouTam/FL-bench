@@ -1,7 +1,7 @@
 from copy import deepcopy
 
-from src.server.fedavg import FedAvgServer
 from src.client.fedbn import FedBNClient
+from src.server.fedavg import FedAvgServer
 from src.utils.tools import NestedNamespace
 
 

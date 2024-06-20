@@ -5,10 +5,10 @@ from typing import Any
 import torch
 import torch.nn as nn
 
-from src.server.fedavg import FedAvgServer
 from src.client.fedrod import FedRoDClient
-from src.utils.tools import NestedNamespace
+from src.server.fedavg import FedAvgServer
 from src.utils.constants import NUM_CLASSES
+from src.utils.tools import NestedNamespace
 
 
 class FedRoDServer(FedAvgServer):

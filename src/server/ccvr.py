@@ -1,15 +1,15 @@
 from argparse import ArgumentParser, Namespace
-from copy import deepcopy
 from collections import OrderedDict
+from copy import deepcopy
 
-import torch
 import numpy as np
-from torch.utils.data import Dataset, DataLoader
+import torch
+from torch.utils.data import DataLoader, Dataset
 
 from src.client.ccvr import CCVRClient
 from src.server.fedavg import FedAvgServer
-from src.utils.tools import NestedNamespace
 from src.utils.constants import NUM_CLASSES
+from src.utils.tools import NestedNamespace
 
 
 class CCVRServer(FedAvgServer):

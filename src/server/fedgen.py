@@ -1,6 +1,6 @@
 from argparse import ArgumentParser, Namespace
-from copy import deepcopy
 from collections import OrderedDict
+from copy import deepcopy
 from typing import Any
 
 import numpy as np
@@ -8,10 +8,10 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
-from src.server.fedavg import FedAvgServer
 from src.client.fedgen import FedGenClient
-from src.utils.tools import NestedNamespace
+from src.server.fedavg import FedAvgServer
 from src.utils.constants import DATA_SHAPE, NUM_CLASSES
+from src.utils.tools import NestedNamespace
 
 
 class FedGenServer(FedAvgServer):

@@ -5,14 +5,14 @@
 # where 'img_' is a vectorized representation of the corresponding image
 
 from __future__ import division
+
 import json
 import math
-import numpy as np
 import os
 
-from PIL import Image
-
+import numpy as np
 import util
+from PIL import Image
 
 MAX_WRITERS = 100  # max number of writers per json file.
 

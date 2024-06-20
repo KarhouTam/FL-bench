@@ -1,6 +1,6 @@
 from argparse import ArgumentParser, Namespace
-from copy import deepcopy
 from collections import OrderedDict
+from copy import deepcopy
 
 import torch
 

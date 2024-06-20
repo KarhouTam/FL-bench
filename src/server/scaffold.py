@@ -1,11 +1,11 @@
+from argparse import ArgumentParser, Namespace
 from copy import deepcopy
 from typing import Any
-from argparse import ArgumentParser, Namespace
 
 import torch
 
-from src.server.fedavg import FedAvgServer
 from src.client.scaffold import SCAFFOLDClient
+from src.server.fedavg import FedAvgServer
 from src.utils.tools import NestedNamespace
 
 

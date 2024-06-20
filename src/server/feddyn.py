@@ -4,10 +4,9 @@ from typing import Any
 
 import torch
 
-from src.server.fedavg import FedAvgServer
 from src.client.feddyn import FedDynClient
+from src.server.fedavg import FedAvgServer
 from src.utils.tools import NestedNamespace, vectorize
-from src.utils.tools import NestedNamespace
 
 
 class FedDynServer(FedAvgServer):

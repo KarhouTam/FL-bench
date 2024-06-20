@@ -3,10 +3,10 @@ from collections import OrderedDict
 from typing import Any
 
 import torch
-
 from torch._tensor import Tensor
-from src.server.fedavg import FedAvgServer
+
 from src.client.elastic import ElasticClient
+from src.server.fedavg import FedAvgServer
 from src.utils.tools import NestedNamespace
 
 

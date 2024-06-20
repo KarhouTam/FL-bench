@@ -1,8 +1,8 @@
 from argparse import ArgumentParser, Namespace
 from copy import deepcopy
 
-from src.server.fedavg import FedAvgServer
 from src.client.ditto import DittoClient
+from src.server.fedavg import FedAvgServer
 from src.utils.tools import NestedNamespace
 
 

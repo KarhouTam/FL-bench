@@ -3,16 +3,16 @@ import sys
 from collections import Counter
 from pathlib import Path
 
-import torch
 import numpy as np
+import torch
 from rich.console import Console
-from torch.distributions import MultivariateNormal, kl_divergence
-from torchvision import models
-from torch.utils.data import Dataset, DataLoader
 from scipy.optimize import linear_sum_assignment
-from sklearn.preprocessing import StandardScaler
 from sklearn.decomposition import PCA
 from sklearn.mixture import GaussianMixture
+from sklearn.preprocessing import StandardScaler
+from torch.distributions import MultivariateNormal, kl_divergence
+from torch.utils.data import DataLoader, Dataset
+from torchvision import models
 
 FL_BENCH_ROOT = Path(__file__).parent.parent.parent.parent.absolute()
 

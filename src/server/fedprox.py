@@ -1,7 +1,7 @@
 from argparse import ArgumentParser, Namespace
 
-from src.server.fedavg import FedAvgServer
 from src.client.fedprox import FedProxClient
+from src.server.fedavg import FedAvgServer
 from src.utils.tools import NestedNamespace
 
 

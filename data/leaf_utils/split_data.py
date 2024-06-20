@@ -6,12 +6,12 @@ import argparse
 import json
 import os
 import random
-import time
 import sys
-
+import time
 from collections import OrderedDict
 
 from constants import DATASETS, SEED_FILES
+
 
 def create_jsons_for(user_files, which_set, max_users, include_hierarchy):
     '''used in split-by-user case'''

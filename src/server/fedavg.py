@@ -1,41 +1,31 @@
 import functools
 import inspect
-import pickle
 import json
 import os
-import time
+import pickle
 import random
+import time
 from collections import OrderedDict
 from copy import deepcopy
 from typing import Any
 
+import numpy as np
 import ray
 import torch
-import numpy as np
-from torchvision import transforms
 from rich.console import Console
-from rich.progress import track
 from rich.json import JSON
+from rich.progress import track
+from torchvision import transforms
 
-from src.utils.models import MODELS, DecoupledModel
-from src.utils.metrics import Metrics
-from src.client.fedavg import FedAvgClient
-from src.utils.constants import (
-    FLBENCH_ROOT,
-    LR_SCHEDULERS,
-    OPTIMIZERS,
-    OUT_DIR,
-    DATA_MEAN,
-    DATA_STD,
-)
-from src.utils.trainer import FLbenchTrainer
 from data.utils.datasets import DATASETS, BaseDataset
-from src.utils.tools import (
-    Logger,
-    NestedNamespace,
-    fix_random_seed,
-    get_optimal_cuda_device,
-)
+from src.client.fedavg import FedAvgClient
+from src.utils.constants import (DATA_MEAN, DATA_STD, FLBENCH_ROOT,
+                                 LR_SCHEDULERS, OPTIMIZERS, OUT_DIR)
+from src.utils.metrics import Metrics
+from src.utils.models import MODELS, DecoupledModel
+from src.utils.tools import (Logger, NestedNamespace, fix_random_seed,
+                             get_optimal_cuda_device)
+from src.utils.trainer import FLbenchTrainer
 
 
 class FedAvgServer:

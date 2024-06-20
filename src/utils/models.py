@@ -1,5 +1,5 @@
-from functools import partial
 from collections import OrderedDict
+from functools import partial
 from typing import Optional
 
 import torch
@@ -7,7 +7,7 @@ import torch.nn as nn
 import torchvision.models as models
 from torch import Tensor
 
-from src.utils.constants import DATA_SHAPE, NUM_CLASSES, INPUT_CHANNELS
+from src.utils.constants import DATA_SHAPE, INPUT_CHANNELS, NUM_CLASSES
 from src.utils.tools import NestedNamespace
 
 

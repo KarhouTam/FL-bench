@@ -1,5 +1,6 @@
 from argparse import ArgumentParser, Namespace
 from typing import Any, OrderedDict
+
 import torch
 
 from src.server.fedavg import FedAvgServer

@@ -1,8 +1,8 @@
 from .dirichlet import dirichlet
-from .randomly_assign_classes import randomly_assign_classes
 from .iid import iid_partition
-from .shards import allocate_shards
+from .randomly_assign_classes import randomly_assign_classes
 from .semantic import semantic_partition
+from .shards import allocate_shards
 
 __all__ = [
     "dirichlet",

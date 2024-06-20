@@ -1,11 +1,11 @@
 from argparse import ArgumentParser, Namespace
 
-import torch
 import numpy as np
+import torch
 from sklearn.cluster import AgglomerativeClustering
 
 from src.server.fedavg import FedAvgServer
-from src.utils.tools import vectorize, NestedNamespace
+from src.utils.tools import NestedNamespace, vectorize
 
 
 class CFLServer(FedAvgServer):

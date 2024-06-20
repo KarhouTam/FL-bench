@@ -1,14 +1,14 @@
 from argparse import ArgumentParser, Namespace
 
 import torch
-from torchvision import transforms
 from torch.utils.data import DataLoader
+from torchvision import transforms
 
-from src.server.fedavg import FedAvgServer
-from src.client.fedmd import FedMDClient
-from src.utils.tools import NestedNamespace
-from src.utils.constants import DATA_MEAN, DATA_STD, FLBENCH_ROOT
 from data.utils.datasets import DATASETS
+from src.client.fedmd import FedMDClient
+from src.server.fedavg import FedAvgServer
+from src.utils.constants import DATA_MEAN, DATA_STD, FLBENCH_ROOT
+from src.utils.tools import NestedNamespace
 
 
 class FedMDServer(FedAvgServer):

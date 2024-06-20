@@ -3,8 +3,8 @@ from copy import deepcopy
 
 import torch
 
-from src.server.fedavg import FedAvgServer
 from src.client.apfl import APFLClient
+from src.server.fedavg import FedAvgServer
 from src.utils.tools import NestedNamespace
 
 

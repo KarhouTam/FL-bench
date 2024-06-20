@@ -2,8 +2,8 @@ from collections import Counter
 from copy import deepcopy
 from typing import Any
 
-import torch
 import numpy as np
+import torch
 
 from src.client.fedavg import FedAvgClient
 from src.utils.constants import NUM_CLASSES

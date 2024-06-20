@@ -10,8 +10,8 @@ import torch
 import torch.nn as nn
 from rich.progress import track
 
-from src.server.fedavg import FedAvgServer
 from src.client.fedfed import FedFedClient
+from src.server.fedavg import FedAvgServer
 from src.utils.constants import DATA_SHAPE
 from src.utils.tools import NestedNamespace
 

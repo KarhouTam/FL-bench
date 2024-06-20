@@ -4,15 +4,13 @@ assumes that the user has already generated .json file(s) containing data
 
 import argparse
 import json
-import matplotlib.pyplot as plt
 import math
-import numpy as np
 import os
 
-from scipy import io
-from scipy import stats
-
+import matplotlib.pyplot as plt
+import numpy as np
 from constants import DATASETS
+from scipy import io, stats
 
 parser = argparse.ArgumentParser()
 

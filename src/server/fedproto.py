@@ -2,8 +2,8 @@ from argparse import ArgumentParser, Namespace
 
 import torch
 
-from src.server.fedavg import FedAvgServer
 from src.client.fedproto import FedProtoClient
+from src.server.fedavg import FedAvgServer
 from src.utils.constants import NUM_CLASSES
 from src.utils.tools import NestedNamespace
 

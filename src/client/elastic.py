@@ -1,5 +1,5 @@
-from copy import deepcopy
 import random
+from copy import deepcopy
 from typing import Any
 
 import torch

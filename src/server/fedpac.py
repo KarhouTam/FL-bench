@@ -2,12 +2,12 @@ from argparse import ArgumentParser
 from collections import OrderedDict
 from typing import Any
 
-import torch
 import cvxpy as cvx
+import torch
 
+from src.client.fedpac import FedPACClient
 from src.server.fedavg import FedAvgServer
 from src.utils.constants import NUM_CLASSES
-from src.client.fedpac import FedPACClient
 from src.utils.tools import NestedNamespace
 
 

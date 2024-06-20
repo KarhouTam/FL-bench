@@ -1,10 +1,10 @@
+import json
+import os
 import pickle
 import random
-import os
-import json
 import sys
-from pathlib import Path
 from collections import Counter
+from pathlib import Path
 
 import torch
 

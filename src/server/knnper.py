@@ -1,7 +1,7 @@
 from argparse import ArgumentParser, Namespace
 
-from src.server.fedavg import FedAvgServer
 from src.client.knnper import kNNPerClient
+from src.server.fedavg import FedAvgServer
 from src.utils.tools import NestedNamespace
 
 

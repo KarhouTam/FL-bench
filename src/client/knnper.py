@@ -1,8 +1,8 @@
 import random
 
-import torch
-import numpy as np
 import faiss
+import numpy as np
+import torch
 
 from src.client.fedavg import FedAvgClient
 from src.utils.metrics import Metrics

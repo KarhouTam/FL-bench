@@ -5,10 +5,11 @@ from typing import Any
 import torch
 from torch.utils.data import DataLoader, Subset
 
-from src.utils.tools import NestedNamespace, get_optimal_cuda_device, evalutate_model
+from data.utils.datasets import BaseDataset
 from src.utils.metrics import Metrics
 from src.utils.models import DecoupledModel
-from data.utils.datasets import BaseDataset
+from src.utils.tools import (NestedNamespace, evalutate_model,
+                             get_optimal_cuda_device)
 
 
 class FedAvgClient:

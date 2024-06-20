@@ -3,13 +3,13 @@ import time
 from argparse import ArgumentParser, Namespace
 from collections import OrderedDict
 
-import torch
 import numpy as np
+import torch
 from rich.progress import track
 
+from src.client.fedap import FedAPClient
 from src.server.fedavg import FedAvgServer
 from src.utils.tools import NestedNamespace
-from src.client.fedap import FedAPClient
 
 
 # Codes below are modified from FedAP's official repo: https://github.com/microsoft/PersonalizedFL

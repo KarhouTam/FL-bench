@@ -3,17 +3,17 @@ import os
 import random
 from argparse import Namespace
 from collections import OrderedDict
-from typing import Callable, Iterator, Sequence, Union
 from pathlib import Path
+from typing import Callable, Iterator, Sequence, Union
 
-import torch
-import pynvml
 import numpy as np
-from torch.utils.data import DataLoader
+import pynvml
+import torch
 from rich.console import Console
+from torch.utils.data import DataLoader
 
-from src.utils.metrics import Metrics
 from src.utils.constants import DEFAULT_COMMON_ARGS, DEFAULT_PARALLEL_ARGS
+from src.utils.metrics import Metrics
 
 
 def fix_random_seed(seed: int) -> None:

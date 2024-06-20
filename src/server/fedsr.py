@@ -7,10 +7,10 @@ import torch.distributions as distrib
 import torch.nn as nn
 import torch.nn.functional as F
 
-from src.server.fedavg import FedAvgServer
 from src.client.fedsr import FedSRClient
+from src.server.fedavg import FedAvgServer
+from src.utils.constants import FLBENCH_ROOT, NUM_CLASSES
 from src.utils.models import DecoupledModel
-from src.utils.constants import NUM_CLASSES, FLBENCH_ROOT
 from src.utils.tools import NestedNamespace
 
 

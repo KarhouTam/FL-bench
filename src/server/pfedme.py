@@ -4,8 +4,8 @@ from typing import Any
 
 import torch
 
-from src.server.fedavg import FedAvgServer
 from src.client.pfedme import pFedMeClient
+from src.server.fedavg import FedAvgServer
 from src.utils.tools import NestedNamespace
 
 
