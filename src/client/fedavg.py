@@ -8,8 +8,7 @@ from torch.utils.data import DataLoader, Subset
 from data.utils.datasets import BaseDataset
 from src.utils.metrics import Metrics
 from src.utils.models import DecoupledModel
-from src.utils.tools import (NestedNamespace, evalutate_model,
-                             get_optimal_cuda_device)
+from src.utils.tools import NestedNamespace, evalutate_model, get_optimal_cuda_device
 
 
 class FedAvgClient:

@@ -116,7 +116,7 @@ if __name__ == "__main__":
                 "domain_indices_bound": domain_indices_bound,
             },
             f,
-            indent=4
+            indent=4,
         )
 
     os.system(f"cd ../..; python generate_data.py -d domain")

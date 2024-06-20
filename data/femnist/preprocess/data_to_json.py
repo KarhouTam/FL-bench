@@ -46,14 +46,14 @@ user_data = {}
 
 writer_count, all_writers = 0, 0
 json_index = 0
-for (w, l) in writers:
+for w, l in writers:
 
     users.append(w)
     num_samples.append(len(l))
     user_data[w] = {"x": [], "y": []}
 
     size = 28, 28  # original image size is 128, 128
-    for (f, c) in l:
+    for f, c in l:
         file_path = os.path.join(parent_path, f)
         img = Image.open(file_path)
         gray = img.convert("L")

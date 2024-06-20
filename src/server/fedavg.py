@@ -19,12 +19,22 @@ from torchvision import transforms
 
 from data.utils.datasets import DATASETS, BaseDataset
 from src.client.fedavg import FedAvgClient
-from src.utils.constants import (DATA_MEAN, DATA_STD, FLBENCH_ROOT,
-                                 LR_SCHEDULERS, OPTIMIZERS, OUT_DIR)
+from src.utils.constants import (
+    DATA_MEAN,
+    DATA_STD,
+    FLBENCH_ROOT,
+    LR_SCHEDULERS,
+    OPTIMIZERS,
+    OUT_DIR,
+)
 from src.utils.metrics import Metrics
 from src.utils.models import MODELS, DecoupledModel
-from src.utils.tools import (Logger, NestedNamespace, fix_random_seed,
-                             get_optimal_cuda_device)
+from src.utils.tools import (
+    Logger,
+    NestedNamespace,
+    fix_random_seed,
+    get_optimal_cuda_device,
+)
 from src.utils.trainer import FLbenchTrainer
 
 
@@ -413,7 +423,7 @@ class FedAvgServer:
         )
 
     def train_one_round(self):
-        """The function of indicating specific things FL method 
+        """The function of indicating specific things FL method
         need to do (at server side) in each communication round.
         """
 

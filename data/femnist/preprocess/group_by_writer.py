@@ -10,7 +10,7 @@ write_class = util.load_obj(wwcd)
 writers = []  # each entry is a (writer, [list of (file, class)]) tuple
 cimages = []
 (cw, _, _) = write_class[0]
-for (w, f, c) in write_class:
+for w, f, c in write_class:
     if w != cw:
         writers.append((cw, cimages))
         cw = w
