@@ -201,10 +201,6 @@ class FedAvgServer:
             console=stdout,
         )
 
-        self.logger.log("=" * 20, self.algo, "=" * 20)
-        self.logger.log("Experiment Arguments:")
-        self.logger.log(JSON(str(self.args)))
-
         if self.args.common.visible is not None:
             self.monitor_window_name_suffix = (
                 self.args.dataset.monitor_window_name_suffix
@@ -218,10 +214,7 @@ class FedAvgServer:
             from torch.utils.tensorboard import SummaryWriter
 
             self.tensorboard = SummaryWriter(log_dir=self.output_dir)
-            self.tensorboard.add_text(
-                f"ExperimentalArguments-{self.monitor_window_name_suffix}",
-                f"<pre>{self.args}</pre>",
-            )
+
         # init trainer
         self.trainer: FLbenchTrainer = None
         if use_fedavg_client_cls:
@@ -364,38 +357,41 @@ class FedAvgServer:
         target_optimizer_cls: type[torch.optim.Optimizer] = OPTIMIZERS[
             self.args.common.optimizer.name
         ]
-        _required_args = inspect.getfullargspec(target_optimizer_cls.__init__).args
-        _opt_kwargs = {}
+        keys_required = inspect.getfullargspec(target_optimizer_cls.__init__).args
+        args_valid = {}
         for key, value in vars(self.args.common.optimizer).items():
-            if key in _required_args:
-                _opt_kwargs[key] = value
+            if key in keys_required:
+                args_valid[key] = value
 
-        optimizer = functools.partial(target_optimizer_cls, **_opt_kwargs)
-        _opt_kwargs["name"] = self.args.common.optimizer.name
-        self.args.common.optimizer = NestedNamespace(_opt_kwargs)
-        return optimizer
+        optimizer_cls = functools.partial(target_optimizer_cls, **args_valid)
+        args_valid["name"] = self.args.common.optimizer.name
+        self.args.common.optimizer = NestedNamespace(args_valid)
+        return optimizer_cls
 
     def get_client_lr_scheduler(self):
-        try:
+        if hasattr(self.args.common, "lr_scheduler"):
+            if self.args.common.lr_scheduler.name is None:
+                del self.args.common.lr_scheduler
+                return None
             lr_scheduler_args = getattr(self.args.common, "lr_scheduler")
             if lr_scheduler_args.name is not None:
                 target_scheduler_cls: type[torch.optim.lr_scheduler.LRScheduler] = (
                     LR_SCHEDULERS[lr_scheduler_args.name]
                 )
-                _required_args = inspect.getfullargspec(
+                keys_required = inspect.getfullargspec(
                     target_scheduler_cls.__init__
                 ).args
 
-                _opt_kwargs = {}
+                args_valid = {}
                 for key, value in vars(self.args.common.lr_scheduler).items():
-                    if key in _required_args:
-                        _opt_kwargs[key] = value
+                    if key in keys_required:
+                        args_valid[key] = value
 
-                lr_scheduler = functools.partial(target_scheduler_cls, **_opt_kwargs)
-                _opt_kwargs["name"] = self.args.common.lr_scheduler.name
-                self.args.common.lr_scheduler = NestedNamespace(_opt_kwargs)
-                return lr_scheduler
-        except:
+                lr_scheduler_cls = functools.partial(target_scheduler_cls, **args_valid)
+                args_valid["name"] = self.args.common.lr_scheduler.name
+                self.args.common.lr_scheduler = NestedNamespace(args_valid)
+                return lr_scheduler_cls
+        else:
             return None
 
     def train(self):
@@ -674,6 +670,15 @@ class FedAvgServer:
         Raises:
             RuntimeError: When FL-bench trainer is not set properly.
         """
+        self.logger.log("=" * 20, self.algo, "=" * 20)
+        self.logger.log("Experiment Arguments:")
+        self.logger.log(JSON(str(self.args)))
+        if self.args.common.visible == "tensorboard":
+            self.tensorboard.add_text(
+                f"ExperimentalArguments-{self.monitor_window_name_suffix}",
+                f"<pre>{self.args}</pre>",
+            )
+
         begin = time.time()
         try:
             self.train()
