@@ -185,7 +185,7 @@ class FedAvgServer:
         }
 
         self.verbose = False
-        stdout = Console(log_path=False, log_time=False, soft_wrap=True)
+        stdout = Console(log_path=False, log_time=False, soft_wrap=True, tab_size=4)
         self.logger = Logger(
             stdout=stdout,
             enable_log=self.args.common.save_log,
@@ -401,7 +401,7 @@ class FedAvgServer:
             self.verbose = (self.current_epoch + 1) % self.args.common.verbose_gap == 0
 
             if self.verbose:
-                self.logger.log("-" * 26, f"TRAINING EPOCH: {E + 1}", "-" * 26)
+                self.logger.log("-" * 28, f"TRAINING EPOCH: {E + 1}", "-" * 28)
 
             self.selected_clients = self.client_sample_stream[E]
             begin = time.time()
