@@ -196,8 +196,10 @@ class FedFedClient(FedAvgClient):
             )
 
     def mixup_data(self, x: torch.Tensor, y: torch.Tensor):
-        if self.args.fedfed.alpha > 0:
-            lamda = np.random.beta(self.args.fedfed.alpha, self.args.fedfed.alpha)
+        if self.args.fedfed.VAE_alpha > 0:
+            lamda = np.random.beta(
+                self.args.fedfed.VAE_alpha, self.args.fedfed.VAE_alpha
+            )
         else:
             lamda = 1.0
 
