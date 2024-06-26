@@ -13,7 +13,8 @@ def dirichlet(
     partition: dict,
     stats: dict,
 ):
-    """Partition dataset according to Dirichlet with concentration parameter `alpha`.
+    """Partition dataset according to Dirichlet with concentration parameter
+    `alpha`.
 
     Args:
         targets (np.ndarray): Data label array.
@@ -25,7 +26,6 @@ def dirichlet(
         least_samples (int): Lease number of data samples each client should have.
         partition (Dict): Output data indices dict.
         stats (Dict): Output dict that recording clients data distribution.
-
     """
     min_size = 0
     indices_4_labels = {i: np.where(targets == i)[0] for i in label_set}

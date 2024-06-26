@@ -1,10 +1,8 @@
-"""
-samples from all raw data;
-by default samples in a non-iid manner; namely, randomly selects users from 
-raw data until their cumulative amount of data exceeds the given number of 
-datapoints to sample (specified by --fraction argument);
-ordering of original data points is not preserved in sampled data
-"""
+"""Samples from all raw data; by default samples in a non-iid manner; namely,
+randomly selects users from raw data until their cumulative amount of data
+exceeds the given number of datapoints to sample (specified by --fraction
+argument); ordering of original data points is not preserved in sampled
+data."""
 
 import argparse
 import json

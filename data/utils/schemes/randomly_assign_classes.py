@@ -14,7 +14,8 @@ def randomly_assign_classes(
     partition: dict,
     stats: dict,
 ):
-    """Partition data to make each client has almost `client_num` class of data.
+    """Partition data to make each client has almost `client_num` class of
+    data.
 
     Args:
         targets (np.ndarray): Data label array.

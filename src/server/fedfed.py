@@ -74,7 +74,7 @@ class FedFedServer(FedAvgServer):
         self.feature_distill()
 
     def feature_distill(self):
-        """Train VAE, generate shared data, distribute shared data"""
+        """Train VAE, generate shared data, distribute shared data."""
 
         def _package_VAE(client_id: int):
             server_package = self.package(client_id)

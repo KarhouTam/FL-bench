@@ -34,7 +34,8 @@ def fix_random_seed(seed: int) -> None:
 
 
 def get_optimal_cuda_device(use_cuda: bool) -> torch.device:
-    """Dynamically select CUDA device (has the most memory) for running FL experiment.
+    """Dynamically select CUDA device (has the most memory) for running FL
+    experiment.
 
     Args:
         use_cuda (bool): `True` for using CUDA; `False` for using CPU only.
@@ -121,7 +122,8 @@ def parse_args(
     get_method_args_func: Callable[[Sequence[str] | None], Namespace] | None,
     method_args_list: list[str],
 ) -> Namespace:
-    """Purge arguments from default args dict, config file and CLI and produce the final arguments.
+    """Purge arguments from default args dict, config file and CLI and produce
+    the final arguments.
 
     Args:
         config_file_args (Union[dict, None]): Argument dictionary loaded from user-defined `.yml` file. `None` for unspecifying.
@@ -180,7 +182,8 @@ class Logger:
     def __init__(
         self, stdout: Console, enable_log: bool, logfile_path: Union[Path, str]
     ):
-        """This class is for solving the incompatibility between the progress bar and log function in library `rich`.
+        """This class is for solving the incompatibility between the progress
+        bar and log function in library `rich`.
 
         Args:
             stdout (Console): The `rich.console.Console` for printing info onto stdout.

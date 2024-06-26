@@ -14,7 +14,9 @@ def allocate_shards(
     partition: dict,
     stats: dict,
 ):
-    """Refer to the mehtod used in FedAvg paper. Sort data by label first and split them into `shard_num * client_num` and allocate each client `shard_num` shards.
+    """Refer to the mehtod used in FedAvg paper. Sort data by label first and
+    split them into `shard_num * client_num` and allocate each client
+    `shard_num` shards.
 
     Args:
         targets (np.ndarray): Data label array.

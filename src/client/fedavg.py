@@ -75,13 +75,15 @@ class FedAvgClient:
         self.return_diff = return_diff
 
     def load_data_indices(self):
-        """This function is for loading data indices for No.`self.client_id` client."""
+        """This function is for loading data indices for No.`self.client_id`
+        client."""
         self.trainset.indices = self.data_indices[self.client_id]["train"]
         self.valset.indices = self.data_indices[self.client_id]["val"]
         self.testset.indices = self.data_indices[self.client_id]["test"]
 
     def train_with_eval(self):
-        """Wraps `fit()` with `evaluate()` and collect model evaluation results
+        """Wraps `fit()` with `evaluate()` and collect model evaluation
+        results.
 
         A model evaluation results dict: {
                 `before`: {...}
@@ -156,8 +158,8 @@ class FedAvgClient:
         return client_package
 
     def package(self):
-        """Package data that client needs to transmit to the server.
-        You can override this function and add more parameters.
+        """Package data that client needs to transmit to the server. You can
+        override this function and add more parameters.
 
         Returns:
             A dict: {
@@ -267,7 +269,8 @@ class FedAvgClient:
         return {"train": train_metrics, "val": val_metrics, "test": test_metrics}
 
     def test(self, server_package: dict[str, Any]) -> dict[str, dict[str, Metrics]]:
-        """Test client model. If `finetune_epoch > 0`, `finetune()` will be activated.
+        """Test client model. If `finetune_epoch > 0`, `finetune()` will be
+        activated.
 
         Args:
             server_package: Parameter package.
@@ -300,7 +303,10 @@ class FedAvgClient:
         return results
 
     def finetune(self):
-        """Client model finetuning. This function will only be activated in `test()`"""
+        """Client model finetuning.
+
+        This function will only be activated in `test()`
+        """
         self.model.train()
         self.dataset.train()
         for _ in range(self.args.common.finetune_epoch):

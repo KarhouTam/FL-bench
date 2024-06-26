@@ -18,8 +18,8 @@ MAX_WRITERS = 100  # max number of writers per json file.
 
 
 def relabel_class(c):
-    """
-    maps hexadecimal class value (string) to a decimal number
+    """Maps hexadecimal class value (string) to a decimal number.
+
     returns:
     - 0 through 9 for classes representing respective numbers
     - 10 through 35 for classes representing respective uppercase letters

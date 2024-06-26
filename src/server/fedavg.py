@@ -229,8 +229,8 @@ class FedAvgServer:
     def init_trainer(self, fl_client_cls=FedAvgClient, **extras):
         """Initiate the FL-bench trainier that responsible to client training.
         `extras` are the arguments of `fl_client_cls.__init__()` that not in
-        `[model, args, optimizer_cls, lr_scheduler_cls, dataset, data_indices, device, return_diff]`,
-        which are essential for all methods in FL-bench.
+        `[model, args, optimizer_cls, lr_scheduler_cls, dataset, data_indices,
+        device, return_diff]`, which are essential for all methods in FL-bench.
 
         Args:
             `fl_client_cls`: The class of client in FL method. Defaults to `FedAvgClient`.
@@ -312,8 +312,9 @@ class FedAvgServer:
         return dataset
 
     def get_dataset_transforms(self):
-        """Define data preprocessing schemes. These schemes will work for every client.
-        Consider to overwrite this function for your unique data preprocessing.
+        """Define data preprocessing schemes. These schemes will work for every
+        client. Consider to overwrite this function for your unique data
+        preprocessing.
 
         Returns:
             Dict[str, Callable], which includes keys:
@@ -423,18 +424,18 @@ class FedAvgServer:
         )
 
     def train_one_round(self):
-        """The function of indicating specific things FL method
-        need to do (at server side) in each communication round.
-        """
+        """The function of indicating specific things FL method need to do (at
+        server side) in each communication round."""
 
         clients_package = self.trainer.train()
         self.aggregate(clients_package)
 
     def package(self, client_id: int):
-        """Package parameters that the client-side training needs.
-        If you are implementing your own FL method and your method has different parameters to FedAvg's
-        that passes from server-side to client-side, this method need to be overrided.
-        All this method should do is returning a dict that contains all parameters.
+        """Package parameters that the client-side training needs. If you are
+        implementing your own FL method and your method has different
+        parameters to FedAvg's that passes from server-side to client-side,
+        this method need to be overrided. All this method should do is
+        returning a dict that contains all parameters.
 
         Args:
             client_id: The client ID.
@@ -461,7 +462,8 @@ class FedAvgServer:
         )
 
     def test(self):
-        """The function for testing FL method's output (a single global model or personalized client models)."""
+        """The function for testing FL method's output (a single global model
+        or personalized client models)."""
         self.testing = True
         clients = list(set(self.val_clients + self.test_clients))
         template = {
@@ -487,8 +489,8 @@ class FedAvgServer:
         self.testing = False
 
     def get_client_model_params(self, client_id: int) -> OrderedDict[str, torch.Tensor]:
-        """
-        This function is for outputting model parameters that asked by `client_id`.
+        """This function is for outputting model parameters that asked by
+        `client_id`.
 
         Args:
             client_id (int): The ID of query client.
@@ -507,7 +509,8 @@ class FedAvgServer:
 
     @torch.no_grad()
     def aggregate(self, clients_package: OrderedDict[int, dict[str, Any]]):
-        """Aggregate clients model parameters and produce global model parameters.
+        """Aggregate clients model parameters and produce global model
+        parameters.
 
         Args:
             clients_package: Dict of client parameter packages, with format:
@@ -547,7 +550,8 @@ class FedAvgServer:
                 global_param.data = aggregated
 
     def show_convergence(self):
-        """Collect the number of epoches that FL method reach specific accuracies while training."""
+        """Collect the number of epoches that FL method reach specific
+        accuracies while training."""
         colors = {
             "before": "blue",
             "after": "red",

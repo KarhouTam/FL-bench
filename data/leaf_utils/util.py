@@ -12,11 +12,8 @@ def load_obj(name):
 
 
 def iid_divide(l, g):
-    """
-    divide list l among g groups
-    each group has either int(len(l)/g) or int(len(l)/g)+1 elements
-    returns a list of groups
-    """
+    """Divide list l among g groups each group has either int(len(l)/g) or
+    int(len(l)/g)+1 elements returns a list of groups."""
     num_elems = len(l)
     group_size = int(len(l) / g)
     num_big_groups = num_elems - g * group_size
