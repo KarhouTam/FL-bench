@@ -94,7 +94,7 @@ class MetaFedServer(FedAvgServer):
             self.selected_clients = self.client_sample_stream[E]
             self.verbose = (E + 1) % self.args.common.verbose_gap == 0
             if self.verbose:
-                self.logger.log("-" * 26, f"TRAINING EPOCH: {E + 1}", "-" * 26)
+                self.logger.log("-" * 28, f"TRAINING EPOCH: {E + 1}", "-" * 28)
 
             begin = time.time()
             selected_clients_this_round = self.selected_clients

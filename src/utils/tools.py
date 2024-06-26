@@ -201,6 +201,7 @@ class Logger:
                 log_path=False,
                 log_time=False,
                 soft_wrap=True,
+                tab_size=4,
             )
 
     def log(self, *args, **kwargs):
