@@ -71,7 +71,10 @@ class FedFedServer(FedAvgServer):
         }
         del dummy_VAE_model, dummy_VAE_optimizer
 
+    def train(self):
+        # do the feature distillation before regular FL training
         self.feature_distill()
+        super().train()
 
     def feature_distill(self):
         """Train VAE, generate shared data, distribute shared data."""

@@ -406,9 +406,6 @@ class FedAvgServer:
             if self.verbose:
                 self.logger.log("-" * 26, f"TRAINING EPOCH: {E + 1}", "-" * 26)
 
-            if (E + 1) % self.args.common.test_interval == 0:
-                self.test()
-
             self.selected_clients = self.client_sample_stream[E]
             begin = time.time()
             self.train_one_round()
@@ -417,6 +414,9 @@ class FedAvgServer:
             avg_round_time = (avg_round_time * (self.current_epoch) + (end - begin)) / (
                 self.current_epoch + 1
             )
+
+            if (E + 1) % self.args.common.test_interval == 0:
+                self.test()
 
         self.logger.log(
             f"{self.algo}'s average time taken by each global epoch: "
@@ -674,7 +674,21 @@ class FedAvgServer:
             RuntimeError: When FL-bench trainer is not set properly.
         """
         begin = time.time()
-        self.train()
+        try:
+            self.train()
+        except KeyboardInterrupt:
+            # when user press Ctrl+C
+            # indicates that this run should be considered as useless and deleted.
+            self.logger.close()
+            if self.args.common.delete_useless_run:
+                os.system(f"rm -rf {self.output_dir}")
+                return
+        except Exception as e:
+            self.logger.log("=" * 20, "ERROR", "=" * 20)
+            self.logger.log(str(e))
+            self.logger.close()
+            return
+
         end = time.time()
         total = end - begin
         self.logger.log(

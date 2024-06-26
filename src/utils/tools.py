@@ -191,22 +191,26 @@ class Logger:
             logfile_path (Union[Path, str]): The path of log file.
         """
         self.stdout = stdout
-        self.logfile_stream = None
+        self.logfile_output_stream = None
         self.enable_log = enable_log
         if self.enable_log:
-            self.logfile_stream = open(logfile_path, "w")
-            self.logger = Console(
-                file=self.logfile_stream, record=True, log_path=False, log_time=False
+            self.logfile_output_stream = open(logfile_path, "w")
+            self.logfile_logger = Console(
+                file=self.logfile_output_stream,
+                record=True,
+                log_path=False,
+                log_time=False,
+                soft_wrap=True,
             )
 
     def log(self, *args, **kwargs):
         self.stdout.log(*args, **kwargs)
         if self.enable_log:
-            self.logger.log(*args, **kwargs)
+            self.logfile_logger.log(*args, **kwargs)
 
     def close(self):
-        if self.logfile_stream:
-            self.logfile_stream.close()
+        if self.logfile_output_stream:
+            self.logfile_output_stream.close()
 
 
 class NestedNamespace(Namespace):

@@ -61,10 +61,7 @@ class pFedSimServer(FedAvgServer):
             self.selected_clients = self.client_sample_stream[E]
             self.verbose = (E + 1) % self.args.common.verbose_gap == 0
             if self.verbose:
-                self.logger.log(" " * 30, f"TRAINING EPOCH: {E + 1}", " " * 30)
-
-            if (E + 1) % self.args.common.test_interval == 0:
-                self.test()
+                self.logger.log("-" * 26, f"TRAINING EPOCH: {E + 1}", "-" * 26)
 
             begin = time.time()
             clients_package = self.trainer.train()
@@ -87,6 +84,9 @@ class pFedSimServer(FedAvgServer):
             avg_round_time = (avg_round_time * (self.current_epoch) + (end - begin)) / (
                 self.current_epoch + 1
             )
+
+            if (E + 1) % self.args.common.test_interval == 0:
+                self.test()
 
         self.logger.log(
             f"{self.algo}'s average time taken by each global epoch: "

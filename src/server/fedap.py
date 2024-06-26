@@ -130,9 +130,6 @@ class FedAPServer(FedAvgServer):
             if self.verbose:
                 self.logger.log(" " * 30, f"TRAINING EPOCH: {E + 1}", " " * 30)
 
-            if (E + 1) % self.args.common.test_interval == 0:
-                self.test()
-
             self.selected_clients = self.client_sample_stream[E]
 
             begin = time.time()
@@ -142,6 +139,9 @@ class FedAPServer(FedAvgServer):
             avg_round_time = (avg_round_time * (self.current_epoch) + (end - begin)) / (
                 self.current_epoch + 1
             )
+
+            if (E + 1) % self.args.common.test_interval == 0:
+                self.test()
 
         self.logger.log(
             f"{self.algo}'s average time taken by each global epoch: {int(avg_round_time // 60)} m {(avg_round_time % 60):.2f} s."

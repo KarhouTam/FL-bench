@@ -55,6 +55,7 @@ common:
   save_model: false
   save_fig: true
   save_metrics: true
+  delete_useless_run: true
 
 # You can set specific arguments for FL methods also
 # FL-bench uses FL method arguments by args.<method>.<arg>

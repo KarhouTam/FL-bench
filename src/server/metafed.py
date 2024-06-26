@@ -96,9 +96,6 @@ class MetaFedServer(FedAvgServer):
             if self.verbose:
                 self.logger.log("-" * 26, f"TRAINING EPOCH: {E + 1}", "-" * 26)
 
-            if (E + 1) % self.args.common.test_interval == 0:
-                self.test()
-
             begin = time.time()
             selected_clients_this_round = self.selected_clients
             for client_id in selected_clients_this_round:
@@ -110,6 +107,9 @@ class MetaFedServer(FedAvgServer):
             avg_round_time = (avg_round_time * (self.current_epoch) + (end - begin)) / (
                 self.current_epoch + 1
             )
+
+            if (E + 1) % self.args.common.test_interval == 0:
+                self.test()
 
         self.logger.log(
             f"{self.algo}'s average time taken by each global epoch: {int(avg_round_time // 60)} m {(avg_round_time % 60):.2f} s."
