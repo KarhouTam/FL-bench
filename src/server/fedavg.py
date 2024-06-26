@@ -5,6 +5,7 @@ import os
 import pickle
 import random
 import time
+import warnings
 from collections import OrderedDict
 from copy import deepcopy
 from typing import Any
@@ -804,9 +805,10 @@ class FedAvgServer:
         # save trained model(s) parameters
         if self.args.common.save_model:
             model_name = f"{self.args.common.dataset}_{self.args.common.global_epoch}_{self.args.common.model}.pt"
-            if self.unique_model:
-                torch.save(
-                    self.clients_personal_model_params, self.output_dir / model_name
-                )
-            else:
+            if not self.unique_model:
                 torch.save(self.public_model_params, self.output_dir / model_name)
+            else:
+                warnings.warn(
+                    f"{self.algo}'s unique_model = True, which does not support saving model parameters. "
+                    "So the saving is skipped."
+                )
