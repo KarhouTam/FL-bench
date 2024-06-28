@@ -687,7 +687,8 @@ class FedAvgServer:
             # indicates that this run should be considered as useless and deleted.
             self.logger.close()
             if self.args.common.delete_useless_run:
-                os.system(f"rm -rf {self.output_dir}")
+                if os.path.isdir(self.output_dir):
+                    os.system(f"rm -rf {self.output_dir}")
                 return
         except Exception as e:
             self.logger.log("=" * 20, "ERROR", "=" * 20)
