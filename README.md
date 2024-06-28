@@ -377,6 +377,16 @@ The `package()` at server-side class is used for assembling all parameters serve
 
 - Consider to inherit your method classes from [`FedAvgServer`](src/server/fedavg.py) and [`FedAvgClient`](src/client/fedavg.py) for maximum utilizing FL-bench's workflow.
 
+- You can also inherit your method classes from other advanced FL methods, e.g., FedBN, FedProx, etc. Which will inherit all functions, variables and hyperparamters. If you do that, you need to careful design your method in order to avoid potential hyperparamters and workflow conflicts.
+```python
+class YourServer(FedBNServer):
+  ...
+
+class YourClient(FedBNClient):
+  ...
+```
+
+
 - For customizing your server-side process, consider to override the `package()` and `aggregate()`.
 
 - For customizing your client-side training, consider to override the `fit()` or `package()`.
