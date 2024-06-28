@@ -64,19 +64,20 @@ if __name__ == "__main__":
     # target method is not inherited from FedAvgServer
     if server_class.__bases__[0] != FedAvgServer and server_class != FedAvgServer:
         parent_server_class = server_class.__bases__[0]
-        get_parent_method_hyperparams_func = getattr(
-            parent_server_class, f"get_hyperparams", None
-        )
-        # class name: ***Server, only want ***
-        parent_method_name = parent_server_class.__name__.lower()[:-6]
-        # extract the hyperparams of parent method
-        PARENT_ARGS = parse_args(
-            config_file_args,
-            parent_method_name,
-            get_parent_method_hyperparams_func,
-            cli_method_args,
-        )
-        setattr(ARGS, parent_method_name, getattr(PARENT_ARGS, parent_method_name))
+        if hasattr(parent_server_class, "get_hyperparams"):
+            get_parent_method_hyperparams_func = getattr(
+                parent_server_class, f"get_hyperparams", None
+            )
+            # class name: ***Server, only want ***
+            parent_method_name = parent_server_class.__name__.lower()[:-6]
+            # extract the hyperparams of parent method
+            PARENT_ARGS = parse_args(
+                config_file_args,
+                parent_method_name,
+                get_parent_method_hyperparams_func,
+                cli_method_args,
+            )
+            setattr(ARGS, parent_method_name, getattr(PARENT_ARGS, parent_method_name))
 
     if ARGS.mode == "parallel":
         import ray
