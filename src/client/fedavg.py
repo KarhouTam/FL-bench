@@ -31,7 +31,7 @@ class FedAvgClient:
             self.device = device
         self.dataset = dataset
         self.model = model.to(self.device)
-        self.global_regular_model_params: OrderedDict[str, torch.Tensor]
+        self.regular_model_params: OrderedDict[str, torch.Tensor]
         self.personal_params_name: list[str] = []
         self.regular_params_name = list(key for key, _ in self.model.named_parameters())
         if self.args.common.buffers == "local":
@@ -142,7 +142,7 @@ class FedAvgClient:
 
         if self.return_diff:
             model_params = self.model.state_dict()
-            self.global_regular_model_params = OrderedDict(
+            self.regular_model_params = OrderedDict(
                 (key, model_params[key].clone().cpu())
                 for key in self.regular_params_name
             )
@@ -191,7 +191,7 @@ class FedAvgClient:
                 key: param_old - param_new
                 for (key, param_new), param_old in zip(
                     client_package["regular_model_params"].items(),
-                    self.global_regular_model_params.values(),
+                    self.regular_model_params.values(),
                 )
             }
             client_package.pop("regular_model_params")
