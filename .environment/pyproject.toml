@@ -3,7 +3,7 @@ name = "fl-bench"
 version = "0.2.0"
 description = "Benchmark of federated learning that aim solving image classification tasks."
 authors = ["KarhouTam <karhoutam@qq.com>"]
-license = "GPL-2.0-or-later"
+license = "MIT"
 readme = ["../README.md", "../data/README.md"]
 repository = "https://github.com/KarhouTam/FL-bench"
 
