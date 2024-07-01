@@ -140,7 +140,7 @@ class HyperNetwork(nn.Module):
         self.params_shape = {
             name: backbone.state_dict()[name].shape for name in self.params_name
         }
-        self.params_generator = nn.ParameterDict()
+        self.params_generator = nn.ModuleDict()
         for name, param in zip(self.params_name, parameters):
             self.params_generator[name] = nn.Linear(
                 args.hidden_dim, len(param.flatten())

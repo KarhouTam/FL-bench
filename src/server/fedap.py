@@ -64,12 +64,12 @@ class FedAPServer(FedAvgServer):
 
     def train(self):
         # Pre-training phase
-        warmup_progress_bar = track(
+        self.train_progress_bar = track(
             range(self.pretrain_round),
             "[bold green]Warming-up...",
             console=self.logger.stdout,
         )
-        for E in warmup_progress_bar:
+        for E in self.train_progress_bar:
             self.current_epoch = E
 
             if self.args.fedap.version == "f":

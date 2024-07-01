@@ -43,7 +43,7 @@ class pFedSimServer(FedAvgServer):
 
         # Personalization Phase
         avg_round_time = 0
-        pfedsim_progress_bar = track(
+        self.train_progress_bar = track(
             range(self.warmup_round, self.args.common.global_epoch),
             "[bold green]Personalizing...",
             console=self.logger.stdout,
@@ -56,7 +56,7 @@ class pFedSimServer(FedAvgServer):
             key for key in self.public_model_params.keys() if "classifier" not in key
         ]
 
-        for E in pfedsim_progress_bar:
+        for E in self.train_progress_bar:
             self.current_epoch = E
             self.selected_clients = self.client_sample_stream[E]
             self.verbose = (E + 1) % self.args.common.verbose_gap == 0
