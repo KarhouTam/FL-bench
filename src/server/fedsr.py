@@ -74,15 +74,13 @@ class FedSRServer(FedAvgServer):
             _init_global_params_name.append(key)
         self.public_model_param_names = list(self.public_model_params.keys())
 
-        model_params_file_path = str(
-            (FLBENCH_ROOT / self.args.common.external_model_params_file).absolute()
-        )
-        if (
-            os.path.isfile(model_params_file_path)
-            and model_params_file_path.find(".pt") != -1
-        ):
-            self.public_model_params.update(
-                torch.load(model_params_file_path, map_location="cpu")
+        if self.args.common.external_model_params_file is not None:
+            file_path = str(
+                (FLBENCH_ROOT / self.args.common.external_model_params_file).absolute()
             )
+            if os.path.isfile(file_path) and file_path.find(".pt") != -1:
+                self.public_model_params.update(
+                    torch.load(file_path, map_location="cpu")
+                )
 
         self.init_trainer(FedSRClient)
