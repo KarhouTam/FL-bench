@@ -103,25 +103,27 @@ pip install -r .environment/requirements.txt
 ```
 
 ### Poetry 🎶
-
+For those China mainland users
 ```sh
-# For those China mainland users
 poetry install --no-root -C .environment
-
-# For those oversea users
+```
+For others
+```sh
 cd .environment && sed -i "10,14d" pyproject.toml && poetry lock --no-update && poetry install --no-root
 ```
 
 ### Docker 🐳
 
+For those China mainland users
 ```shell
-# For those China mainland users
 docker pull registry.cn-hangzhou.aliyuncs.com/karhoutam/fl-bench:master
-
-# For those oversea users
+```
+For others
+```sh
 docker pull ghcr.io/karhoutam/fl-bench:master
-
-# An example for building container
+```
+An example of building container
+```sh
 docker run -it --name fl-bench -v path/to/FL-bench:/root/FL-bench --privileged --gpus all ghcr.io/karhoutam/fl-bench:master
 ```
 
@@ -131,22 +133,25 @@ docker run -it --name fl-bench -v path/to/FL-bench:/root/FL-bench --privileged -
 ALL classes of methods are inherited from `FedAvgServer` and `FedAvgClient`. If you wanna figure out the entire workflow and detail of variable settings, go check [`src/server/fedavg.py`](src/server/fedavg.py) and [`src/client/fedavg.py`](src/client/fedavg.py).
 
 ### Step 1. Generate FL Dataset
+Partition the MNIST according to Dir(0.1) for 100 clients
 ```shell
-# Partition the MNIST according to Dir(0.1) for 100 clients
 python generate_data.py -d mnist -a 0.1 -cn 100
 ```
 About methods of generating federated dastaset, go check [`data/README.md`](data/#readme) for full details.
 
 
 ### Step 2. Run Experiment
-`python main.py <method> [your_config_file.yml] [method_args...]`
-
 ❗ Method name should be identical to the `.py` file name in `src/server`.
-
+```sh
+python main.py <method> [your_config_file.yml] [method_args...]
 ```
-# Run FedAvg with default settings. 
+
+Such as running FedAvg with all defaults. 
+```sh
 python main.py fedavg
 ```
+Defaults are set in [`src/utils/constants.py`](src/utils/constants.py)
+
 ### How To Customize FL method Arguments 🤖
 - By modifying config file
 - By explicitly setting in CLI, e.g., `python main.py fedprox config/my_cfg.yml --mu 0.01`.
