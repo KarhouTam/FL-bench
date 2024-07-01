@@ -92,10 +92,12 @@ class FedFedServer(FedAvgServer):
             return server_package
 
         num_join = max(1, int(self.args.common.join_ratio * len(self.train_clients)))
-        for i in track(
+        self.train_progress_bar = track(
             range(self.args.fedfed.VAE_train_global_epoch),
             description="[magenta bold]Training VAE...",
-        ):
+            console=self.logger.stdout,
+        )
+        for _ in self.train_progress_bar:
             selected_clients = random.sample(self.train_clients, num_join)
             client_packages = self.trainer.exec(
                 func_name="train_VAE",
@@ -164,6 +166,13 @@ class FedFedServer(FedAvgServer):
             func_name="accept_global_shared_data",
             clients=self.train_clients,
             package_func=_package_distribute_data,
+        )
+
+        # restore the progress bar for regular FL training
+        self.train_progress_bar = track(
+            range(self.args.common.global_epoch),
+            "[bold green]Training...",
+            console=self.logger.stdout,
         )
 
 

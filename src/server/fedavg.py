@@ -686,15 +686,15 @@ class FedAvgServer:
             # when user press Ctrl+C
             # indicates that this run should be considered as useless and deleted.
             self.logger.close()
+            del self.train_progress_bar
             if self.args.common.delete_useless_run:
                 if os.path.isdir(self.output_dir):
                     os.removedirs(self.output_dir)
                 return
-        except Exception as e:
-            self.logger.log("=" * 20, "ERROR", "=" * 20)
-            self.logger.log(str(e))
+        except:
             self.logger.close()
-            return
+            del self.train_progress_bar
+            raise
 
         end = time.time()
         total = end - begin
