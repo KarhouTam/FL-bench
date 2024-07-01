@@ -34,9 +34,9 @@ class FedProtoServer(FedAvgServer):
         return server_package
 
     def train_one_round(self):
-        clients_package = self.trainer.train()
+        client_packages = self.trainer.train()
         self.aggregate_prototypes(
-            [package["prototypes"] for package in clients_package.values()]
+            [package["prototypes"] for package in client_packages.values()]
         )
 
     def aggregate_prototypes(

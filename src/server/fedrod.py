@@ -56,14 +56,14 @@ class FedRoDServer(FedAvgServer):
         return server_package
 
     @torch.no_grad()
-    def aggregate(self, clients_package: dict[int, dict[str, Any]]):
-        for client_id in clients_package.keys():
+    def aggregate(self, client_packages: dict[int, dict[str, Any]]):
+        for client_id in client_packages.keys():
             self.first_time_selected[client_id] = False
-        clients_weight = [package["weight"] for package in clients_package.values()]
-        weights = torch.tensor(clients_weight) / sum(clients_weight)
+        client_weights = [package["weight"] for package in client_packages.values()]
+        weights = torch.tensor(client_weights) / sum(client_weights)
         clients_model_params_list = [
             list(package["regular_model_params"].values())
-            for package in clients_package.values()
+            for package in client_packages.values()
         ]
         for old_param, zipped_new_param in zip(
             self.public_model_params.values(), zip(*clients_model_params_list)
@@ -75,7 +75,7 @@ class FedRoDServer(FedAvgServer):
         if self.args.fedrod.hyper:
             clients_hypernet_params_list = [
                 list(package["hypernet_params"].values())
-                for package in clients_package.values()
+                for package in client_packages.values()
             ]
             for old_param, zipped_new_param in zip(
                 self.hyper_params_dict.values(), zip(*clients_hypernet_params_list)

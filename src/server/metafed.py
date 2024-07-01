@@ -39,7 +39,7 @@ class MetaFedServer(FedAvgServer):
             args.mode = "serial"
         super().__init__(args, algo, unique_model, use_fedavg_client_cls, return_diff)
         self.warmup = True
-        self.clients_flag = [True for _ in self.train_clients]
+        self.client_flags = [True for _ in self.train_clients]
         self.init_trainer(MetaFedClient)
 
     def package(self, client_id: int):
@@ -47,9 +47,9 @@ class MetaFedServer(FedAvgServer):
         server_package["local_epoch"] = (
             self.args.metafed.warmup_round
             if self.warmup
-            else self.clients_local_epoch[client_id]
+            else self.client_local_epoches[client_id]
         )
-        server_package["client_flag"] = self.clients_flag[client_id]
+        server_package["client_flag"] = self.client_flags[client_id]
         return server_package
 
     def get_client_model_params(self, client_id: int) -> OrderedDict[str, Tensor]:
@@ -82,7 +82,7 @@ class MetaFedServer(FedAvgServer):
             self.clients_personal_model_params[client_id].update(
                 client_package[client_id]["client_model_params"]
             )
-            self.clients_flag[client_id] = client_package[client_id]["client_flag"]
+            self.client_flags[client_id] = client_package[client_id]["client_flag"]
 
         self.warmup = False
         self.test()
@@ -101,7 +101,7 @@ class MetaFedServer(FedAvgServer):
             for client_id in selected_clients_this_round:
                 self.selected_clients = [client_id]
                 client_package = self.trainer.train()
-                self.clients_flag[client_id] = client_package[client_id]["client_flag"]
+                self.client_flags[client_id] = client_package[client_id]["client_flag"]
             end = time.time()
             self.log_info()
             avg_round_time = (avg_round_time * (self.current_epoch) + (end - begin)) / (
@@ -127,7 +127,7 @@ class MetaFedServer(FedAvgServer):
             self.clients_personal_model_params[client_id].update(
                 client_package[client_id]["client_model_params"]
             )
-            self.clients_metrics[client_id][self.current_epoch] = client_package[
+            self.client_metrics[client_id][self.current_epoch] = client_package[
                 client_id
             ]["eval_results"]
         self.log_info()

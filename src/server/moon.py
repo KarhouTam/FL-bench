@@ -32,12 +32,12 @@ class MOONServer(FedAvgServer):
         return server_package
 
     def train_one_round(self):
-        clients_package = self.trainer.train()
-        for client_id, package in zip(self.selected_clients, clients_package.values()):
+        client_packages = self.trainer.train()
+        for client_id, package in zip(self.selected_clients, client_packages.values()):
             self.clients_prev_model_params[client_id].update(
                 package["regular_model_params"]
             )
             self.clients_prev_model_params[client_id].update(
                 package["personal_model_params"]
             )
-        self.aggregate(clients_package)
+        self.aggregate(client_packages)

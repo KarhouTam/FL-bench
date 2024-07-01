@@ -30,25 +30,25 @@ class FedDynServer(FedAvgServer):
         self.init_trainer(FedDynClient)
         param_numel = vectorize(self.public_model_params).numel()
         self.nabla = [torch.zeros(param_numel) for _ in range(self.client_num)]
-        self.clients_weight = torch.tensor(
+        self.client_weights = torch.tensor(
             [len(self.data_indices[i]["train"]) for i in self.train_clients]
         )
-        self.clients_weight = (
-            self.clients_weight / self.clients_weight.sum() * len(self.train_clients)
+        self.client_weights = (
+            self.client_weights / self.client_weights.sum() * len(self.train_clients)
         )
 
     def package(self, client_id: int):
         server_package = super().package(client_id)
         server_package["alpha"] = (
-            self.args.feddyn.alpha / self.clients_weight[client_id]
+            self.args.feddyn.alpha / self.client_weights[client_id]
         )
         server_package["nabla"] = self.nabla[client_id]
         return server_package
 
-    def aggregate(self, clients_package: OrderedDict[int, dict[str, Any]]):
+    def aggregate(self, client_packages: OrderedDict[int, dict[str, Any]]):
         params_list = [
             list(package["regular_model_params"].values())
-            for package in clients_package.values()
+            for package in client_packages.values()
         ]
         weights = torch.ones(len(params_list)) / len(params_list)
         avg_params = [

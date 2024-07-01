@@ -87,13 +87,13 @@ class ADCOLServer(FedAvgServer):
         self.features = {}
 
     def train_one_round(self):
-        clients_package = self.trainer.train()
+        client_packages = self.trainer.train()
 
         self.features = {}
         self.feature_dataloader = None
         for cid in self.selected_clients:
-            self.features[cid] = clients_package[cid]["features_list"]
-        self.aggregate(clients_package)
+            self.features[cid] = client_packages[cid]["features_list"]
+        self.aggregate(client_packages)
         self.train_and_test_discriminator()
 
     def package(self, client_id: int):

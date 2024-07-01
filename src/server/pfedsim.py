@@ -64,18 +64,18 @@ class pFedSimServer(FedAvgServer):
                 self.logger.log("-" * 28, f"TRAINING EPOCH: {E + 1}", "-" * 28)
 
             begin = time.time()
-            clients_package = self.trainer.train()
+            client_packages = self.trainer.train()
             end = time.time()
             for client_id in self.selected_clients:
                 if not self.return_diff:
                     self.clients_personal_model_params[client_id].update(
-                        clients_package[client_id]["regular_model_params"]
+                        client_packages[client_id]["regular_model_params"]
                     )
                 else:
                     self.clients_personal_model_params[client_id].update(
                         {
                             key: self.clients_personal_model_params[client_id][key]
-                            - clients_package[client_id]["model_params_diff"][key]
+                            - client_packages[client_id]["model_params_diff"][key]
                             for key in self.public_model_param_names
                         }
                     )

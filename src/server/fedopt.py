@@ -44,16 +44,16 @@ class FedOptServer(FedAvgServer):
         )
 
     def train_one_round(self):
-        clients_package = self.trainer.train()
+        client_packages = self.trainer.train()
         clients_model_params_diff = []
-        clients_weight = []
-        for package in clients_package.values():
+        client_weights = []
+        for package in client_packages.values():
             clients_model_params_diff.append(package["model_params_diff"])
-            clients_weight.append(package["weight"])
+            client_weights.append(package["weight"])
 
         self.adaptive_optimizer.step(
             clients_model_params_diff=clients_model_params_diff,
-            weights=torch.tensor(clients_weight) / sum(clients_weight),
+            weights=torch.tensor(client_weights) / sum(client_weights),
         )
 
 

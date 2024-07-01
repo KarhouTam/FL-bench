@@ -72,11 +72,11 @@ class FedGenServer(FedAvgServer):
         return server_package
 
     def train_one_round(self):
-        clients_package = self.trainer.train()
-        self.train_generator(clients_package)
-        self.aggregate(clients_package)
+        client_packages = self.trainer.train()
+        self.train_generator(client_packages)
+        self.aggregate(client_packages)
 
-    def train_generator(self, clients_package: dict[int, dict[str, Any]]):
+    def train_generator(self, client_packages: dict[int, dict[str, Any]]):
         self.generator.train()
         self.teacher_model.eval()
         self.model.eval()
@@ -84,7 +84,7 @@ class FedGenServer(FedAvgServer):
         self.model.to(self.device)
         self.teacher_model.to(self.device)
         label_weights, qualified_labels = self.get_label_weights(
-            [package["label_counts"] for package in clients_package.values()]
+            [package["label_counts"] for package in client_packages.values()]
         )
         for _ in range(self.args.fedgen.train_generator_epoch):
             y_npy = np.random.choice(qualified_labels, self.args.common.batch_size)
@@ -97,7 +97,7 @@ class FedGenServer(FedAvgServer):
             teacher_loss = 0
             teacher_logit = 0
 
-            for i, package in enumerate(clients_package.values()):
+            for i, package in enumerate(client_packages.values()):
                 self.teacher_model.load_state_dict(
                     package["regular_model_params"], strict=False
                 )

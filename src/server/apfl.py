@@ -30,22 +30,22 @@ class APFLServer(FedAvgServer):
         self.client_local_model_params = {
             i: deepcopy(self.model.state_dict()) for i in self.train_clients
         }
-        self.clients_alpha = {
+        self.client_alphas = {
             i: torch.tensor(self.args.apfl.alpha) for i in self.train_clients
         }
 
     def package(self, client_id: int):
         server_package = super().package(client_id)
-        server_package["alpha"] = self.clients_alpha[client_id]
+        server_package["alpha"] = self.client_alphas[client_id]
         server_package["local_model_params"] = self.client_local_model_params[client_id]
         return server_package
 
     def train_one_round(self):
-        clients_package = self.trainer.train()
+        client_packages = self.trainer.train()
 
         for client_id in self.selected_clients:
-            self.client_local_model_params[client_id] = clients_package[client_id][
+            self.client_local_model_params[client_id] = client_packages[client_id][
                 "local_model_params"
             ]
-            self.clients_alpha[client_id] = clients_package[client_id]["alpha"]
-        self.aggregate(clients_package)
+            self.client_alphas[client_id] = client_packages[client_id]["alpha"]
+        self.aggregate(client_packages)

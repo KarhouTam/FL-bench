@@ -37,12 +37,12 @@ class CFLServer(FedAvgServer):
         self.client_clusters = [list(range(len(self.train_clients)))]
 
     def train_one_round(self):
-        clients_package = self.trainer.train()
+        client_packages = self.trainer.train()
 
         for client_id in self.selected_clients:
             self.clients_model_params_diff[client_id] = [
                 -diff
-                for diff in clients_package[client_id]["model_params_diff"].values()
+                for diff in client_packages[client_id]["model_params_diff"].values()
             ]
 
         self.compute_pairwise_similarity()

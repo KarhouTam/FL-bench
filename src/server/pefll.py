@@ -57,12 +57,12 @@ class PeFLLServer(FedAvgServer):
         server_package["hyper_net_params"] = self.hyper_net.state_dict()
         return server_package
 
-    def aggregate(self, clients_package: OrderedDict[int, dict[str, Any]]):
+    def aggregate(self, client_packages: OrderedDict[int, dict[str, Any]]):
         all_embed_net_grads = [
-            package["embed_net_grads"] for package in clients_package.values()
+            package["embed_net_grads"] for package in client_packages.values()
         ]
         all_hyper_net_grads = [
-            package["hyper_net_grads"] for package in clients_package.values()
+            package["hyper_net_grads"] for package in client_packages.values()
         ]
         self.embed_hyper_optimizer.zero_grad()
         for param, grads in zip(self.embed_net.parameters(), zip(*all_embed_net_grads)):

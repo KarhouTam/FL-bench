@@ -36,31 +36,31 @@ class FLbenchTrainer:
             self.exec = self._parallel_exec
 
     def _serial_train(self):
-        clients_package = OrderedDict()
+        client_packages = OrderedDict()
         for client_id in self.server.selected_clients:
             server_package = self.server.package(client_id)
             client_package = self.worker.train(server_package)
-            clients_package[client_id] = client_package
+            client_packages[client_id] = client_package
 
             if self.server.verbose:
                 self.server.logger.log(
                     *client_package["eval_results"]["message"], sep="\n"
                 )
 
-            self.server.clients_metrics[client_id][self.server.current_epoch] = (
+            self.server.client_metrics[client_id][self.server.current_epoch] = (
                 client_package["eval_results"]
             )
             self.server.clients_personal_model_params[client_id].update(
                 client_package["personal_model_params"]
             )
-            self.server.clients_optimizer_state[client_id].update(
+            self.server.client_optimizer_states[client_id].update(
                 client_package["optimizer_state"]
             )
-            self.server.clients_lr_scheduler_state[client_id].update(
+            self.server.client_lr_scheduler_states[client_id].update(
                 client_package["lr_scheduler_state"]
             )
 
-        return clients_package
+        return client_packages
 
     def _parallel_train(self):
         clients = self.server.selected_clients
@@ -68,7 +68,7 @@ class FLbenchTrainer:
         futures = []
         idle_workers = deque(range(self.num_workers))
         map = {}
-        clients_package = OrderedDict()
+        client_packages = OrderedDict()
         while i < len(clients) or len(futures) > 0:
             while i < len(clients) and len(idle_workers) > 0:
                 worker_id = idle_workers.popleft()
@@ -84,27 +84,27 @@ class FLbenchTrainer:
                     client_id, worker_id = map[finished]
                     client_package = ray.get(finished)
                     idle_workers.append(worker_id)
-                    clients_package[client_id] = client_package
+                    client_packages[client_id] = client_package
 
                     if self.server.verbose:
                         self.server.logger.log(
                             *client_package["eval_results"]["message"], sep="\n"
                         )
 
-                    self.server.clients_metrics[client_id][
-                        self.server.current_epoch
-                    ] = client_package["eval_results"]
+                    self.server.client_metrics[client_id][self.server.current_epoch] = (
+                        client_package["eval_results"]
+                    )
                     self.server.clients_personal_model_params[client_id].update(
                         client_package["personal_model_params"]
                     )
-                    self.server.clients_optimizer_state[client_id].update(
+                    self.server.client_optimizer_states[client_id].update(
                         client_package["optimizer_state"]
                     )
-                    self.server.clients_lr_scheduler_state[client_id].update(
+                    self.server.client_lr_scheduler_states[client_id].update(
                         client_package["lr_scheduler_state"]
                     )
 
-        return clients_package
+        return client_packages
 
     def _serial_test(self, clients: list[int], results: dict):
         for client_id in clients:
@@ -146,12 +146,12 @@ class FLbenchTrainer:
     ):
         if package_func is None:
             package_func = getattr(self.server, "package")
-        clients_package = OrderedDict()
+        client_packages = OrderedDict()
         for client_id in clients:
             server_package = package_func(client_id)
             package = getattr(self.worker, func_name)(server_package)
-            clients_package[client_id] = package
-        return clients_package
+            client_packages[client_id] = package
+        return client_packages
 
     def _parallel_exec(
         self,
@@ -161,7 +161,7 @@ class FLbenchTrainer:
     ):
         if package_func is None:
             package_func = getattr(self.server, "package")
-        clients_package = OrderedDict()
+        client_packages = OrderedDict()
         i = 0
         futures = []
         idle_workers = deque(range(self.num_workers))
@@ -183,6 +183,6 @@ class FLbenchTrainer:
                     package = ray.get(finished)
                     client_id, worker_id = map[finished]
                     idle_workers.append(worker_id)
-                    clients_package[client_id] = package
+                    client_packages[client_id] = package
 
-        return clients_package
+        return client_packages
