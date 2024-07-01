@@ -43,6 +43,7 @@ DEFAULT_COMMON_ARGS = {
     "save_model": False,
     "save_fig": True,
     "save_metrics": True,
+    "delete_useless_run": True,
 }
 
 DEFAULT_PARALLEL_ARGS = {
