@@ -407,7 +407,7 @@ You can find all details in [`FedAvgClient`](src/client/fedavg.py) and [`FedAvgS
 ```bibtex
 @software{Tan_FL-bench,
   author = {Tan, Jiahao and Wang, Xinpeng},
-  license = {GPL-2.0},
+  license = {MIT},
   title = {{FL-bench: A federated learning benchmark for solving image classification tasks}},
   url = {https://github.com/KarhouTam/FL-bench}
 }

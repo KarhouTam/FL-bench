@@ -22,4 +22,4 @@ abstract: >-
   classification tasks.
 keywords:
   - federated learning
-license: GPL-2.0
+license: MIT
