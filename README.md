@@ -82,6 +82,7 @@ FL-bench welcomes PR on everything that can make this project better.
 - ***FedProto*** -- [FedProto: Federated prototype learning across heterogeneous clients](https://arxiv.org/abs/2105.00243) (AAAI'22)
 - ***FedPAC*** -- [Personalized Federated Learning with Feature Alignment and Classifier Collaboration](https://arxiv.org/abs/2306.11867v1) (ICLR'23)
 - ***PeFLL*** -- [PeFLL: Personalized Federated Learning by Learning to Learn](https://openreview.net/forum?id=MrYiwlDRQO) (ICLR'24)
+- ***FLUTE*** -- [Federated Representation Learning in the Under-Parameterized Regime](https://openreview.net/forum?id=LIQYhV45D4) (ICML'24)
 <!-- </details> -->
 
 
