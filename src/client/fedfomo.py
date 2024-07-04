@@ -13,12 +13,12 @@ class FedFomoClient(FedAvgClient):
         super().__init__(**kwargs)
         self.eval_model = deepcopy(self.model).to(self.device)
         self.personal_params_name = list(self.model.state_dict().keys())
-        self.clients_weight = {}
+        self.client_weights = {}
 
     def package(self):
         client_package = super().package()
         client_package.pop("regular_model_params")
-        client_package["clients_weight"] = self.clients_weight
+        client_package["client_weights"] = self.client_weights
         return client_package
 
     def load_data_indices(self):
@@ -62,7 +62,7 @@ class FedFomoClient(FedAvgClient):
         W = torch.zeros(
             len(package["model_params_from_selected_clients"]), device=self.device
         )
-        self.clients_weight = {}
+        self.client_weights = {}
         for i, (client_id, params_i) in enumerate(
             package["model_params_from_selected_clients"].items()
         ):
@@ -76,7 +76,7 @@ class FedFomoClient(FedAvgClient):
             params_diff = vectorize(self.eval_model) - vectorized_self_params
             w = (LOSS - loss) / (torch.norm(params_diff) + 1e-5)
             W[i] = w
-            self.clients_weight[client_id] = w
+            self.client_weights[client_id] = w
 
         # compute the weight for params aggregation
         W.clip_(min=0)

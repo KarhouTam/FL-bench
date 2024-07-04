@@ -29,9 +29,9 @@ class FedFomoServer(FedAvgServer):
         self.P = torch.eye(self.client_num, device=self.device)
 
     def train_one_round(self):
-        clients_package = self.trainer.train()
-        for client_id, package in clients_package.items():
-            for i, val in package["clients_weight"].items():
+        client_packages = self.trainer.train()
+        for client_id, package in client_packages.items():
+            for i, val in package["client_weights"].items():
                 self.P[client_id][i] += val
 
     @torch.no_grad()

@@ -43,12 +43,12 @@ class pFedMeServer(FedAvgServer):
         return server_package
 
     @torch.no_grad()
-    def aggregate(self, clients_package: dict[int, dict[str, Any]]):
-        clients_weight = [package["weight"] for package in clients_package.values()]
+    def aggregate(self, client_packages: dict[int, dict[str, Any]]):
+        client_weights = [package["weight"] for package in client_packages.values()]
         clients_local_model_params = [
-            package["local_model_params"] for package in clients_package.values()
+            package["local_model_params"] for package in client_packages.values()
         ]
-        weights = torch.tensor(clients_weight) / sum(clients_weight)
+        weights = torch.tensor(client_weights) / sum(client_weights)
         aggregated_params = [
             torch.sum(weights * torch.stack(params, dim=-1), dim=-1)
             for params in zip(*clients_local_model_params)

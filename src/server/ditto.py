@@ -30,12 +30,12 @@ class DittoServer(FedAvgServer):
         }
 
     def train_one_round(self):
-        clients_package = self.trainer.train()
+        client_packages = self.trainer.train()
         for client_id in self.selected_clients:
-            self.clients_personalized_model_params[client_id] = clients_package[
+            self.clients_personalized_model_params[client_id] = client_packages[
                 client_id
             ]["personalized_model_params"]
-        self.aggregate(clients_package)
+        self.aggregate(client_packages)
 
     def package(self, client_id: int):
         server_package = super().package(client_id)

@@ -39,13 +39,13 @@ class CCVRServer(FedAvgServer):
 
     def compute_classes_mean_cov(self):
         features_means, features_covs, features_count = [], [], []
-        clients_package = self.trainer.exec(
+        client_packages = self.trainer.exec(
             "get_classwise_feature_means_and_covs", self.train_clients
         )
         for client_id in self.train_clients:
-            features_means.append(clients_package[client_id]["means"])
-            features_covs.append(clients_package[client_id]["covs"])
-            features_count.append(clients_package[client_id]["counts"])
+            features_means.append(client_packages[client_id]["means"])
+            features_covs.append(client_packages[client_id]["covs"])
+            features_count.append(client_packages[client_id]["counts"])
 
         num_classes = NUM_CLASSES[self.args.common.dataset]
         labels_count = [sum(cnts) for cnts in zip(*features_count)]

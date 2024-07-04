@@ -45,12 +45,12 @@ class FedIIRServer(FedAvgServer):
         grad_sum = tuple(
             torch.zeros_like(p) for p in list(self.model.classifier.parameters())
         )
-        clients_package = self.trainer.exec("grad", self.selected_clients)
+        client_packages = self.trainer.exec("grad", self.selected_clients)
         for client_id in self.selected_clients:
-            batch_total += clients_package[client_id]["total_batch"]
+            batch_total += client_packages[client_id]["total_batch"]
             grad_sum = tuple(
                 g1 + g2
-                for g1, g2 in zip(grad_sum, clients_package[client_id]["grad_sum"])
+                for g1, g2 in zip(grad_sum, client_packages[client_id]["grad_sum"])
             )
         grad_mean_new = tuple(grad / batch_total for grad in grad_sum)
         self.calculating_grad_mean = False

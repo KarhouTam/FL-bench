@@ -78,8 +78,8 @@ class FedAPServer(FedAvgServer):
                 self.selected_clients = self.train_clients
 
             if self.args.fedap.version == "f":
-                clients_package = self.trainer.train()
-                self.aggregate(clients_package)
+                client_packages = self.trainer.train()
+                self.aggregate(client_packages)
             else:
                 # FedAP and d-FedAP needs one-by-one training this phase
                 selected_clients_this_round = self.selected_clients
@@ -98,13 +98,13 @@ class FedAPServer(FedAvgServer):
 
         # generate weight matrix
         bn_mean_list, bn_var_list = [], []
-        clients_package = self.trainer.exec("get_all_features", self.train_clients)
+        client_packages = self.trainer.exec("get_all_features", self.train_clients)
         for client_id in self.train_clients:
             avgmeta = metacount(self.get_form()[0])
             with torch.no_grad():
                 for features, batchsize in zip(
-                    clients_package[client_id]["features_list"],
-                    clients_package[client_id]["batch_size_list"],
+                    client_packages[client_id]["features_list"],
+                    client_packages[client_id]["batch_size_list"],
                 ):
                     tm, tv = [], []
                     for item in features:

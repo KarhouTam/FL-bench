@@ -108,7 +108,7 @@ class FedFedServer(FedAvgServer):
                 self.clients_personal_model_params[client_id] = package[
                     "personal_model_params"
                 ]
-                self.clients_optimizer_state[client_id] = package["optimizer_state"]
+                self.client_optimizer_states[client_id] = package["optimizer_state"]
 
                 self.client_VAE_personal_params[client_id] = package[
                     "VAE_personal_params"

@@ -128,11 +128,11 @@ class FedAvgServer:
             for params_dict in self.clients_personal_model_params.values():
                 params_dict.update(deepcopy(self.model.state_dict()))
 
-        self.clients_optimizer_state = {i: {} for i in range(self.client_num)}
+        self.client_optimizer_states = {i: {} for i in range(self.client_num)}
 
-        self.clients_lr_scheduler_state = {i: {} for i in range(self.client_num)}
+        self.client_lr_scheduler_states = {i: {} for i in range(self.client_num)}
 
-        self.clients_local_epoch: list[int] = [
+        self.client_local_epoches: list[int] = [
             self.args.common.local_epoch
         ] * self.client_num
 
@@ -144,7 +144,7 @@ class FedAvgServer:
         ):
             straggler_num = int(self.client_num * self.args.common.straggler_ratio)
             normal_num = self.client_num - straggler_num
-            self.clients_local_epoch = [self.args.common.local_epoch] * (
+            self.client_local_epoches = [self.args.common.local_epoch] * (
                 normal_num
             ) + random.choices(
                 range(
@@ -153,7 +153,7 @@ class FedAvgServer:
                 ),
                 k=straggler_num,
             )
-            random.shuffle(self.clients_local_epoch)
+            random.shuffle(self.client_local_epoches)
 
         # To make sure all algorithms run through the same client sampling stream.
         # Some algorithms' implicit operations at client side may
@@ -178,7 +178,7 @@ class FedAvgServer:
         ):
             os.makedirs(self.output_dir, exist_ok=True)
 
-        self.clients_metrics = {i: {} for i in self.train_clients}
+        self.client_metrics = {i: {} for i in self.train_clients}
         self.global_metrics = {
             "before": {"train": [], "val": [], "test": []},
             "after": {"train": [], "val": [], "test": []},
@@ -424,8 +424,8 @@ class FedAvgServer:
         """The function of indicating specific things FL method need to do (at
         server side) in each communication round."""
 
-        clients_package = self.trainer.train()
-        self.aggregate(clients_package)
+        client_packages = self.trainer.train()
+        self.aggregate(client_packages)
 
     def package(self, client_id: int):
         """Package parameters that the client-side training needs. If you are
@@ -451,10 +451,10 @@ class FedAvgServer:
         """
         return dict(
             client_id=client_id,
-            local_epoch=self.clients_local_epoch[client_id],
+            local_epoch=self.client_local_epoches[client_id],
             **self.get_client_model_params(client_id),
-            optimizer_state=self.clients_optimizer_state[client_id],
-            lr_scheduler_state=self.clients_lr_scheduler_state[client_id],
+            optimizer_state=self.client_optimizer_states[client_id],
+            lr_scheduler_state=self.client_lr_scheduler_states[client_id],
             return_diff=self.return_diff,
         )
 
@@ -505,12 +505,12 @@ class FedAvgServer:
         )
 
     @torch.no_grad()
-    def aggregate(self, clients_package: OrderedDict[int, dict[str, Any]]):
+    def aggregate(self, client_packages: OrderedDict[int, dict[str, Any]]):
         """Aggregate clients model parameters and produce global model
         parameters.
 
         Args:
-            clients_package: Dict of client parameter packages, with format:
+            client_packages: Dict of client parameter packages, with format:
             {
                 `client_id`: {
                     `regular_model_params`: ...,
@@ -520,14 +520,14 @@ class FedAvgServer:
 
             About the content of client parameter package, check `FedAvgClient.package()`.
         """
-        clients_weight = [package["weight"] for package in clients_package.values()]
-        weights = torch.tensor(clients_weight) / sum(clients_weight)
+        client_weights = [package["weight"] for package in client_packages.values()]
+        weights = torch.tensor(client_weights) / sum(client_weights)
         if self.return_diff:  # inputs are model params diff
             for name, global_param in self.public_model_params.items():
                 diffs = torch.stack(
                     [
                         package["model_params_diff"][name]
-                        for package in clients_package.values()
+                        for package in client_packages.values()
                     ],
                     dim=-1,
                 )
@@ -538,7 +538,7 @@ class FedAvgServer:
                 client_params = torch.stack(
                     [
                         package["regular_model_params"][name]
-                        for package in clients_package.values()
+                        for package in client_packages.values()
                     ],
                     dim=-1,
                 )
@@ -592,7 +592,7 @@ class FedAvgServer:
                     global_metrics = Metrics()
                     for i in self.selected_clients:
                         global_metrics.update(
-                            self.clients_metrics[i][self.current_epoch][stage][split]
+                            self.client_metrics[i][self.current_epoch][stage][split]
                         )
 
                     self.global_metrics[stage][split].append(global_metrics)

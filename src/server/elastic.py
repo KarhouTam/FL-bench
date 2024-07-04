@@ -30,13 +30,11 @@ class ElasticServer(FedAvgServer):
     ):
         super().__init__(args, algo, unique_model, use_fedavg_client_cls, return_diff)
         self.init_trainer(ElasticClient)
-        layer_num = len(self.public_model_params)
-        self.clients_sensitivity = [torch.zeros(layer_num) for _ in self.train_clients]
 
-    def aggregate(self, clients_package: OrderedDict[int, dict[str, Any]]):
+    def aggregate(self, client_packages: OrderedDict[int, dict[str, Any]]):
         sensitivities = []
         weights = []
-        for package in clients_package.values():
+        for package in client_packages.values():
             sensitivities.append(package["sensitivity"])
             weights.append(package["weight"])
 
@@ -52,7 +50,7 @@ class ElasticServer(FedAvgServer):
             diffs = torch.stack(
                 [
                     package["model_params_diff"][key]
-                    for package in clients_package.values()
+                    for package in client_packages.values()
                 ],
                 dim=-1,
             )

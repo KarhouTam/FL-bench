@@ -79,10 +79,10 @@ class pFedHNServer(FedAvgServer):
         selected_clients_this_round = self.selected_clients
         for client_id in selected_clients_this_round:
             self.selected_clients = [client_id]
-            clients_package = self.trainer.train()
+            client_packages = self.trainer.train()
 
             if self.args.pfedhn.version == "pfedhn_pc":
-                for name, diff in clients_package[client_id][
+                for name, diff in client_packages[client_id][
                     "model_params_diff"
                 ].items():
                     # set diff to all-zero can stop HN's nn.Linear modules that responsible for the classifier from updating.
@@ -93,7 +93,7 @@ class pFedHNServer(FedAvgServer):
                 outputs=self.hypernet.outputs,
                 inputs=self.hypernet.parameters(),
                 grad_outputs=list(
-                    clients_package[client_id]["model_params_diff"].values()
+                    client_packages[client_id]["model_params_diff"].values()
                 ),
                 allow_unused=True,
             )

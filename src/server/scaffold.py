@@ -39,9 +39,9 @@ class SCAFFOLDServer(FedAvgServer):
         return server_package
 
     @torch.no_grad()
-    def aggregate(self, clients_package: dict[int, dict[str, Any]]):
-        c_delta_list = [package["c_delta"] for package in clients_package.values()]
-        y_delta_list = [package["y_delta"] for package in clients_package.values()]
+    def aggregate(self, client_packages: dict[int, dict[str, Any]]):
+        c_delta_list = [package["c_delta"] for package in client_packages.values()]
+        y_delta_list = [package["y_delta"] for package in client_packages.values()]
         weights = torch.ones(len(y_delta_list)) / len(y_delta_list)
         for param, y_delta in zip(
             self.public_model_params.values(), zip(*y_delta_list)

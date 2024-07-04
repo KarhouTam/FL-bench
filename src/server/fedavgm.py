@@ -32,17 +32,17 @@ class FedAvgMServer(FedAvgServer):
         )
 
     @torch.no_grad()
-    def aggregate(self, clients_package: OrderedDict[int, dict[str, Any]]):
+    def aggregate(self, client_packages: OrderedDict[int, dict[str, Any]]):
         self.global_optmizer.zero_grad()
 
-        clients_weight = [package["weight"] for package in clients_package.values()]
-        weights = torch.tensor(clients_weight) / sum(clients_weight)
+        client_weights = [package["weight"] for package in client_packages.values()]
+        weights = torch.tensor(client_weights) / sum(client_weights)
         for key in self.public_model_params.keys():
             if "num_batches_tracked" not in key:
                 diffs = torch.stack(
                     [
                         package["model_params_diff"][key]
-                        for package in clients_package.values()
+                        for package in client_packages.values()
                     ],
                     dim=-1,
                 )
