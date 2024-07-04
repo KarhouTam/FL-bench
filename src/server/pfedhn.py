@@ -135,14 +135,14 @@ class HyperNetwork(nn.Module):
 
         parameters, self.params_name = [], []
         for key, param in backbone.named_parameters():
-            parameters.append(param.data.clone())
+            parameters.append(param)
             self.params_name.append(key)
         self.params_shape = {
             name: backbone.state_dict()[name].shape for name in self.params_name
         }
         self.params_generator = nn.ModuleDict()
         for name, param in zip(self.params_name, parameters):
-            self.params_generator[name] = nn.Linear(
+            self.params_generator[name.replace(".", "-")] = nn.Linear(
                 args.hidden_dim, len(param.flatten())
             )
         self.outputs: list[torch.Tensor] = []
@@ -152,7 +152,9 @@ class HyperNetwork(nn.Module):
         features = self.mlp(emd)
 
         parameters = [
-            self.params_generator[name](features).reshape(self.params_shape[name])
+            self.params_generator[name.replace(".", "-")](features).reshape(
+                self.params_shape[name]
+            )
             for name in self.params_name
         ]
         self.outputs = parameters
