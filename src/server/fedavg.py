@@ -240,8 +240,8 @@ class FedAvgServer:
                     optimizer_cls=self.get_client_optimizer(),
                     lr_scheduler_cls=self.get_client_lr_scheduler(),
                     args=self.args,
-                    dataset=self.get_client_dataset(),
-                    data_indices=self.data_indices,
+                    dataset=self.get_dataset(),
+                    data_indices=self.get_clients_data_indices(),
                     device=self.device,
                     return_diff=self.return_diff,
                     **extras,
@@ -251,8 +251,8 @@ class FedAvgServer:
             model_ref = ray.put(self.model.cpu())
             optimzier_cls_ref = ray.put(self.get_client_optimizer())
             lr_scheduler_cls_ref = ray.put(self.get_client_lr_scheduler())
-            dataset_ref = ray.put(self.get_client_dataset())
-            data_indices_ref = ray.put(self.data_indices)
+            dataset_ref = ray.put(self.get_dataset())
+            data_indices_ref = ray.put(self.get_clients_data_indices())
             args_ref = ray.put(self.args)
             device_ref = ray.put(None)
             return_diff_ref = ray.put(self.return_diff)
@@ -274,14 +274,17 @@ class FedAvgServer:
                 ),
             )
 
-    def get_client_dataset(self) -> BaseDataset:
-        """Load FL dataset and partitioned data indices of clients.
+    def get_clients_data_indices(self) -> list[dict[str, list[int]]]:
+        """Gets a list of client data indices.
+
+        Load and return the client-side data index from the partition file for the specified dataset.
 
         Raises:
-            FileNotFoundError: When the target dataset has not beed processed.
+            FileNotFoundError: If the partition file does not exist.
 
         Returns:
-            BaseDataset: The target FL dataset.
+        list[dict[str, list[int]]]: A list of client-side data indexes, where each element is a dictionary,
+        Contains the keys "train", "val", and "test" for a list of data indexes for each partition.
         """
         try:
             partition_path = (
@@ -295,8 +298,17 @@ class FedAvgServer:
             )
 
         # [0: {"train": [...], "val": [...], "test": [...]}, ...]
-        self.data_indices: list[dict[str, list[int]]] = partition["data_indices"]
+        data_indices: list[dict[str, list[int]]] = partition["data_indices"]
 
+        return data_indices
+
+    def get_dataset(self) -> BaseDataset:
+        """Load the specified dataset according to the configuration.
+
+        Returns:
+        BaseDataset: This is the loaded dataset instance,
+        which inherits from the BaseDataset class.
+        """
         dataset: BaseDataset = DATASETS[self.args.common.dataset](
             root=FLBENCH_ROOT / "data" / self.args.common.dataset,
             args=self.args.dataset,

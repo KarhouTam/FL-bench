@@ -30,8 +30,9 @@ class FedDynServer(FedAvgServer):
         self.init_trainer(FedDynClient)
         param_numel = vectorize(self.public_model_params).numel()
         self.nabla = [torch.zeros(param_numel) for _ in range(self.client_num)]
+        clients_data_indices = self.get_clients_data_indices()
         self.client_weights = torch.tensor(
-            [len(self.data_indices[i]["train"]) for i in self.train_clients]
+            [len(clients_data_indices[i]["train"]) for i in self.train_clients]
         )
         self.client_weights = (
             self.client_weights / self.client_weights.sum() * len(self.train_clients)
