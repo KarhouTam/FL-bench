@@ -25,6 +25,7 @@ from src.utils.constants import (
     DATA_STD,
     FLBENCH_ROOT,
     LR_SCHEDULERS,
+    MODE,
     OPTIMIZERS,
     OUT_DIR,
 )
@@ -233,7 +234,7 @@ class FedAvgServer:
             self.trainer = FLbenchTrainer(
                 server=self,
                 client_cls=fl_client_cls,
-                mode="serial",
+                mode=MODE.SERIAL,
                 num_workers=0,
                 init_args=dict(
                     model=deepcopy(self.model),
@@ -254,12 +255,12 @@ class FedAvgServer:
             dataset_ref = ray.put(self.get_dataset())
             data_indices_ref = ray.put(self.get_clients_data_indices())
             args_ref = ray.put(self.args)
-            device_ref = ray.put(None)
+            device_ref = ray.put(None)  # in parallel mode, workers decide their device
             return_diff_ref = ray.put(self.return_diff)
             self.trainer = FLbenchTrainer(
                 server=self,
                 client_cls=fl_client_cls,
-                mode="parallel",
+                mode=MODE.PARALLEL,
                 num_workers=int(self.args.parallel.num_workers),
                 init_args=dict(
                     model=model_ref,

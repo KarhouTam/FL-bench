@@ -4,6 +4,8 @@ from typing import Any, Callable
 import ray
 import ray.actor
 
+from src.utils.constants import MODE
+
 
 class FLbenchTrainer:
     def __init__(
@@ -13,9 +15,9 @@ class FLbenchTrainer:
         self.client_cls = client_cls
         self.mode = mode
         self.num_workers = num_workers
-        if self.mode == "serial":
+        if self.mode == MODE.SERIAL:
             self.worker = client_cls(**init_args)
-        elif self.mode == "parallel":
+        elif self.mode == MODE.PARALLEL:
             ray_client = ray.remote(client_cls).options(
                 num_cpus=self.server.args.parallel.num_cpus / self.num_workers,
                 num_gpus=self.server.args.parallel.num_gpus / self.num_workers,
@@ -24,9 +26,9 @@ class FLbenchTrainer:
                 ray_client.remote(**init_args) for _ in range(self.num_workers)
             ]
         else:
-            raise ValueError(f"Unrecongnized mode: {mode}.")
+            raise ValueError(f"Unrecongnized running mode.")
 
-        if self.mode == "serial":
+        if self.mode == MODE.SERIAL:
             self.train = self._serial_train
             self.test = self._serial_test
             self.exec = self._serial_exec

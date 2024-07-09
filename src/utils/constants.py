@@ -1,5 +1,6 @@
 import json
 import os
+from enum import Enum
 from pathlib import Path
 
 from torch import optim
@@ -7,6 +8,12 @@ from torch import optim
 FLBENCH_ROOT = Path(__file__).parent.parent.parent.absolute()
 OUT_DIR = FLBENCH_ROOT / "out"
 TEMP_DIR = FLBENCH_ROOT / "temp"
+
+
+class MODE(Enum):
+    SERIAL = 0
+    PARALLEL = 1
+
 
 DEFAULT_COMMON_ARGS = {
     "dataset": "mnist",
