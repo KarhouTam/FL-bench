@@ -136,6 +136,10 @@ All generic arguments (except `-d`) in `generate_data.py` will be *deactivated* 
 
 When processing LEAF datasets, `generate_data.py` only responsible for translating the output of `preprocess.sh` (json data files) to `data.npy` and `targets.npy`.
 
+So, in summary, for using LEAF datasets, you need to:
+1. `sh preprocess.sh [args...]`
+2. `python generate_data.py -d [femnist, celeba]`
+
 ## Processing DomainNet 🧾
 <!-- See more details in [Processing DomainNet](/data/domain/README.md). -->
 
