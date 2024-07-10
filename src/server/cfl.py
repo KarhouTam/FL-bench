@@ -101,6 +101,8 @@ class CFLServer(FedAvgServer):
                 for i in cluster
                 if self.clients_model_params_diff[i] is not None
             ]
+            if (len(model_params_diff_list)) == 0:
+                continue
             weights = torch.ones(len(model_params_diff_list)) * (
                 1 / len(model_params_diff_list)
             )
