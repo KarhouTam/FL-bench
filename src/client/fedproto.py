@@ -77,7 +77,7 @@ class FedProtoClient(FedAvgClient):
 
     @torch.no_grad()
     def process_features(self, features: torch.Tensor, y: torch.Tensor):
-        labels = torch.unique(y)
+        labels = torch.unique(y).tolist()
         target_prototypes = features.clone()
         for i in labels:
             idxs = torch.where(y == i)[0]
