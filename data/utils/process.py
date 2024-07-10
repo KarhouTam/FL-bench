@@ -50,11 +50,15 @@ def prune_args(args: Namespace) -> dict:
             preprocess_args = json.load(f)
         args_dict.pop("seed")
         args_dict["split"] = preprocess_args["t"]
-        args_dict["fraction"] = preprocess_args["tf"]
         args_dict["sample_seed"] = preprocess_args["smplseed"]
         args_dict["split_seed"] = preprocess_args["spltseed"]
         args_dict["least_samples"] = preprocess_args["k"]
-        args_dict["monitor_window_name_suffix"] += f"-fraction{args_dict['fraction']}"
+        args_dict["test_ratio"] = 1.0 - preprocess_args["tf"]
+        args_dict["val_ratio"] = 0.0
+        args_dict["monitor_window_name_suffix"] = "{}-{}clients-k{}-{}".fotmat(
+            args.dataset, args.client_num, preprocess_args["k"], preprocess_args["t"]
+        )
+        args_dict.pop("seed")
         if preprocess_args["s"] == "iid":
             args_dict["iid"] = True
             args_dict["monitor_window_name_suffix"] += f"-IID"
@@ -80,7 +84,9 @@ def prune_args(args: Namespace) -> dict:
             args_dict["pca_components"] = args.pca_components
             args_dict["efficient_net_type"] = args.efficient_net_type
             args_dict["monitor_window_name_suffix"] += f"-semantic"
-    args_dict["monitor_window_name_suffix"] += f"-seed{args.seed}"
+
+    if args.dataset not in ["femnist", "celeba"]:
+        args_dict["monitor_window_name_suffix"] += f"-seed{args.seed}"
     return args_dict
 
 
