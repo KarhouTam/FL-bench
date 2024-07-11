@@ -125,8 +125,6 @@ class EmbedNetwork(nn.Module):
             h, w = x.shape[2], x.shape[3]
             if h < 32 or w < 32:
                 x = self.resize(x)
-            else:
-                y = self.resize(y)
             y = F.one_hot(y, NUM_CLASSES[self.args.common.dataset])
             y = y.view(y.shape[0], y.shape[1], 1, 1)
             c = torch.zeros(
