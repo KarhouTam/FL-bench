@@ -29,7 +29,7 @@ class FedFomoClient(FedAvgClient):
         self.valset.indices = train_data_indices[:num_val_samples]
         self.trainset.indices = train_data_indices[num_val_samples:]
 
-    @torch.no_grad
+    @torch.no_grad()
     def set_parameters(self, package: dict[str, Any]):
         self.client_id = package["client_id"]
         self.local_epoch = package["local_epoch"]

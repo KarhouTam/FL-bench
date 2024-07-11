@@ -139,7 +139,7 @@ class FedFedClient(FedAvgClient):
         )
         return client_package
 
-    @torch.no_grad
+    @torch.no_grad()
     def generate_shared_data(self, package: dict[str, Any]):
         self.set_parameters(package)
         self.dataset.eval()

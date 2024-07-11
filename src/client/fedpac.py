@@ -37,7 +37,7 @@ class FedPACClient(FedAvgClient):
         )
         self.init_optimizer_state = deepcopy(self.optimizer.state_dict())
 
-    @torch.no_grad
+    @torch.no_grad()
     def extract_stats(self):
         feature_length = self.model.classifier.in_features
         features = self.calculate_prototypes()
@@ -61,7 +61,7 @@ class FedPACClient(FedAvgClient):
 
         self.v /= len(self.trainset.indices)
 
-    @torch.no_grad
+    @torch.no_grad()
     def calculate_prototypes(self, mean=False):
         prototypes = [[] for _ in self.dataset.classes]
         for x, y in self.trainloader:
