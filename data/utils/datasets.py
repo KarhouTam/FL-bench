@@ -536,7 +536,7 @@ class CINIC10(BaseDataset):
 
         self.data = torch.load(root / "data.pt")
         self.targets = torch.load(root / "targets.pt")
-        self.classes = list(range(self.classes))
+        self.classes = list(range(len(self.classes)))
         self.test_data_transform = test_data_transform
         self.test_target_transform = test_target_transform
         self.train_data_transform = train_data_transform
@@ -577,7 +577,7 @@ class DomainNet(BaseDataset):
         with open(filename_list_path, "rb") as f:
             self.filename_list = pickle.load(f)
 
-        self.classes = list(metadata["classes"].keys())
+        self.classes = list(range(len(metadata["classes"])))
         self.targets = torch.load(targets_path)
         self.pre_transform = transforms.Compose(
             [
