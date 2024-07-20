@@ -63,7 +63,7 @@ class FedAvgServer:
         self.return_diff = return_diff
         fix_random_seed(self.args.common.seed)
         start_time = str(
-            time.strftime("%Y-%m-%d-%H:%M:%S", time.localtime(round(time.time())))
+            time.strftime("%Y-%m-%d-%H-%M-%S", time.localtime(round(time.time())))
         )
         self.output_dir = OUT_DIR / self.algo / start_time
         with open(
