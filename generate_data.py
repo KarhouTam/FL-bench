@@ -95,72 +95,69 @@ def main(args):
                 stats=iid_stats,
             )
 
-        if len(target_indices) > 0 and args.alpha > 0:  # Dirichlet(alpha)
-            dirichlet(
-                targets=targets[target_indices],
-                target_indices=target_indices,
-                label_set=valid_label_set,
-                client_num=client_num,
-                alpha=args.alpha,
-                least_samples=args.least_samples,
-                partition=partition,
-                stats=stats,
-            )
-        elif len(target_indices) > 0 and args.classes != 0:  # randomly assign classes
-            args.classes = max(1, min(args.classes, len(dataset.classes)))
-            randomly_assign_classes(
-                targets=targets[target_indices],
-                target_indices=target_indices,
-                label_set=valid_label_set,
-                client_num=client_num,
-                class_num=args.classes,
-                partition=partition,
-                stats=stats,
-            )
-        elif len(target_indices) > 0 and args.shards > 0:  # allocate shards
-            allocate_shards(
-                targets=targets[target_indices],
-                target_indices=target_indices,
-                label_set=valid_label_set,
-                client_num=client_num,
-                shard_num=args.shards,
-                partition=partition,
-                stats=stats,
-            )
-        elif len(target_indices) > 0 and args.semantic:
-            semantic_partition(
-                dataset=dataset,
-                targets=targets[target_indices],
-                target_indices=target_indices,
-                label_set=valid_label_set,
-                efficient_net_type=args.efficient_net_type,
-                client_num=client_num,
-                pca_components=args.pca_components,
-                gmm_max_iter=args.gmm_max_iter,
-                gmm_init_params=args.gmm_init_params,
-                seed=args.seed,
-                use_cuda=args.use_cuda,
-                partition=partition,
-                stats=stats,
-            )
-        elif (
-            len(target_indices) > 0
-            and args.dataset in ["domain"]
-            and args.ood_domains is None
-        ):
-            with open(dataset_root / "original_partition.pkl", "rb") as f:
-                partition = {}
-                partition["data_indices"] = pickle.load(f)
-                partition["separation"] = None
-                args.client_num = len(partition["data_indices"])
-        elif len(target_indices) > 0:
-            raise RuntimeError(
-                "Part of data indices are ignored. Please set arbitrary one arg from"
-                " [--alpha, --classes, --shards, --semantic] for partitioning."
-            )
+        if len(target_indices) > 0:
+            if args.alpha > 0:  # Dirichlet(alpha)
+                dirichlet(
+                    targets=targets[target_indices],
+                    target_indices=target_indices,
+                    label_set=valid_label_set,
+                    client_num=client_num,
+                    alpha=args.alpha,
+                    least_samples=args.least_samples,
+                    partition=partition,
+                    stats=stats,
+                )
+            elif args.classes != 0:  # randomly assign classes
+                args.classes = max(1, min(args.classes, len(dataset.classes)))
+                randomly_assign_classes(
+                    targets=targets[target_indices],
+                    target_indices=target_indices,
+                    label_set=valid_label_set,
+                    client_num=client_num,
+                    class_num=args.classes,
+                    partition=partition,
+                    stats=stats,
+                )
+            elif args.shards > 0:  # allocate shards
+                allocate_shards(
+                    targets=targets[target_indices],
+                    target_indices=target_indices,
+                    label_set=valid_label_set,
+                    client_num=client_num,
+                    shard_num=args.shards,
+                    partition=partition,
+                    stats=stats,
+                )
+            elif args.semantic:
+                semantic_partition(
+                    dataset=dataset,
+                    targets=targets[target_indices],
+                    target_indices=target_indices,
+                    label_set=valid_label_set,
+                    efficient_net_type=args.efficient_net_type,
+                    client_num=client_num,
+                    pca_components=args.pca_components,
+                    gmm_max_iter=args.gmm_max_iter,
+                    gmm_init_params=args.gmm_init_params,
+                    seed=args.seed,
+                    use_cuda=args.use_cuda,
+                    partition=partition,
+                    stats=stats,
+                )
+            elif args.dataset in ["domain"] and args.ood_domains is None:
+                with open(dataset_root / "original_partition.pkl", "rb") as f:
+                    partition = {}
+                    partition["data_indices"] = pickle.load(f)
+                    partition["separation"] = None
+                    args.client_num = len(partition["data_indices"])
+            else:
+                raise RuntimeError(
+                    "Part of data indices are ignored. Please set arbitrary one arg from"
+                    " [--alpha, --classes, --shards, --semantic] for partitioning."
+                )
 
     # merge the iid and niid partition results
-    if 0 < args.iid < 1.0:
+    if 0 < args.iid <= 1.0:
         num_samples = []
         for i in range(args.client_num):
             partition["data_indices"][i] = np.concatenate(
