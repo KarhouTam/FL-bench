@@ -417,7 +417,7 @@ class CIFAR100(BaseDataset):
                     mapping[cls] = super_cls
             new_targets = []
             for cls in self.targets:
-                new_targets.append(mapping[self.classes[cls]])
+                new_targets.append(mapping[train_part.classes[cls]])
             self.targets = torch.tensor(new_targets, dtype=torch.long)
             self.classes = list(range(20))
 
