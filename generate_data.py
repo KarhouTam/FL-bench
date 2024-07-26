@@ -33,7 +33,7 @@ CURRENT_DIR = Path(__file__).parent.absolute()
 def main(args):
     dataset_root = CURRENT_DIR / "data" / args.dataset
 
-    fix_random_seed(args.seed)
+    fix_random_seed(args.seed, args.use_cuda)
 
     if not os.path.isdir(dataset_root):
         os.mkdir(dataset_root)

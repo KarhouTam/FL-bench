@@ -16,7 +16,7 @@ from src.utils.constants import DEFAULT_COMMON_ARGS, DEFAULT_PARALLEL_ARGS
 from src.utils.metrics import Metrics
 
 
-def fix_random_seed(seed: int) -> None:
+def fix_random_seed(seed: int, use_cuda=False) -> None:
     """Fix the random seed of FL training.
 
     Args:
@@ -26,9 +26,8 @@ def fix_random_seed(seed: int) -> None:
     random.seed(seed)
     np.random.seed(seed)
     torch.random.manual_seed(seed)
-    if torch.cuda.is_available():
-        torch.cuda.empty_cache()
-        torch.cuda.manual_seed_all(seed)
+    if torch.cuda.is_available() and use_cuda:
+        torch.cuda.manual_seed(seed)
     torch.backends.cudnn.deterministic = True
     torch.backends.cudnn.benchmark = False
 

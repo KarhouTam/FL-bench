@@ -61,7 +61,14 @@ class FedAvgServer:
         self.algo = algo
         self.unique_model = unique_model
         self.return_diff = return_diff
-        fix_random_seed(self.args.common.seed)
+
+        self.device = get_optimal_cuda_device(self.args.common.use_cuda)
+        if self.device.type == "cuda":
+            torch.cuda.empty_cache()
+            torch.cuda.set_device(self.device)
+
+        fix_random_seed(self.args.common.seed, use_cuda=self.device.type == "cuda")
+
         start_time = str(
             time.strftime("%Y-%m-%d-%H-%M-%S", time.localtime(round(time.time())))
         )
@@ -86,7 +93,6 @@ class FedAvgServer:
         self.client_num: int = partition["separation"]["total"]
 
         # init model(s) parameters
-        self.device = get_optimal_cuda_device(self.args.common.use_cuda)
 
         # get_model_arch() would return a class depends on model's name,
         # then init the model object by indicating the dataset and calling the class.
