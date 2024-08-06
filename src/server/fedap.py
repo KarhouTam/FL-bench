@@ -5,11 +5,11 @@ from collections import OrderedDict
 
 import numpy as np
 import torch
+from omegaconf import DictConfig
 from rich.progress import track
 
 from src.client.fedap import FedAPClient
 from src.server.fedavg import FedAvgServer
-from src.utils.tools import NestedNamespace
 
 
 # Codes below are modified from FedAP's official repo: https://github.com/microsoft/PersonalizedFL
@@ -28,15 +28,15 @@ class FedAPServer(FedAvgServer):
 
     def __init__(
         self,
-        args: NestedNamespace,
-        algo: str = None,
+        args: DictConfig,
+        algorithm_name: str = None,
         unique_model=False,
         use_fedavg_client_cls=False,
         return_diff=False,
     ):
         algo_name = {"original": "FedAP", "f": "f-FedAP", "d": "d-FedAP"}
         algo = algo_name[args.fedap.version]
-        super().__init__(args, algo, unique_model, use_fedavg_client_cls, return_diff)
+        super().__init__(args, algorithm_name, unique_model, use_fedavg_client_cls, return_diff)
 
         self.init_trainer(FedAPClient)
         self.weight_matrix = torch.eye(self.client_num)
@@ -144,7 +144,7 @@ class FedAPServer(FedAvgServer):
                 self.test()
 
         self.logger.log(
-            f"{self.algo}'s average time taken by each global epoch: {int(avg_round_time // 60)} m {(avg_round_time % 60):.2f} s."
+            f"{self.algorithm_name}'s average time taken by each global epoch: {int(avg_round_time // 60)} m {(avg_round_time % 60):.2f} s."
         )
 
     def get_form(self):

@@ -3,10 +3,10 @@ from argparse import ArgumentParser, Namespace
 from copy import deepcopy
 
 import torch
+from omegaconf import DictConfig
 from rich.progress import track
 
 from src.server.fedavg import FedAvgServer
-from src.utils.tools import NestedNamespace
 
 
 class pFedSimServer(FedAvgServer):
@@ -17,7 +17,7 @@ class pFedSimServer(FedAvgServer):
         parser.add_argument("-wr", "--warmup_round", type=float, default=0.5)
         return parser.parse_args(args_list)
 
-    def __init__(self, args: NestedNamespace, algo: str = "pFedSim"):
+    def __init__(self, args: DictConfig, algorithm_name: str = "pFedSim"):
         self.warmup_round = 0
         if 0 <= args.pfedsim.warmup_round <= 1:
             self.warmup_round = int(
@@ -29,7 +29,7 @@ class pFedSimServer(FedAvgServer):
             raise ValueError(
                 "warmup_round need to be set in the range of [0, 1) or [1, global_epoch)."
             )
-        super().__init__(args, algo)
+        super().__init__(args, algorithm_name)
         self.weight_matrix = torch.eye(self.client_num)
 
     def train(self):
@@ -89,7 +89,7 @@ class pFedSimServer(FedAvgServer):
                 self.test()
 
         self.logger.log(
-            f"{self.algo}'s average time taken by each global epoch: "
+            f"{self.algorithm_name}'s average time taken by each global epoch: "
             f"{int(avg_round_time // 60)} min {(avg_round_time % 60):.2f} sec."
         )
 

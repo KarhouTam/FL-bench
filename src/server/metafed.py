@@ -2,12 +2,12 @@ import time
 from argparse import ArgumentParser, Namespace
 from collections import OrderedDict
 
+from omegaconf import DictConfig
 from rich.progress import track
 from torch._tensor import Tensor
 
 from src.client.metafed import MetaFedClient
 from src.server.fedavg import FedAvgServer
-from src.utils.tools import NestedNamespace
 
 
 class MetaFedServer(FedAvgServer):
@@ -24,8 +24,8 @@ class MetaFedServer(FedAvgServer):
 
     def __init__(
         self,
-        args: NestedNamespace,
-        algo: str = "MetaFed",
+        args: DictConfig,
+        algorithm_name: str = "MetaFed",
         unique_model=True,
         use_fedavg_client_cls=False,
         return_diff=False,
@@ -37,7 +37,7 @@ class MetaFedServer(FedAvgServer):
                 "MetaFed does not support parallel training, so running mode is fallback to serial."
             )
             args.mode = "serial"
-        super().__init__(args, algo, unique_model, use_fedavg_client_cls, return_diff)
+        super().__init__(args, algorithm_name, unique_model, use_fedavg_client_cls, return_diff)
         self.warmup = True
         self.client_flags = [True for _ in self.train_clients]
         self.init_trainer(MetaFedClient)
@@ -112,7 +112,7 @@ class MetaFedServer(FedAvgServer):
                 self.test()
 
         self.logger.log(
-            f"{self.algo}'s average time taken by each global epoch: {int(avg_round_time // 60)} m {(avg_round_time % 60):.2f} s."
+            f"{self.algorithm_name}'s average time taken by each global epoch: {int(avg_round_time // 60)} m {(avg_round_time % 60):.2f} s."
         )
 
         # personalization phase

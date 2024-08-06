@@ -6,12 +6,12 @@ import torch
 import torch.distributions as distrib
 import torch.nn as nn
 import torch.nn.functional as F
+from omegaconf import DictConfig
 
 from src.client.fedsr import FedSRClient
 from src.server.fedavg import FedAvgServer
 from src.utils.constants import FLBENCH_ROOT, NUM_CLASSES
 from src.utils.models import DecoupledModel
-from src.utils.tools import NestedNamespace
 
 
 class FedSRModel(DecoupledModel):
@@ -57,13 +57,13 @@ class FedSRServer(FedAvgServer):
 
     def __init__(
         self,
-        args: NestedNamespace,
-        algo: str = "FedSR",
+        args: DictConfig,
+        algorithm_name: str = "FedSR",
         unique_model=False,
         use_fedavg_client_cls=False,
         return_diff=False,
     ):
-        super().__init__(args, algo, unique_model, use_fedavg_client_cls, return_diff)
+        super().__init__(args, algorithm_name, unique_model, use_fedavg_client_cls, return_diff)
         # reload the model
         self.model = FedSRModel(self.model, self.args.common.dataset)
         self.model.check_and_preprocess(self.args)

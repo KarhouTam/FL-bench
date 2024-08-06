@@ -5,10 +5,10 @@ from typing import Optional
 import torch
 import torch.nn as nn
 import torchvision.models as models
+from omegaconf import DictConfig
 from torch import Tensor
 
 from src.utils.constants import DATA_SHAPE, INPUT_CHANNELS, NUM_CLASSES
-from src.utils.tools import NestedNamespace
 
 
 class DecoupledModel(nn.Module):
@@ -34,7 +34,7 @@ class DecoupledModel(nn.Module):
         for module in target_modules:
             module.register_forward_hook(_get_feature_hook_fn)
 
-    def check_and_preprocess(self, args: NestedNamespace):
+    def check_and_preprocess(self, args: DictConfig):
         if self.base is None or self.classifier is None:
             raise RuntimeError(
                 "You need to re-write the base and classifier in your custom model class."

@@ -3,11 +3,11 @@ from argparse import ArgumentParser, Namespace
 from typing import Any
 
 import torch
+from omegaconf import DictConfig
 
 from src.client.flute import FLUTEClient
 from src.server.fedavg import FedAvgServer
 from src.utils.constants import NUM_CLASSES
-from src.utils.tools import NestedNamespace
 
 
 class FLUTEServer(FedAvgServer):
@@ -26,13 +26,13 @@ class FLUTEServer(FedAvgServer):
 
     def __init__(
         self,
-        args: NestedNamespace,
-        algo: str = "FLUTE",
+        args: DictConfig,
+        algorithm_name: str = "FLUTE",
         unique_model=False,
         use_fedavg_client_cls=False,
         return_diff=False,
     ):
-        super().__init__(args, algo, unique_model, use_fedavg_client_cls, return_diff)
+        super().__init__(args, algorithm_name, unique_model, use_fedavg_client_cls, return_diff)
         self.init_trainer(FLUTEClient)
 
     def train_one_round(self):

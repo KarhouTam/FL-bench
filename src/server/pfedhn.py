@@ -3,10 +3,10 @@ from collections import OrderedDict
 
 import torch
 import torch.nn as nn
+from omegaconf import DictConfig
 
 from src.client.fedper import FedPerClient
 from src.server.fedavg import FedAvgServer
-from src.utils.tools import NestedNamespace
 
 
 class pFedHNServer(FedAvgServer):
@@ -29,8 +29,8 @@ class pFedHNServer(FedAvgServer):
 
     def __init__(
         self,
-        args: NestedNamespace,
-        algo: str = None,
+        args: DictConfig,
+        algorithm_name: str = None,
         unique_model=False,
         use_fedavg_client_cls=True,
         return_diff=True,
@@ -41,7 +41,7 @@ class pFedHNServer(FedAvgServer):
             raise NotImplementedError("pFedHN does not support global buffers.")
         algo = "pFedHN" if args.pfedhn.version == "pfedhn" else "pFedHN-PC"
         use_fedavg_client_cls = True if args.pfedhn.version == "pfedhn" else False
-        super().__init__(args, algo, unique_model, use_fedavg_client_cls, return_diff)
+        super().__init__(args, algorithm_name, unique_model, use_fedavg_client_cls, return_diff)
 
         if self.args.pfedhn.version == "pfedhn_pc":
             self.init_trainer(FedPerClient)

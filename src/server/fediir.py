@@ -1,10 +1,10 @@
 from argparse import ArgumentParser, Namespace
 
 import torch
+from omegaconf import DictConfig
 
 from src.client.fediir import FedIIRClient
 from src.server.fedavg import FedAvgServer
-from src.utils.tools import NestedNamespace
 
 
 class FedIIRServer(FedAvgServer):
@@ -18,13 +18,13 @@ class FedIIRServer(FedAvgServer):
 
     def __init__(
         self,
-        args: NestedNamespace,
-        algo: str = "FedIIR",
+        args: DictConfig,
+        algorithm_name: str = "FedIIR",
         unique_model=False,
         use_fedavg_client_cls=False,
         return_diff=False,
     ):
-        super().__init__(args, algo, unique_model, use_fedavg_client_cls, return_diff)
+        super().__init__(args, algorithm_name, unique_model, use_fedavg_client_cls, return_diff)
         self.grad_mean = tuple(
             torch.zeros_like(p) for p in list(self.model.classifier.parameters())
         )

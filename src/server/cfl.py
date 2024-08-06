@@ -2,10 +2,11 @@ from argparse import ArgumentParser, Namespace
 
 import numpy as np
 import torch
+from omegaconf import DictConfig
 from sklearn.cluster import AgglomerativeClustering
 
 from src.server.fedavg import FedAvgServer
-from src.utils.tools import NestedNamespace, vectorize
+from src.utils.tools import vectorize
 
 
 class CFLServer(FedAvgServer):
@@ -21,13 +22,13 @@ class CFLServer(FedAvgServer):
 
     def __init__(
         self,
-        args: NestedNamespace,
-        algo: str = "CFL",
+        args: DictConfig,
+        algorithm_name: str = "CFL",
         unique_model=True,
         use_fedavg_client_cls=True,
         return_diff=True,
     ):
-        super().__init__(args, algo, unique_model, use_fedavg_client_cls, return_diff)
+        super().__init__(args, algorithm_name, unique_model, use_fedavg_client_cls, return_diff)
         assert (
             len(self.train_clients) == self.client_num
         ), "CFL doesn't support `User` type split."

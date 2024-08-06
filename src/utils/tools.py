@@ -9,6 +9,7 @@ from typing import Callable, Iterator, Sequence, Union
 import numpy as np
 import pynvml
 import torch
+from omegaconf import DictConfig
 from rich.console import Console
 from torch.utils.data import DataLoader
 
@@ -116,10 +117,9 @@ def evalutate_model(
 
 
 def parse_args(
-    config_file_args: dict | None,
+    config: DictConfig,
     method_name: str,
     get_method_args_func: Callable[[Sequence[str] | None], Namespace] | None,
-    method_args_list: list[str],
 ) -> Namespace:
     """Purge arguments from default args dict, config file and CLI and produce
     the final arguments.
@@ -131,50 +131,35 @@ def parse_args(
         method_args_list (list[str]): FL method `method_name`'s specified arguments set on CLI.
 
     Returns:
-        NestedNamespace: The final argument namespace.
+        DictConfig: The final argument namespace.
     """
     ARGS = dict(
         mode="serial", common=DEFAULT_COMMON_ARGS, parallel=DEFAULT_PARALLEL_ARGS
     )
-    if config_file_args is not None:
-        if "common" in config_file_args.keys():
-            ARGS["common"].update(config_file_args["common"])
-        if "parallel" in config_file_args.keys():
-            ARGS["parallel"].update(config_file_args["parallel"])
-        if "mode" in config_file_args.keys():
-            ARGS["mode"] = config_file_args["mode"]
-
+    if "common" in config.keys():
+        ARGS["common"].update(config["common"])
+    if "parallel" in config.keys():
+        ARGS["parallel"].update(config["parallel"])
+    if "mode" in config.keys():
+        ARGS["mode"] = config["mode"]
     if get_method_args_func is not None:
-        default_method_args = get_method_args_func([]).__dict__
-        config_file_method_args = {}
-        if config_file_args is not None:
-            config_file_method_args = config_file_args.get(method_name, {})
-        cli_method_args = get_method_args_func(method_args_list).__dict__
+        ARGS[method_name] = get_method_args_func([]).__dict__
 
-        # extract arguments set explicitly set in CLI
-        for key in default_method_args.keys():
-            if default_method_args[key] == cli_method_args[key]:
-                cli_method_args.pop(key)
-
-        # For the same argument, the value setting priority is CLI > config file > defalut value
-        method_args = default_method_args
-        for key in default_method_args.keys():
-            if key in cli_method_args.keys():
-                method_args[key] = cli_method_args[key]
-            elif key in config_file_method_args.keys():
-                method_args[key] = config_file_method_args[key]
-
-        ARGS[method_name] = method_args
+    for field in ["common", "parallel", method_name]:
+        if field in config.keys():
+            for key in config[field].keys():
+                ARGS[field][key] = config[field][key]
 
     assert ARGS["mode"] in ["serial", "parallel"], f"Unrecongnized mode: {ARGS['mode']}"
     if ARGS["mode"] == "parallel":
         if ARGS["parallel"]["num_workers"] < 2:
             print(
-                f"num_workers is less than 2: {ARGS['parallel']['num_workers']} and mode is fallback to serial."
+                f"num_workers is less than 2: {ARGS['parallel']['num_workers']}, "
+                "mode is fallback to serial."
             )
             ARGS["mode"] = "serial"
             del ARGS["parallel"]
-    return NestedNamespace(ARGS)
+    return DictConfig(ARGS)
 
 
 class Logger:
@@ -211,25 +196,3 @@ class Logger:
     def close(self):
         if self.logfile_output_stream:
             self.logfile_output_stream.close()
-
-
-class NestedNamespace(Namespace):
-    def __init__(self, args_dict: dict):
-        super().__init__(
-            **{
-                key: self._nested_namespace(value) if isinstance(value, dict) else value
-                for key, value in args_dict.items()
-            }
-        )
-
-    def _nested_namespace(self, dictionary):
-        return NestedNamespace(dictionary)
-
-    def to_dict(self):
-        return {
-            key: (value.to_dict() if isinstance(value, NestedNamespace) else value)
-            for key, value in self.__dict__.items()
-        }
-
-    def __str__(self):
-        return json.dumps(self.to_dict(), indent=4, sort_keys=False)

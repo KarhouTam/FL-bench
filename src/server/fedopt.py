@@ -3,9 +3,9 @@ from collections import OrderedDict
 from copy import deepcopy
 
 import torch
+from omegaconf import DictConfig
 
 from src.server.fedavg import FedAvgServer
-from src.utils.tools import NestedNamespace
 
 
 class FedOptServer(FedAvgServer):
@@ -26,14 +26,14 @@ class FedOptServer(FedAvgServer):
 
     def __init__(
         self,
-        args: NestedNamespace,
-        algo: str = "FedAvg",
+        args: DictConfig,
+        algorithm_name: str = "FedAvg",
         unique_model=False,
         use_fedavg_client_cls=True,
         return_diff=True,
     ):
         algo = self.algo_names[args.fedopt.type]
-        super().__init__(args, algo, unique_model, use_fedavg_client_cls, return_diff)
+        super().__init__(args, algorithm_name, unique_model, use_fedavg_client_cls, return_diff)
         self.adaptive_optimizer = AdaptiveOptimizer(
             optimizer_type=self.args.fedopt.type,
             params_dict=self.public_model_params,

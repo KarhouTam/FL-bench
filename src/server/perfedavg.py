@@ -1,8 +1,9 @@
 from argparse import ArgumentParser, Namespace
 
+from omegaconf import DictConfig
+
 from src.client.perfedavg import PerFedAvgClient
 from src.server.fedavg import FedAvgServer
-from src.utils.tools import NestedNamespace
 
 
 class PerFedAvgServer(FedAvgServer):
@@ -17,13 +18,13 @@ class PerFedAvgServer(FedAvgServer):
 
     def __init__(
         self,
-        args: NestedNamespace,
-        algo: str = "Per-FedAvg(FO)",
+        args: DictConfig,
+        algorithm_name: str = "Per-FedAvg(FO)",
         unique_model=False,
         use_fedavg_client_cls=False,
         return_diff=False,
     ):
         algo = "Per-FedAvg(FO)" if args.perfedavg.version == "fo" else "Per-FedAvg(HF)"
         args.common.finetune_epoch = max(1, args.common.finetune_epoch)
-        super().__init__(args, algo, unique_model, use_fedavg_client_cls, return_diff)
+        super().__init__(args, algorithm_name, unique_model, use_fedavg_client_cls, return_diff)
         self.init_trainer(PerFedAvgClient)

@@ -4,8 +4,9 @@ import sys
 import inspect
 from pathlib import Path
 
-import yaml
 import pynvml
+import hydra
+from omegaconf import DictConfig
 
 from src.server.fedavg import FedAvgServer
 
@@ -16,23 +17,11 @@ if FLBENCH_ROOT not in sys.path:
 
 from src.utils.tools import parse_args
 
-if __name__ == "__main__":
-    if len(sys.argv) < 2:
-        raise RuntimeError(
-            "No method is specified. Run like `python main.py <method> [config_file_relative_path] [cli_method_args ...]`,",
-            "e.g., python main.py fedavg config/template.yml`",
-        )
 
-    method_name = sys.argv[1]
+@hydra.main(config_path="config", config_name="defaults", version_base=None)
+def main(config: DictConfig):
+    method_name = config.method.lower()
 
-    config_file_path = None
-    cli_method_args = []
-    if len(sys.argv) > 2:
-        if ".yaml" in sys.argv[2] or ".yml" in sys.argv[2]:  # ***.yml or ***.yaml
-            config_file_path = Path(sys.argv[2]).absolute()
-            cli_method_args = sys.argv[3:]
-        else:
-            cli_method_args = sys.argv[2:]
     try:
         fl_method_server_module = importlib.import_module(f"src.server.{method_name}")
     except:
@@ -47,19 +36,7 @@ if __name__ == "__main__":
 
     get_method_hyperparams_func = getattr(server_class, f"get_hyperparams", None)
 
-    config_file_args = None
-    if config_file_path is not None and os.path.isfile(config_file_path):
-        with open(config_file_path, "r") as f:
-            try:
-                config_file_args = yaml.safe_load(f)
-            except:
-                raise TypeError(
-                    f"Config file's type should be yaml, now is {config_file_path}"
-                )
-
-    ARGS = parse_args(
-        config_file_args, method_name, get_method_hyperparams_func, cli_method_args
-    )
+    ARGS = parse_args(config, method_name, get_method_hyperparams_func)
 
     # target method is not inherited from FedAvgServer
     if server_class.__bases__[0] != FedAvgServer and server_class != FedAvgServer:
@@ -68,14 +45,11 @@ if __name__ == "__main__":
             get_parent_method_hyperparams_func = getattr(
                 parent_server_class, f"get_hyperparams", None
             )
-            # class name: ***Server, only want ***
+            # class name: <METHOD_NAME>Server, only want <METHOD_NAME>
             parent_method_name = parent_server_class.__name__.lower()[:-6]
-            # extract the hyperparams of parent method
+            # extract the hyperparameters of the parent method
             PARENT_ARGS = parse_args(
-                config_file_args,
-                parent_method_name,
-                get_parent_method_hyperparams_func,
-                cli_method_args,
+                config, parent_method_name, get_parent_method_hyperparams_func
             )
             setattr(ARGS, parent_method_name, getattr(PARENT_ARGS, parent_method_name))
 
@@ -118,3 +92,7 @@ if __name__ == "__main__":
 
     server = server_class(args=ARGS)
     server.run()
+
+
+if __name__ == "__main__":
+    main()

@@ -3,10 +3,10 @@ from copy import deepcopy
 from typing import Any
 
 import torch
+from omegaconf import DictConfig
 
 from src.client.pfedme import pFedMeClient
 from src.server.fedavg import FedAvgServer
-from src.utils.tools import NestedNamespace
 
 
 class pFedMeServer(FedAvgServer):
@@ -23,13 +23,13 @@ class pFedMeServer(FedAvgServer):
 
     def __init__(
         self,
-        args: NestedNamespace,
-        algo: str = "pFedMe",
+        args: DictConfig,
+        algorithm_name: str = "pFedMe",
         unique_model=False,
         use_fedavg_client_cls=False,
         return_diff=False,
     ):
-        super().__init__(args, algo, unique_model, use_fedavg_client_cls, return_diff)
+        super().__init__(args, algorithm_name, unique_model, use_fedavg_client_cls, return_diff)
         self.clients_personalized_model_params = {
             i: deepcopy(self.model.state_dict()) for i in self.train_clients
         }

@@ -1,17 +1,18 @@
+from omegaconf import DictConfig
+
 from src.server.fedavg import FedAvgServer
-from src.utils.tools import NestedNamespace
 
 
 class LocalServer(FedAvgServer):
     def __init__(
         self,
-        args: NestedNamespace,
-        algo: str = "Local-only",
+        args: DictConfig,
+        algorithm_name: str = "Local-only",
         unique_model=True,
         use_fedavg_client_cls=True,
         return_diff=False,
     ):
-        super().__init__(args, algo, unique_model, use_fedavg_client_cls, return_diff)
+        super().__init__(args, algorithm_name, unique_model, use_fedavg_client_cls, return_diff)
 
     def train_one_round(self):
         client_packages = self.trainer.train()

@@ -7,11 +7,11 @@ import numpy as np
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
+from omegaconf import DictConfig
 
 from src.client.fedgen import FedGenClient
 from src.server.fedavg import FedAvgServer
 from src.utils.constants import DATA_SHAPE, NUM_CLASSES
-from src.utils.tools import NestedNamespace
 
 
 class FedGenServer(FedAvgServer):
@@ -38,13 +38,13 @@ class FedGenServer(FedAvgServer):
 
     def __init__(
         self,
-        args: NestedNamespace,
-        algo: str = "FedGen",
+        args: DictConfig,
+        algorithm_name: str = "FedGen",
         unique_model=False,
         use_fedavg_client_cls=False,
         return_diff=False,
     ):
-        super().__init__(args, algo, unique_model, use_fedavg_client_cls, return_diff)
+        super().__init__(args, algorithm_name, unique_model, use_fedavg_client_cls, return_diff)
         self.generator = Generator(self)
         self.init_trainer(FedGenClient, generator=self.generator)
         self.generator_optimizer = torch.optim.Adam(
