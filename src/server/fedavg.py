@@ -8,8 +8,8 @@ import time
 import warnings
 from collections import OrderedDict
 from copy import deepcopy
-from typing import Any
 from pathlib import Path
+from typing import Any
 
 import numpy as np
 import ray
@@ -370,7 +370,7 @@ class FedAvgServer:
         ]
         keys_required = inspect.getfullargspec(target_optimizer_cls.__init__).args
         args_valid = {}
-        for key, value in vars(self.args.common.optimizer).items():
+        for key, value in self.args.common.optimizer.items():
             if key in keys_required:
                 args_valid[key] = value
 

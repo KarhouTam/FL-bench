@@ -95,4 +95,9 @@ def main(config: DictConfig):
 
 
 if __name__ == "__main__":
+    # For gather the Fl-bench logs and hydra logs
+    # Otherwise the hydra logs are stored in ./outputs/...
+    sys.argv.append(
+        "hydra.run.dir=./out/${method}/${common.dataset}/${now:%Y-%m-%d-%H-%M-%S}"
+    )
     main()
