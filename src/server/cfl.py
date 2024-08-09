@@ -28,7 +28,9 @@ class CFLServer(FedAvgServer):
         use_fedavg_client_cls=True,
         return_diff=True,
     ):
-        super().__init__(args, algorithm_name, unique_model, use_fedavg_client_cls, return_diff)
+        super().__init__(
+            args, algorithm_name, unique_model, use_fedavg_client_cls, return_diff
+        )
         assert (
             len(self.train_clients) == self.client_num
         ), "CFL doesn't support `User` type split."

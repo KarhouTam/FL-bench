@@ -33,7 +33,9 @@ class FedOptServer(FedAvgServer):
         return_diff=True,
     ):
         algo = self.algo_names[args.fedopt.type]
-        super().__init__(args, algorithm_name, unique_model, use_fedavg_client_cls, return_diff)
+        super().__init__(
+            args, algorithm_name, unique_model, use_fedavg_client_cls, return_diff
+        )
         self.adaptive_optimizer = AdaptiveOptimizer(
             optimizer_type=self.args.fedopt.type,
             params_dict=self.public_model_params,

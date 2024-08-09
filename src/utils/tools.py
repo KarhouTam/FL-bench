@@ -125,7 +125,7 @@ def parse_args(
     the final arguments.
 
     Args:
-        config_file_args (Union[dict, None]): Argument dictionary loaded from user-defined `.yml` file. `None` for unspecifying.
+        config_file_args (Union[dict, None]): Argument dictionary loaded from user-defined `.yaml` file. `None` for unspecifying.
         method_name (str): The FL method's name.
         get_method_args_func (Union[ Callable[[Union[Sequence[str], None]], Namespace], None ]): The callable function of parsing FL method `method_name`'s spec arguments.
         method_args_list (list[str]): FL method `method_name`'s specified arguments set on CLI.

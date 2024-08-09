@@ -15,7 +15,9 @@ class FedBNServer(FedAvgServer):
         use_fedavg_client_cls=False,
         return_diff=False,
     ):
-        super().__init__(args, algorithm_name, unique_model, use_fedavg_client_cls, return_diff)
+        super().__init__(
+            args, algorithm_name, unique_model, use_fedavg_client_cls, return_diff
+        )
         init_bn_params = dict(
             (key, param)
             for key, param in self.model.state_dict().items()

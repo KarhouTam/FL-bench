@@ -37,7 +37,9 @@ class MetaFedServer(FedAvgServer):
                 "MetaFed does not support parallel training, so running mode is fallback to serial."
             )
             args.mode = "serial"
-        super().__init__(args, algorithm_name, unique_model, use_fedavg_client_cls, return_diff)
+        super().__init__(
+            args, algorithm_name, unique_model, use_fedavg_client_cls, return_diff
+        )
         self.warmup = True
         self.client_flags = [True for _ in self.train_clients]
         self.init_trainer(MetaFedClient)

@@ -13,5 +13,7 @@ class FedPerServer(FedAvgServer):
         use_fedavg_client_cls=False,
         return_diff=False,
     ):
-        super().__init__(args, algorithm_name, unique_model, use_fedavg_client_cls, return_diff)
+        super().__init__(
+            args, algorithm_name, unique_model, use_fedavg_client_cls, return_diff
+        )
         self.init_trainer(FedPerClient)

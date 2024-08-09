@@ -33,7 +33,9 @@ class pFedLAServer(FedAvgServer):
         if args.mode == "parallel":
             raise NotImplementedError("pFedHN does not support paralell mode.")
         algo = "pFedLA" if args.pfedla.k == 0 else "HeurpFedLA"
-        super().__init__(args, algorithm_name, unique_model, use_fedavg_client_cls, return_diff)
+        super().__init__(
+            args, algorithm_name, unique_model, use_fedavg_client_cls, return_diff
+        )
         self.hypernet = HyperNetwork(
             embedding_dim=self.args.pfedla.embedding_dim,
             layer_num=len(self.public_model_param_names),

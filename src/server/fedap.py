@@ -36,7 +36,9 @@ class FedAPServer(FedAvgServer):
     ):
         algo_name = {"original": "FedAP", "f": "f-FedAP", "d": "d-FedAP"}
         algo = algo_name[args.fedap.version]
-        super().__init__(args, algorithm_name, unique_model, use_fedavg_client_cls, return_diff)
+        super().__init__(
+            args, algorithm_name, unique_model, use_fedavg_client_cls, return_diff
+        )
 
         self.init_trainer(FedAPClient)
         self.weight_matrix = torch.eye(self.client_num)

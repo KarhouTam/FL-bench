@@ -28,7 +28,9 @@ class ElasticServer(FedAvgServer):
         use_fedavg_client_cls=False,
         return_diff=True,
     ):
-        super().__init__(args, algorithm_name, unique_model, use_fedavg_client_cls, return_diff)
+        super().__init__(
+            args, algorithm_name, unique_model, use_fedavg_client_cls, return_diff
+        )
         self.init_trainer(ElasticClient)
 
     def aggregate(self, client_packages: OrderedDict[int, dict[str, Any]]):

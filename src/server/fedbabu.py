@@ -17,5 +17,7 @@ class FedBabuServer(FedAvgServer):
         assert (
             args.common.finetune_epoch > 0
         ), f"FedBABU needs finetuning. Now finetune_epoch = {args.common.finetune_epoch}"
-        super().__init__(args, algorithm_name, unique_model, use_fedavg_client_cls, return_diff)
+        super().__init__(
+            args, algorithm_name, unique_model, use_fedavg_client_cls, return_diff
+        )
         self.init_trainer(FedBabuClient)

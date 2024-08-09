@@ -35,7 +35,9 @@ class PeFLLServer(FedAvgServer):
     ):
         if args.common.buffers == "global":
             raise NotImplementedError("PeFLL doesn't support global buffers.")
-        super().__init__(args, algorithm_name, unique_model, use_fedavg_client_cls, return_diff)
+        super().__init__(
+            args, algorithm_name, unique_model, use_fedavg_client_cls, return_diff
+        )
         if self.args.pefll.embed_dim <= 0:
             self.args.pefll.embed_dim = int(1 + self.client_num / 4)
         self.embed_net = EmbedNetwork(self.args)

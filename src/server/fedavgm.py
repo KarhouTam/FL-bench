@@ -23,7 +23,9 @@ class FedAvgMServer(FedAvgServer):
         use_fedavg_client_cls=True,
         return_diff=True,
     ):
-        super().__init__(args, algorithm_name, unique_model, use_fedavg_client_cls, return_diff)
+        super().__init__(
+            args, algorithm_name, unique_model, use_fedavg_client_cls, return_diff
+        )
         self.global_optmizer = torch.optim.SGD(
             list(self.public_model_params.values()),
             lr=1.0,
