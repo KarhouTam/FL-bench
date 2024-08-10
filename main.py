@@ -50,7 +50,9 @@ def main(config: DictConfig):
             parent_config = parse_args(
                 config, parent_method_name, get_parent_method_hyperparams_func
             )
-            setattr(config, parent_method_name, getattr(parent_config, parent_method_name))
+            setattr(
+                config, parent_method_name, getattr(parent_config, parent_method_name)
+            )
 
     if config.mode == "parallel":
         import ray

@@ -18,6 +18,8 @@ class pFedSimServer(FedAvgServer):
         return parser.parse_args(args_list)
 
     def __init__(self, args: DictConfig, algorithm_name: str = "pFedSim"):
+        # layers join aggregation in personalization phase
+        self.params_name_join_aggregation = None
         self.warmup_round = 0
         if 0 <= args.pfedsim.warmup_round <= 1:
             self.warmup_round = int(
@@ -81,7 +83,7 @@ class pFedSimServer(FedAvgServer):
                     )
             self.update_weight_matrix()
             self.log_info()
-            avg_round_time = (avg_round_time * (self.current_epoch) + (end - begin)) / (
+            avg_round_time = (avg_round_time * self.current_epoch + (end - begin)) / (
                 self.current_epoch + 1
             )
 

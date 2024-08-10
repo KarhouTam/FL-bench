@@ -30,7 +30,6 @@ from src.utils.constants import (
     LR_SCHEDULERS,
     MODE,
     OPTIMIZERS,
-    OUT_DIR,
 )
 from src.utils.metrics import Metrics
 from src.utils.models import MODELS, DecoupledModel
@@ -419,7 +418,7 @@ class FedAvgServer:
             self.train_one_round()
             end = time.time()
             self.log_info()
-            avg_round_time = (avg_round_time * (self.current_epoch) + (end - begin)) / (
+            avg_round_time = (avg_round_time * self.current_epoch + (end - begin)) / (
                 self.current_epoch + 1
             )
 
@@ -781,9 +780,7 @@ class FedAvgServer:
             plt.ylabel("Accuracy")
             plt.legend()
             plt.savefig(
-                OUT_DIR
-                / self.algorithm_name
-                / self.output_dir
+            self.output_dir
                 / f"{self.args.common.dataset}.png",
                 bbox_inches="tight",
             )
@@ -813,9 +810,7 @@ class FedAvgServer:
                                 value=np.array(stats).T,
                             )
             df.to_csv(
-                OUT_DIR
-                / self.algorithm_name
-                / self.output_dir
+                self.output_dir
                 / f"{self.args.common.dataset}_acc_metrics.csv",
                 index=True,
                 index_label="epoch",

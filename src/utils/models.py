@@ -60,13 +60,13 @@ class DecoupledModel(nn.Module):
     def forward(self, x: Tensor) -> Tensor:
         return self.classifier(self.base(x))
 
-    def get_last_features(self, x: Tensor, detach=True) -> Tensor:
+    def get_last_features(self, data: Tensor, detach=True) -> Tensor:
         if len(self.dropout) > 0:
             for dropout in self.dropout:
                 dropout.eval()
 
         func = (lambda x: x.detach().clone()) if detach else (lambda x: x)
-        out = self.base(x)
+        out = self.base(data)
 
         if len(self.dropout) > 0:
             for dropout in self.dropout:
@@ -211,11 +211,11 @@ class TwoNN(DecoupledModel):
         x = self.classifier(self.base(x))
         return x
 
-    def get_last_features(self, x, detach=True):
+    def get_last_features(self, data, detach=True):
         func = (lambda x: x.clone().detach()) if detach else (lambda x: x)
-        x = torch.flatten(x, start_dim=1)
-        x = self.base(x)
-        return func(x)
+        data = torch.flatten(data, start_dim=1)
+        data = self.base(data)
+        return func(data)
 
     def get_all_features(self, x):
         raise RuntimeError("2NN has 0 Conv layer, so is unable to get all features.")

@@ -2,9 +2,9 @@ import time
 from argparse import ArgumentParser, Namespace
 from collections import OrderedDict
 
+import torch
 from omegaconf import DictConfig
 from rich.progress import track
-from torch._tensor import Tensor
 
 from src.client.metafed import MetaFedClient
 from src.server.fedavg import FedAvgServer
@@ -54,7 +54,7 @@ class MetaFedServer(FedAvgServer):
         server_package["client_flag"] = self.client_flags[client_id]
         return server_package
 
-    def get_client_model_params(self, client_id: int) -> OrderedDict[str, Tensor]:
+    def get_client_model_params(self, client_id: int) -> OrderedDict[str, torch.Tensor]:
         params_dict = dict(
             student_model_params=self.clients_personal_model_params[client_id]
         )
@@ -106,7 +106,7 @@ class MetaFedServer(FedAvgServer):
                 self.client_flags[client_id] = client_package[client_id]["client_flag"]
             end = time.time()
             self.log_info()
-            avg_round_time = (avg_round_time * (self.current_epoch) + (end - begin)) / (
+            avg_round_time = (avg_round_time * self.current_epoch + (end - begin)) / (
                 self.current_epoch + 1
             )
 
@@ -118,13 +118,13 @@ class MetaFedServer(FedAvgServer):
         )
 
         # personalization phase
-        self.pers_progress_bar = track(
+        pers_progress_bar = track(
             self.train_clients,
             "[bold magenta]Personalizing...",
             console=self.logger.stdout,
         )
         self.current_epoch += 1
-        for client_id in self.pers_progress_bar:
+        for client_id in pers_progress_bar:
             client_package = self.trainer.exec("personalize", [client_id])
             self.clients_personal_model_params[client_id].update(
                 client_package[client_id]["client_model_params"]
