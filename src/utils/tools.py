@@ -1,4 +1,3 @@
-import json
 import os
 import random
 from argparse import Namespace
@@ -21,7 +20,8 @@ def fix_random_seed(seed: int, use_cuda=False) -> None:
     """Fix the random seed of FL training.
 
     Args:
-        seed (int): Any number you like as the random seed.
+        seed: Any number you like as the random seed.
+        use_cuda: Flag indicates if using cuda.
     """
     os.environ["PYTHONHASHSEED"] = str(seed)
     random.seed(seed)
@@ -63,8 +63,8 @@ def get_optimal_cuda_device(use_cuda: bool) -> torch.device:
 
 
 def vectorize(
-    src: OrderedDict[str, torch.Tensor] | list[torch.Tensor] | torch.nn.Module,
-    detach=True,
+        src: OrderedDict[str, torch.Tensor] | list[torch.Tensor] | torch.nn.Module,
+        detach=True,
 ) -> torch.Tensor:
     """Vectorize(Flatten) and concatenate all tensors in `src`.
 
@@ -88,10 +88,10 @@ def vectorize(
 
 @torch.no_grad()
 def evalutate_model(
-    model: torch.nn.Module,
-    dataloader: DataLoader,
-    criterion=torch.nn.CrossEntropyLoss(reduction="sum"),
-    device=torch.device("cpu"),
+        model: torch.nn.Module,
+        dataloader: DataLoader,
+        criterion=torch.nn.CrossEntropyLoss(reduction="sum"),
+        device=torch.device("cpu"),
 ) -> Metrics:
     """For evaluating the `model` over `dataloader` and return metrics.
 
@@ -117,19 +117,17 @@ def evalutate_model(
 
 
 def parse_args(
-    config: DictConfig,
-    method_name: str,
-    get_method_args_func: Callable[[Sequence[str] | None], Namespace] | None,
-) -> Namespace:
+        config: DictConfig,
+        method_name: str,
+        get_method_args_func: Callable[[Sequence[str] | None], Namespace] | None,
+) -> DictConfig:
     """Purge arguments from default args dict, config file and CLI and produce
     the final arguments.
 
     Args:
-        config_file_args (Union[dict, None]): Argument dictionary loaded from user-defined `.yaml` file. `None` for unspecifying.
-        method_name (str): The FL method's name.
-        get_method_args_func (Union[ Callable[[Union[Sequence[str], None]], Namespace], None ]): The callable function of parsing FL method `method_name`'s spec arguments.
-        method_args_list (list[str]): FL method `method_name`'s specified arguments set on CLI.
-
+        config: DictConfig set from .yaml config file.
+        method_name: The FL method's name.
+        get_method_args_func: The callable function of parsing FL method `method_name`'s spec arguments.
     Returns:
         DictConfig: The final argument namespace.
     """
@@ -164,7 +162,7 @@ def parse_args(
 
 class Logger:
     def __init__(
-        self, stdout: Console, enable_log: bool, logfile_path: Union[Path, str]
+            self, stdout: Console, enable_log: bool, logfile_path: Union[Path, str]
     ):
         """This class is for solving the incompatibility between the progress
         bar and log function in library `rich`.
