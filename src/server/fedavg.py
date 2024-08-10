@@ -780,8 +780,7 @@ class FedAvgServer:
             plt.ylabel("Accuracy")
             plt.legend()
             plt.savefig(
-            self.output_dir
-                / f"{self.args.common.dataset}.png",
+                self.output_dir / f"metrics.png",
                 bbox_inches="tight",
             )
 
@@ -810,8 +809,7 @@ class FedAvgServer:
                                 value=np.array(stats).T,
                             )
             df.to_csv(
-                self.output_dir
-                / f"{self.args.common.dataset}_acc_metrics.csv",
+                self.output_dir / f"metrics.csv",
                 index=True,
                 index_label="epoch",
             )
