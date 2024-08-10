@@ -738,7 +738,7 @@ class FedAvgServer:
             for epoch, results in self.test_results.items()
         }
 
-        self.logger.log(all_test_results)
+        self.logger.log(json.dumps(all_test_results, indent=4))
         if self.args.common.visible == "tensorboard":
             for epoch, results in all_test_results.items():
                 self.tensorboard.add_text(
