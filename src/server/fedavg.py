@@ -8,11 +8,14 @@ import time
 import warnings
 from collections import OrderedDict
 from copy import deepcopy
+from pathlib import Path
 from typing import Any
 
 import numpy as np
 import ray
 import torch
+from hydra.core.hydra_config import HydraConfig
+from omegaconf import DictConfig, OmegaConf
 from rich.console import Console
 from rich.json import JSON
 from rich.progress import track
@@ -27,38 +30,32 @@ from src.utils.constants import (
     LR_SCHEDULERS,
     MODE,
     OPTIMIZERS,
-    OUT_DIR,
 )
 from src.utils.metrics import Metrics
 from src.utils.models import MODELS, DecoupledModel
-from src.utils.tools import (
-    Logger,
-    NestedNamespace,
-    fix_random_seed,
-    get_optimal_cuda_device,
-)
+from src.utils.tools import Logger, fix_random_seed, get_optimal_cuda_device
 from src.utils.trainer import FLbenchTrainer
 
 
 class FedAvgServer:
     def __init__(
         self,
-        args: NestedNamespace,
-        algo: str = "FedAvg",
+        args: DictConfig,
+        algorithm_name: str = "FedAvg",
         unique_model=False,
         use_fedavg_client_cls=True,
         return_diff=False,
     ):
         """
         Args:
-            `args`: A nested Namespace object of the arguments.
+            `args`: A DictConfig object of the arguments.
             `algo`: Name of FL method.
             `unique_model`: `True` indicates that clients have their own fullset model parameters.
             `use_fedavg_client_cls`: `True` indicates that using default `FedAvgClient()` as the client class.
             `return_diff`: `True` indicates that clients return `diff = W_global - W_local` as parameter update; `False` for `W_local` only.
         """
         self.args = args
-        self.algo = algo
+        self.algorithm_name = algorithm_name
         self.unique_model = unique_model
         self.return_diff = return_diff
 
@@ -69,14 +66,11 @@ class FedAvgServer:
 
         fix_random_seed(self.args.common.seed, use_cuda=self.device.type == "cuda")
 
-        start_time = str(
-            time.strftime("%Y-%m-%d-%H-%M-%S", time.localtime(round(time.time())))
-        )
-        self.output_dir = OUT_DIR / self.algo / start_time
+        self.output_dir = Path(HydraConfig.get().runtime.output_dir)
         with open(
             FLBENCH_ROOT / "data" / self.args.common.dataset / "args.json", "r"
         ) as f:
-            self.args.dataset = NestedNamespace(json.load(f))
+            self.args.dataset = DictConfig(json.load(f))
 
         # get client party info
         try:
@@ -196,10 +190,7 @@ class FedAvgServer:
         self.logger = Logger(
             stdout=stdout,
             enable_log=self.args.common.save_log,
-            logfile_path=OUT_DIR
-            / self.algo
-            / self.output_dir
-            / f"{self.args.common.dataset}.log",
+            logfile_path=self.output_dir / "main.log",
         )
         self.test_results: dict[int, dict[str, dict[str, Metrics]]] = {}
         self.train_progress_bar = track(
@@ -378,13 +369,13 @@ class FedAvgServer:
         ]
         keys_required = inspect.getfullargspec(target_optimizer_cls.__init__).args
         args_valid = {}
-        for key, value in vars(self.args.common.optimizer).items():
+        for key, value in self.args.common.optimizer.items():
             if key in keys_required:
                 args_valid[key] = value
 
         optimizer_cls = functools.partial(target_optimizer_cls, **args_valid)
         args_valid["name"] = self.args.common.optimizer.name
-        self.args.common.optimizer = NestedNamespace(args_valid)
+        self.args.common.optimizer = DictConfig(args_valid)
         return optimizer_cls
 
     def get_client_lr_scheduler(self):
@@ -408,7 +399,7 @@ class FedAvgServer:
 
                 lr_scheduler_cls = functools.partial(target_scheduler_cls, **args_valid)
                 args_valid["name"] = self.args.common.lr_scheduler.name
-                self.args.common.lr_scheduler = NestedNamespace(args_valid)
+                self.args.common.lr_scheduler = DictConfig(args_valid)
                 return lr_scheduler_cls
         else:
             return None
@@ -427,7 +418,7 @@ class FedAvgServer:
             self.train_one_round()
             end = time.time()
             self.log_info()
-            avg_round_time = (avg_round_time * (self.current_epoch) + (end - begin)) / (
+            avg_round_time = (avg_round_time * self.current_epoch + (end - begin)) / (
                 self.current_epoch + 1
             )
 
@@ -435,7 +426,7 @@ class FedAvgServer:
                 self.test()
 
         self.logger.log(
-            f"{self.algo}'s average time taken by each global epoch: "
+            f"{self.algorithm_name}'s average time taken by each global epoch: "
             f"{int(avg_round_time // 60)} min {(avg_round_time % 60):.2f} sec."
         )
 
@@ -575,7 +566,9 @@ class FedAvgServer:
             "val": "green",
             "test": "cyan",
         }
-        self.logger.log("=" * 10, self.algo, "Convergence on train clients", "=" * 10)
+        self.logger.log(
+            "=" * 10, self.algorithm_name, "Convergence on train clients", "=" * 10
+        )
         for stage in ["before", "after"]:
             for split in ["train", "val", "test"]:
                 if len(self.global_metrics[stage][split]) > 0:
@@ -622,12 +615,12 @@ class FedAvgServer:
                             [self.current_epoch],
                             win=f"Accuracy-{self.monitor_window_name_suffix}/{split}set-{stage}LocalTraining",
                             update="append",
-                            name=self.algo,
+                            name=self.algorithm_name,
                             opts=dict(
                                 title=f"Accuracy-{self.monitor_window_name_suffix}/{split}set-{stage}LocalTraining",
                                 xlabel="Communication Rounds",
                                 ylabel="Accuracy",
-                                legend=[self.algo],
+                                legend=[self.algorithm_name],
                             ),
                         )
                     elif self.args.common.visible == "tensorboard":
@@ -640,7 +633,7 @@ class FedAvgServer:
 
     def show_max_metrics(self):
         """Show the maximum stats that FL method get."""
-        self.logger.log("=" * 20, self.algo, "Max Accuracy", "=" * 20)
+        self.logger.log("=" * 20, self.algorithm_name, "Max Accuracy", "=" * 20)
 
         colors = {
             "before": "blue",
@@ -689,9 +682,9 @@ class FedAvgServer:
         Raises:
             RuntimeError: When FL-bench trainer is not set properly.
         """
-        self.logger.log("=" * 20, self.algo, "=" * 20)
+        self.logger.log("=" * 20, self.algorithm_name, "=" * 20)
         self.logger.log("Experiment Arguments:")
-        self.logger.log(JSON(str(self.args)))
+        self.logger.log(JSON(json.dumps(OmegaConf.to_object(self.args))))
         if self.args.common.visible == "tensorboard":
             self.tensorboard.add_text(
                 f"ExperimentalArguments-{self.monitor_window_name_suffix}",
@@ -718,10 +711,10 @@ class FedAvgServer:
         end = time.time()
         total = end - begin
         self.logger.log(
-            f"{self.algo}'s total running time: "
+            f"{self.algorithm_name}'s total running time: "
             f"{int(total // 3600)} h {int((total % 3600) // 60)} m {int(total % 60)} s."
         )
-        self.logger.log("=" * 20, self.algo, "Experiment Results:", "=" * 20)
+        self.logger.log("=" * 20, self.algorithm_name, "Experiment Results:", "=" * 20)
         self.logger.log(
             "Format: [green](before local fine-tuning) -> [blue](after local fine-tuning)\n",
             "So if finetune_epoch = 0, x.xx% -> 0.00% is normal.",
@@ -745,7 +738,7 @@ class FedAvgServer:
             for epoch, results in self.test_results.items()
         }
 
-        self.logger.log(all_test_results)
+        self.logger.log(json.dumps(all_test_results, indent=4))
         if self.args.common.visible == "tensorboard":
             for epoch, results in all_test_results.items():
                 self.tensorboard.add_text(
@@ -781,16 +774,13 @@ class FedAvgServer:
                             ls=linestyle[stage][split],
                         )
 
-            plt.title(f"{self.algo}_{self.args.common.dataset}")
+            plt.title(f"{self.algorithm_name}_{self.args.common.dataset}")
             plt.ylim(0, 100)
             plt.xlabel("Communication Rounds")
             plt.ylabel("Accuracy")
             plt.legend()
             plt.savefig(
-                OUT_DIR
-                / self.algo
-                / self.output_dir
-                / f"{self.args.common.dataset}.png",
+                self.output_dir / f"metrics.png",
                 bbox_inches="tight",
             )
 
@@ -819,10 +809,7 @@ class FedAvgServer:
                                 value=np.array(stats).T,
                             )
             df.to_csv(
-                OUT_DIR
-                / self.algo
-                / self.output_dir
-                / f"{self.args.common.dataset}_acc_metrics.csv",
+                self.output_dir / f"metrics.csv",
                 index=True,
                 index_label="epoch",
             )
@@ -834,6 +821,6 @@ class FedAvgServer:
                 torch.save(self.public_model_params, self.output_dir / model_name)
             else:
                 warnings.warn(
-                    f"{self.algo}'s unique_model = True, which does not support saving model parameters. "
+                    f"{self.algorithm_name}'s unique_model = True, which does not support saving model parameters. "
                     "So the saving is skipped."
                 )

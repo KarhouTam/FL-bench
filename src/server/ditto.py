@@ -1,9 +1,10 @@
 from argparse import ArgumentParser, Namespace
 from copy import deepcopy
 
+from omegaconf import DictConfig
+
 from src.client.ditto import DittoClient
 from src.server.fedavg import FedAvgServer
-from src.utils.tools import NestedNamespace
 
 
 class DittoServer(FedAvgServer):
@@ -17,13 +18,15 @@ class DittoServer(FedAvgServer):
 
     def __init__(
         self,
-        args: NestedNamespace,
-        algo: str = "Ditto",
+        args: DictConfig,
+        algorithm_name: str = "Ditto",
         unique_model=False,
         use_fedavg_client_cls=False,
         return_diff=False,
     ):
-        super().__init__(args, algo, unique_model, use_fedavg_client_cls, return_diff)
+        super().__init__(
+            args, algorithm_name, unique_model, use_fedavg_client_cls, return_diff
+        )
         self.init_trainer(DittoClient)
         self.clients_personalized_model_params = {
             i: deepcopy(self.model.state_dict()) for i in self.train_clients

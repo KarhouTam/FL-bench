@@ -8,12 +8,12 @@ from functools import partial
 import numpy as np
 import torch
 import torch.nn as nn
+from omegaconf import DictConfig
 from rich.progress import track
 
 from src.client.fedfed import FedFedClient
 from src.server.fedavg import FedAvgServer
 from src.utils.constants import DATA_SHAPE
-from src.utils.tools import NestedNamespace
 
 
 class FedFedServer(FedAvgServer):
@@ -45,13 +45,15 @@ class FedFedServer(FedAvgServer):
 
     def __init__(
         self,
-        args: NestedNamespace,
-        algo: str = "FedFed",
+        args: DictConfig,
+        algorithm_name: str = "FedFed",
         unique_model=False,
         use_fedavg_client_cls=False,
         return_diff=False,
     ):
-        super().__init__(args, algo, unique_model, use_fedavg_client_cls, return_diff)
+        super().__init__(
+            args, algorithm_name, unique_model, use_fedavg_client_cls, return_diff
+        )
         dummy_VAE_model = VAE(self.args)
         VAE_optimizer_cls = partial(
             torch.optim.AdamW,

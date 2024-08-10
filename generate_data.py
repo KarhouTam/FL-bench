@@ -2,6 +2,7 @@ import json
 import os
 import pickle
 import random
+import hashlib
 from copy import deepcopy
 from collections import Counter
 from argparse import ArgumentParser
@@ -37,6 +38,13 @@ def main(args):
 
     if not os.path.isdir(dataset_root):
         os.mkdir(dataset_root)
+
+    if os.path.isfile(dataset_root / "partition_md5.txt"):
+        with open(dataset_root / "partition_md5.txt", "r") as f:
+            md5 = f.read()
+            if md5 == hashlib.md5(json.dumps(args.__dict__).encode()).hexdigest():
+                print("Partition file already exists. Skip partitioning.")
+                return
 
     client_num = args.client_num
     partition = {"separation": None, "data_indices": [[] for _ in range(client_num)]}
@@ -317,6 +325,9 @@ def main(args):
 
     with open(dataset_root / "args.json", "w") as f:
         json.dump(prune_args(args), f, indent=4)
+
+    with open(dataset_root / "partition_md5.txt", "w") as f:
+        f.write(hashlib.md5(json.dumps(args.__dict__).encode()).hexdigest())
 
 
 if __name__ == "__main__":

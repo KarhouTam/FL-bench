@@ -3,12 +3,13 @@ from copy import deepcopy
 from typing import Any
 
 import torch
+from omegaconf import DictConfig
 from torch.utils.data import DataLoader, Subset
 
 from data.utils.datasets import BaseDataset
 from src.utils.metrics import Metrics
 from src.utils.models import DecoupledModel
-from src.utils.tools import NestedNamespace, evalutate_model, get_optimal_cuda_device
+from src.utils.tools import evalutate_model, get_optimal_cuda_device
 
 
 class FedAvgClient:
@@ -17,7 +18,7 @@ class FedAvgClient:
         model: DecoupledModel,
         optimizer_cls: type[torch.optim.Optimizer],
         lr_scheduler_cls: type[torch.optim.lr_scheduler.LRScheduler],
-        args: NestedNamespace,
+        args: DictConfig,
         dataset: BaseDataset,
         data_indices: list,
         device: torch.device | None,

@@ -1,6 +1,7 @@
 from argparse import ArgumentParser, Namespace
 
 import torch
+from omegaconf import DictConfig
 from torch.utils.data import DataLoader
 from torchvision import transforms
 
@@ -8,7 +9,6 @@ from data.utils.datasets import DATASETS
 from src.client.fedmd import FedMDClient
 from src.server.fedavg import FedAvgServer
 from src.utils.constants import DATA_MEAN, DATA_STD, FLBENCH_ROOT
-from src.utils.tools import NestedNamespace
 
 
 class FedMDServer(FedAvgServer):
@@ -33,8 +33,8 @@ class FedMDServer(FedAvgServer):
 
     def __init__(
         self,
-        args: NestedNamespace,
-        algo: str = "FedMD",
+        args: DictConfig,
+        algorithm_name: str = "FedMD",
         unique_model=True,
         use_fedavg_client_cls=False,
         return_diff=False,
@@ -56,7 +56,9 @@ class FedMDServer(FedAvgServer):
                     args.common.dataset
                 )
             )
-        super().__init__(args, algo, unique_model, use_fedavg_client_cls, return_diff)
+        super().__init__(
+            args, algorithm_name, unique_model, use_fedavg_client_cls, return_diff
+        )
         test_data_transform = transforms.Compose(
             [
                 transforms.Normalize(

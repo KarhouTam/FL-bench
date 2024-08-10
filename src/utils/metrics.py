@@ -34,7 +34,7 @@ class Metrics:
         if len(self._targets) > 0:
             return self._loss / len(self._targets)
         else:
-            return 0
+            return 0.0
 
     @property
     def macro_precision(self):

@@ -2,12 +2,12 @@ import time
 from argparse import ArgumentParser, Namespace
 from collections import OrderedDict
 
+import torch
+from omegaconf import DictConfig
 from rich.progress import track
-from torch._tensor import Tensor
 
 from src.client.metafed import MetaFedClient
 from src.server.fedavg import FedAvgServer
-from src.utils.tools import NestedNamespace
 
 
 class MetaFedServer(FedAvgServer):
@@ -24,8 +24,8 @@ class MetaFedServer(FedAvgServer):
 
     def __init__(
         self,
-        args: NestedNamespace,
-        algo: str = "MetaFed",
+        args: DictConfig,
+        algorithm_name: str = "MetaFed",
         unique_model=True,
         use_fedavg_client_cls=False,
         return_diff=False,
@@ -37,7 +37,9 @@ class MetaFedServer(FedAvgServer):
                 "MetaFed does not support parallel training, so running mode is fallback to serial."
             )
             args.mode = "serial"
-        super().__init__(args, algo, unique_model, use_fedavg_client_cls, return_diff)
+        super().__init__(
+            args, algorithm_name, unique_model, use_fedavg_client_cls, return_diff
+        )
         self.warmup = True
         self.client_flags = [True for _ in self.train_clients]
         self.init_trainer(MetaFedClient)
@@ -52,7 +54,7 @@ class MetaFedServer(FedAvgServer):
         server_package["client_flag"] = self.client_flags[client_id]
         return server_package
 
-    def get_client_model_params(self, client_id: int) -> OrderedDict[str, Tensor]:
+    def get_client_model_params(self, client_id: int) -> OrderedDict[str, torch.Tensor]:
         params_dict = dict(
             student_model_params=self.clients_personal_model_params[client_id]
         )
@@ -104,7 +106,7 @@ class MetaFedServer(FedAvgServer):
                 self.client_flags[client_id] = client_package[client_id]["client_flag"]
             end = time.time()
             self.log_info()
-            avg_round_time = (avg_round_time * (self.current_epoch) + (end - begin)) / (
+            avg_round_time = (avg_round_time * self.current_epoch + (end - begin)) / (
                 self.current_epoch + 1
             )
 
@@ -112,17 +114,17 @@ class MetaFedServer(FedAvgServer):
                 self.test()
 
         self.logger.log(
-            f"{self.algo}'s average time taken by each global epoch: {int(avg_round_time // 60)} m {(avg_round_time % 60):.2f} s."
+            f"{self.algorithm_name}'s average time taken by each global epoch: {int(avg_round_time // 60)} m {(avg_round_time % 60):.2f} s."
         )
 
         # personalization phase
-        self.pers_progress_bar = track(
+        pers_progress_bar = track(
             self.train_clients,
             "[bold magenta]Personalizing...",
             console=self.logger.stdout,
         )
         self.current_epoch += 1
-        for client_id in self.pers_progress_bar:
+        for client_id in pers_progress_bar:
             client_package = self.trainer.exec("personalize", [client_id])
             self.clients_personal_model_params[client_id].update(
                 client_package[client_id]["client_model_params"]

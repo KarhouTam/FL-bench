@@ -140,20 +140,23 @@ About methods of generating federated dastaset, go check [`data/README.md`](data
 
 
 ### Step 2. Run Experiment
-❗ Method name should be identical to the `.py` file name in `src/server`.
+
 ```sh
-python main.py <method> [your_config_file.yml] [method_args...]
+python main.py [--config-path, --config-name] [method=<METHOD_NAME> args...]
 ```
+- `method`: The algorithm's name, e.g., `method=fedavg`. ❗ Method name should be identical to the `.py` file name in `src/server`.
+- `--config-path`: Relative path to the directory of the config file. Defaults to `config`.
+- `--config-name`: Name of `.yaml` config file (w/o the `.yaml` extension). Defaults to `defaults`, which points to `config/defaults.yaml`.
 
 Such as running FedAvg with all defaults. 
 ```sh
-python main.py fedavg
+python main.py method=fedavg
 ```
-Defaults are set in [`src/utils/constants.py`](src/utils/constants.py)
+Defaults are set in both [`config/defaults.yaml`](config/defaults.yaml) and [`src/utils/constants.py`](src/utils/constants.py).
 
 ### How To Customize FL method Arguments 🤖
 - By modifying config file
-- By explicitly setting in CLI, e.g., `python main.py fedprox config/my_cfg.yml --mu 0.01`.
+- By explicitly setting in CLI, e.g., `python main.py --config-name my_cfg.yaml method=fedprox fedprox.mu=0.01`.
 - By modifying the default value in `src/utils/constants.py/DEFAULT_COMMON_ARGS` or `get_hyperparams()` of the method
 
 ⚠ For the same FL method argument, the priority of argument setting is **CLI > Config file > Default value**. 
@@ -170,18 +173,17 @@ class FedProxServer(FedAvgServer):
         return parser.parse_args(args_list)
 
 ```
-and your `.yml` config file has
+and your `.yaml` config file has
 ```yaml
-# your_config.yml
+# config/your_config.yaml
 ...
 fedprox:
   mu: 0.01
 ```
 
 ```shell
-python main.py fedprox                           # fedprox.mu = 1
-python main.py fedprox your_config.yml           # fedprox.mu = 0.01
-python main.py fedprox your_config.yml --mu 10   # fedprox.mu = 10
+python main.py fedprox                                  # fedprox.mu = 1
+python main.py fedprox --config-name your_config        # fedprox.mu = 0.01
 ``` 
 
 ### Monitor 📈
@@ -190,7 +192,7 @@ FL-bench supports `visdom` and `tensorboard`.
 #### Activate
 **👀 NOTE:** You needs to launch `visdom` / `tensorboard` server by yourself.
 ```yaml
-# your config_file.yml
+# your_config.yaml
 common:
   ...
   visible: tensorboard # options: [null, visdom, tensorboard]
@@ -210,7 +212,7 @@ common:
 This feature can **vastly improve your training efficiency**. At the same time, this feature is user-friendly and easy to use!!!
 ### Activate (What You ONLY Need To Do)
 ```yaml
-# your_config_file.yml
+# your_config.yaml
 mode: parallel
 parallel:
   num_workers: 2 # any positive integer that larger than 1
@@ -225,7 +227,7 @@ ray start --head [OPTIONS]
 ```
 👀 **NOTE:** You need to keep `num_cpus: null` and `num_gpus: null` in your config file for connecting to a existing `Ray` cluster.
 ```yaml
-# your_config_file.yml
+# your_config_file.yaml
 # Connect to an existing Ray cluster in localhost.
 mode: parallel
 parallel:
@@ -245,13 +247,15 @@ All common arguments have their default value. Go check [`DEFAULT_COMMON_ARGS`](
 
 ⚠ Common arguments cannot be set via CLI.
 
-You can also write your own `.yml` config file. I offer you a [template](config/template.yml) in `config` and recommend you to save your config files there also. 
+You can also write your own `.yaml` config file. I offer you a [template](config/template.yaml) in `config` and recommend you to save your config files there also. 
 
 One example: `python main.py fedavg config/template.yaml [cli_method_args...]`
 
 About the default values of specific FL method arguments, go check corresponding `FL-bench/src/server/<method>.py` for the full details.
 | Arguments                    | Type    | Description                                                                                                                                                                                                                                                                                            |
 | ---------------------------- | ------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `--config-path`              | `str`   | The directory of config files. Defaults to `config`, means `./config`.                                                                                                                                                                                                                                 |
+| `--config-name`              | `str`   | The name of config file (w/o the `.yaml` extension). Defaults to `defaults`, which points to `config/defaults.yaml`.                                                                                                                                                                                   |
 | `dataset`                    | `str`   | The name of dataset that experiment run on.                                                                                                                                                                                                                                                            |
 | `model`                      | `str`   | The model backbone experiment used.                                                                                                                                                                                                                                                                    |
 | `seed`                       | `int`   | Random seed for running experiment.                                                                                                                                                                                                                                                                    |

@@ -4,12 +4,12 @@ from copy import deepcopy
 
 import numpy as np
 import torch
+from omegaconf import DictConfig
 from torch.utils.data import DataLoader, Dataset
 
 from src.client.ccvr import CCVRClient
 from src.server.fedavg import FedAvgServer
 from src.utils.constants import NUM_CLASSES
-from src.utils.tools import NestedNamespace
 
 
 class CCVRServer(FedAvgServer):
@@ -22,13 +22,15 @@ class CCVRServer(FedAvgServer):
 
     def __init__(
         self,
-        args: NestedNamespace,
-        algo: str = "CCVR",
+        args: DictConfig,
+        algorithm_name: str = "CCVR",
         unique_model=False,
         use_fedavg_client_cls=False,
         return_diff=False,
     ):
-        super().__init__(args, algo, unique_model, use_fedavg_client_cls, return_diff)
+        super().__init__(
+            args, algorithm_name, unique_model, use_fedavg_client_cls, return_diff
+        )
         self.init_trainer(CCVRClient)
 
     def test(self):

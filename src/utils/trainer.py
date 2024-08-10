@@ -69,21 +69,21 @@ class FLbenchTrainer:
         i = 0
         futures = []
         idle_workers = deque(range(self.num_workers))
-        map = {}
+        job_map = {}
         client_packages = OrderedDict()
         while i < len(clients) or len(futures) > 0:
             while i < len(clients) and len(idle_workers) > 0:
                 worker_id = idle_workers.popleft()
                 server_package = ray.put(self.server.package(clients[i]))
                 future = self.workers[worker_id].train.remote(server_package)
-                map[future] = (clients[i], worker_id)
+                job_map[future] = (clients[i], worker_id)
                 futures.append(future)
                 i += 1
 
             if len(futures) > 0:
                 all_finished, futures = ray.wait(futures)
                 for finished in all_finished:
-                    client_id, worker_id = map[finished]
+                    client_id, worker_id = job_map[finished]
                     client_package = ray.get(finished)
                     idle_workers.append(worker_id)
                     client_packages[client_id] = client_package
@@ -120,13 +120,13 @@ class FLbenchTrainer:
         i = 0
         futures = []
         idle_workers = deque(range(self.num_workers))
-        map = {}  # {future: (client_id, worker_id)}
+        job_map = {}  # {future: (client_id, worker_id)}
         while i < len(clients) or len(futures) > 0:
             while i < len(clients) and len(idle_workers) > 0:
                 server_package = ray.put(self.server.package(clients[i]))
                 worker_id = idle_workers.popleft()
                 future = self.workers[worker_id].test.remote(server_package)
-                map[future] = (clients[i], worker_id)
+                job_map[future] = (clients[i], worker_id)
                 futures.append(future)
                 i += 1
 
@@ -134,7 +134,7 @@ class FLbenchTrainer:
                 all_finished, futures = ray.wait(futures)
                 for finished in all_finished:
                     metrics = ray.get(finished)
-                    _, worker_id = map[finished]
+                    _, worker_id = job_map[finished]
                     idle_workers.append(worker_id)
                     for stage in ["before", "after"]:
                         for split in ["train", "val", "test"]:
@@ -167,7 +167,7 @@ class FLbenchTrainer:
         i = 0
         futures = []
         idle_workers = deque(range(self.num_workers))
-        map = {}  # {future: (client_id, worker_id)}
+        job_map = {}  # {future: (client_id, worker_id)}
         while i < len(clients) or len(futures) > 0:
             while i < len(clients) and len(idle_workers) > 0:
                 server_package = ray.put(package_func(clients[i]))
@@ -175,7 +175,7 @@ class FLbenchTrainer:
                 future = getattr(self.workers[worker_id], func_name).remote(
                     server_package
                 )
-                map[future] = (clients[i], worker_id)
+                job_map[future] = (clients[i], worker_id)
                 futures.append(future)
                 i += 1
 
@@ -183,7 +183,7 @@ class FLbenchTrainer:
                 all_finished, futures = ray.wait(futures)
                 for finished in all_finished:
                     package = ray.get(finished)
-                    client_id, worker_id = map[finished]
+                    client_id, worker_id = job_map[finished]
                     idle_workers.append(worker_id)
                     client_packages[client_id] = package
 

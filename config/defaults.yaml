@@ -1,5 +1,7 @@
 # Full explaination are listed on README.md
 
+method: fedavg
+
 mode: parallel # [serial, parallel]
 
 parallel: # It's fine to keep these configs.
@@ -67,3 +69,4 @@ pfedsim:
 # ...
 
 # NOTE: For those unmentioned arguments, the default values are set in `get_hyperparams()` in `class <method>Server` in `src/server/<method>.py`
+

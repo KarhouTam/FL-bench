@@ -3,10 +3,10 @@ from collections import OrderedDict
 from typing import Any
 
 import torch
+from omegaconf import DictConfig
 
 from src.client.pefll import EmbedNetwork, HyperNetwork, PeFLLClient
 from src.server.fedavg import FedAvgServer
-from src.utils.tools import NestedNamespace
 
 
 # about other hyperparameter settings, most you can find in the common section.
@@ -27,15 +27,17 @@ class PeFLLServer(FedAvgServer):
 
     def __init__(
         self,
-        args: NestedNamespace,
-        algo: str = "PeFLL",
+        args: DictConfig,
+        algorithm_name: str = "PeFLL",
         unique_model=True,
         use_fedavg_client_cls=False,
         return_diff=False,
     ):
         if args.common.buffers == "global":
             raise NotImplementedError("PeFLL doesn't support global buffers.")
-        super().__init__(args, algo, unique_model, use_fedavg_client_cls, return_diff)
+        super().__init__(
+            args, algorithm_name, unique_model, use_fedavg_client_cls, return_diff
+        )
         if self.args.pefll.embed_dim <= 0:
             self.args.pefll.embed_dim = int(1 + self.client_num / 4)
         self.embed_net = EmbedNetwork(self.args)

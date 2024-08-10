@@ -3,11 +3,11 @@ from copy import deepcopy
 
 import torch
 import torch.nn as nn
+from omegaconf import DictConfig
 from torch.utils.data import DataLoader, Dataset
 
 from src.client.adcol import ADCOLClient
 from src.server.fedavg import FedAvgServer
-from src.utils.tools import NestedNamespace
 
 
 class Discriminator(nn.Module):
@@ -67,13 +67,15 @@ class ADCOLServer(FedAvgServer):
 
     def __init__(
         self,
-        args: NestedNamespace,
-        algo: str = "ADCOL",
+        args: DictConfig,
+        algorithm_name: str = "ADCOL",
         unique_model=False,
         use_fedavg_client_cls=False,
         return_diff=False,
     ):
-        super().__init__(args, algo, unique_model, use_fedavg_client_cls, return_diff)
+        super().__init__(
+            args, algorithm_name, unique_model, use_fedavg_client_cls, return_diff
+        )
         self.train_client_num = len(self.train_clients)
         self.discriminator = Discriminator(
             base_model=self.model, client_num=len(self.train_clients)

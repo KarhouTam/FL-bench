@@ -3,12 +3,12 @@ import os
 import pickle
 from argparse import Namespace
 from pathlib import Path
-from typing import List
 
 import numpy as np
 import pandas as pd
 import torch
 import torchvision
+from omegaconf import DictConfig
 from PIL import Image
 from torch.utils.data import Dataset
 from torchvision import transforms
@@ -312,6 +312,8 @@ class EMNIST(BaseDataset):
             split = args.emnist_split
         elif isinstance(args, dict):
             split = args["emnist_split"]
+        elif isinstance(args, DictConfig):
+            split = args.emnist_split
         train_part = torchvision.datasets.EMNIST(
             root, split=split, train=True, download=True
         )
@@ -386,6 +388,8 @@ class CIFAR100(BaseDataset):
             super_class = args.super_class
         elif isinstance(args, dict):
             super_class = args["super_class"]
+        elif isinstance(args, DictConfig):
+            super_class = args.super_class
 
         if super_class:
             # super_class: [sub_classes]
@@ -580,10 +584,7 @@ class DomainNet(BaseDataset):
         self.classes = list(range(len(metadata["classes"])))
         self.targets = torch.load(targets_path)
         self.pre_transform = transforms.Compose(
-            [
-                transforms.Resize(metadata["image_size"]),
-                transforms.ToTensor(),
-            ]
+            [transforms.Resize(metadata["image_size"]), transforms.ToTensor()]
         )
         self.test_data_transform = test_data_transform
         self.test_target_transform = test_target_transform

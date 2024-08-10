@@ -5,10 +5,10 @@ from typing import Optional
 import torch
 import torch.nn as nn
 import torchvision.models as models
+from omegaconf import DictConfig
 from torch import Tensor
 
 from src.utils.constants import DATA_SHAPE, INPUT_CHANNELS, NUM_CLASSES
-from src.utils.tools import NestedNamespace
 
 
 class DecoupledModel(nn.Module):
@@ -34,7 +34,7 @@ class DecoupledModel(nn.Module):
         for module in target_modules:
             module.register_forward_hook(_get_feature_hook_fn)
 
-    def check_and_preprocess(self, args: NestedNamespace):
+    def check_and_preprocess(self, args: DictConfig):
         if self.base is None or self.classifier is None:
             raise RuntimeError(
                 "You need to re-write the base and classifier in your custom model class."
@@ -60,13 +60,13 @@ class DecoupledModel(nn.Module):
     def forward(self, x: Tensor) -> Tensor:
         return self.classifier(self.base(x))
 
-    def get_last_features(self, x: Tensor, detach=True) -> Tensor:
+    def get_last_features(self, data: Tensor, detach=True) -> Tensor:
         if len(self.dropout) > 0:
             for dropout in self.dropout:
                 dropout.eval()
 
         func = (lambda x: x.detach().clone()) if detach else (lambda x: x)
-        out = self.base(x)
+        out = self.base(data)
 
         if len(self.dropout) > 0:
             for dropout in self.dropout:
@@ -211,11 +211,11 @@ class TwoNN(DecoupledModel):
         x = self.classifier(self.base(x))
         return x
 
-    def get_last_features(self, x, detach=True):
+    def get_last_features(self, data, detach=True):
         func = (lambda x: x.clone().detach()) if detach else (lambda x: x)
-        x = torch.flatten(x, start_dim=1)
-        x = self.base(x)
-        return func(x)
+        data = torch.flatten(data, start_dim=1)
+        data = self.base(data)
+        return func(data)
 
     def get_all_features(self, x):
         raise RuntimeError("2NN has 0 Conv layer, so is unable to get all features.")

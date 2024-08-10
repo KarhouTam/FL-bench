@@ -5,9 +5,9 @@ from copy import deepcopy
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
+from omegaconf import DictConfig
 
 from src.server.fedavg import FedAvgServer
-from src.utils.tools import NestedNamespace
 
 
 class pFedLAServer(FedAvgServer):
@@ -24,8 +24,8 @@ class pFedLAServer(FedAvgServer):
 
     def __init__(
         self,
-        args: NestedNamespace,
-        algo: str = None,
+        args: DictConfig,
+        algorithm_name: str = None,
         unique_model=True,
         use_fedavg_client_cls=True,
         return_diff=True,
@@ -33,7 +33,9 @@ class pFedLAServer(FedAvgServer):
         if args.mode == "parallel":
             raise NotImplementedError("pFedHN does not support paralell mode.")
         algo = "pFedLA" if args.pfedla.k == 0 else "HeurpFedLA"
-        super().__init__(args, algo, unique_model, use_fedavg_client_cls, return_diff)
+        super().__init__(
+            args, algorithm_name, unique_model, use_fedavg_client_cls, return_diff
+        )
         self.hypernet = HyperNetwork(
             embedding_dim=self.args.pfedla.embedding_dim,
             layer_num=len(self.public_model_param_names),
