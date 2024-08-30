@@ -3,7 +3,7 @@ name: Docker Image Publish
 on:
   push:
     paths:
-      - ".environment/**"
+      - ".env/**"
       - ".github/workflows/docker-publish.yml"
 
 env:
@@ -34,7 +34,7 @@ jobs:
         uses: docker/build-push-action@v5
         with:
           context: .
-          file: .environment/Dockerfile
+          file: .env/Dockerfile
           push: false
           tags: |
             ${{ env.GITHUB_REGISTRY }}/${{ env.IMAGE_LOWERCASE_OWNER }}/${{ env.IMAGE_LOWERCASE_NAME }}:${{ env.IMAGE_TAG }}
@@ -69,7 +69,7 @@ jobs:
         uses: docker/build-push-action@v5
         with:
           context: .
-          file: .environment/Dockerfile
+          file: .env/Dockerfile
           push: true
           tags: |
             ${{ env.GITHUB_REGISTRY }}/${{ env.IMAGE_LOWERCASE_OWNER }}/${{ env.IMAGE_LOWERCASE_NAME }}:${{ env.IMAGE_TAG }}
@@ -103,7 +103,7 @@ jobs:
         uses: docker/build-push-action@v5
         with:
           context: .
-          file: .environment/Dockerfile
+          file: .env/Dockerfile
           push: true
           tags: |
             ${{ env.ALIYUN_REGISTRY }}/${{ env.IMAGE_LOWERCASE_OWNER }}/${{ env.IMAGE_LOWERCASE_NAME }}:${{ env.IMAGE_TAG }}

@@ -7,7 +7,7 @@ RUN apt update && \
 
 WORKDIR /root
 
-COPY .environment/requirements.txt /tmp
+COPY .env/requirements.txt /tmp
 
 RUN pip install --upgrade pip && \
     pip install -r /tmp/requirements.txt

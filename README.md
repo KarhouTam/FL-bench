@@ -98,17 +98,17 @@ FL-bench welcomes PR on everything that can make this project better.
 
 ### PyPI 🐍
 ```sh
-pip install -r .environment/requirements.txt
+pip install -r .env/requirements.txt
 ```
 
 ### Poetry 🎶
 For those China mainland users
 ```sh
-poetry install --no-root -C .environment
+poetry install --no-root -C .env
 ```
 For others
 ```sh
-cd .environment && sed -i "10,14d" pyproject.toml && poetry lock --no-update && poetry install --no-root
+cd .env && sed -i "10,14d" pyproject.toml && poetry lock --no-update && poetry install --no-root
 ```
 
 ### Docker 🐳
