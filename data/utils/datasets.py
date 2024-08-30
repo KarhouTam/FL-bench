@@ -12,6 +12,7 @@ from omegaconf import DictConfig
 from PIL import Image
 from torch.utils.data import Dataset
 from torchvision import transforms
+from torchvision.io.image import read_image, ImageReadMode
 from torchvision.transforms.functional import pil_to_tensor
 
 
@@ -455,11 +456,10 @@ class TinyImagenet(BaseDataset):
             targets = []
             for cls in os.listdir(root / "raw" / "train"):
                 for img_name in os.listdir(root / "raw" / "train" / cls / "images"):
-                    img = pil_to_tensor(
-                        Image.open(root / "raw" / "train" / cls / "images" / img_name)
+                    img = read_image(
+                        str(root / "raw" / "train" / cls / "images" / img_name),
+                        mode=ImageReadMode.RGB,
                     ).float()
-                    if img.shape[0] == 1:
-                        img = torch.expand_copy(img, [3, 64, 64])
                     data.append(img)
                     targets.append(mapping[cls])
 
@@ -471,11 +471,10 @@ class TinyImagenet(BaseDataset):
             )
             test_classes = dict(zip(table[0].tolist(), table[1].tolist()))
             for img_name in os.listdir(root / "raw" / "val" / "images"):
-                img = pil_to_tensor(
-                    Image.open(root / "raw" / "val" / "images" / img_name)
+                img = read_image(
+                    str(root / "raw" / "val" / "images" / img_name),
+                    mode=ImageReadMode.RGB,
                 ).float()
-                if img.shape[0] == 1:
-                    img = torch.expand_copy(img, [3, 64, 64])
                 data.append(img)
                 targets.append(mapping[test_classes[img_name]])
             torch.save(torch.stack(data), root / "data.pt")
@@ -528,11 +527,10 @@ class CINIC10(BaseDataset):
             for folder in ["test", "train", "valid"]:
                 for cls in os.listdir(Path(root) / "raw" / folder):
                     for img_name in os.listdir(root / "raw" / folder / cls):
-                        img = pil_to_tensor(
-                            Image.open(root / "raw" / folder / cls / img_name)
+                        img = read_image(
+                            str(root / "raw" / folder / cls / img_name),
+                            mode=ImageReadMode.RGB,
                         ).float()
-                        if img.shape[0] == 1:
-                            img = torch.expand_copy(img, [3, 32, 32])
                         data.append(img)
                         targets.append(mapping[cls])
             torch.save(torch.stack(data), root / "data.pt")
@@ -584,7 +582,7 @@ class DomainNet(BaseDataset):
         self.classes = list(range(len(metadata["classes"])))
         self.targets = torch.load(targets_path)
         self.pre_transform = transforms.Compose(
-            [transforms.Resize(metadata["image_size"]), transforms.ToTensor()]
+            [transforms.Resize(metadata["image_size"])]
         )
         self.test_data_transform = test_data_transform
         self.test_target_transform = test_target_transform
@@ -592,7 +590,9 @@ class DomainNet(BaseDataset):
         self.train_target_transform = train_target_transform
 
     def __getitem__(self, index):
-        data = self.pre_transform(Image.open(self.filename_list[index]).convert("RGB"))
+        data = self.pre_transform(
+            read_image(str(self.filename_list[index]), mode=ImageReadMode.RGB)
+        )
         targets = self.targets[index]
         if self.data_transform is not None:
             data = self.data_transform(data)
