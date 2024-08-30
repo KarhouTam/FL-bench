@@ -61,12 +61,10 @@ common:
 
 # You can set specific arguments for FL methods also
 # FL-bench uses FL method arguments by args.<method>.<arg>
-# e.g.
 fedprox:
   mu: 0.01
 pfedsim:
   warmup_round: 0.7
-# ...
 
 # NOTE: For those unmentioned arguments, the default values are set in `get_hyperparams()` in `class <method>Server` in `src/server/<method>.py`
 
