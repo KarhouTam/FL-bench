@@ -90,7 +90,12 @@ def main(config: DictConfig):
         cluster_resources = ray.cluster_resources()
         config.parallel.num_cpus = cluster_resources["CPU"]
         config.parallel.num_gpus = cluster_resources["GPU"]
-
+    elif config.mode == "serial":
+        del config.parallel  # remove unused parallel config
+    else:
+        raise ValueError(
+            f"Invalid mode: {config.mode}. Needs to be 'parallel' or 'serial'."
+        )
     server = server_class(args=config)
     server.run()
 
