@@ -182,8 +182,8 @@ fedprox:
 ```
 
 ```shell
-python main.py fedprox                                  # fedprox.mu = 1
-python main.py fedprox --config-name your_config        # fedprox.mu = 0.01
+python main.py method=fedprox                                  # fedprox.mu = 1
+python main.py --config-name your_config method=fedprox        # fedprox.mu = 0.01
 ``` 
 
 ### Monitor 📈
