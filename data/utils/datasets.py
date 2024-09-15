@@ -3,30 +3,48 @@ import os
 import pickle
 from argparse import Namespace
 from pathlib import Path
+from typing import List, Optional
 
 import numpy as np
 import pandas as pd
 import torch
 import torchvision
-from omegaconf import DictConfig
 from PIL import Image
+from omegaconf import DictConfig
 from torch.utils.data import Dataset
 from torchvision import transforms
 from torchvision.io.image import read_image, ImageReadMode
-from torchvision.transforms.functional import pil_to_tensor
 
 
 class BaseDataset(Dataset):
-    def __init__(self) -> None:
-        self.classes: list = None
-        self.data: torch.Tensor = None
-        self.targets: torch.Tensor = None
-        self.train_data_transform = None
-        self.train_target_transform = None
-        self.test_data_transform = None
-        self.test_target_transform = None
-        self.data_transform = None
-        self.target_transform = None
+    def __init__(
+        self,
+        data: torch.Tensor,
+        targets: torch.Tensor,
+        classes: List[int],
+        train_data_transform: Optional[transforms.Compose] = None,
+        train_target_transform: Optional[transforms.Compose] = None,
+        test_data_transform: Optional[transforms.Compose] = None,
+        test_target_transform: Optional[transforms.Compose] = None,
+    ) -> None:
+        self.data = data
+        self.targets = targets
+        self.classes = classes
+        self.train_data_transform = train_data_transform
+        self.train_target_transform = train_target_transform
+        self.test_data_transform = test_data_transform
+        self.test_target_transform = test_target_transform
+        self.data_transform: Optional[transforms.Compose] = None
+        self.target_transform: Optional[transforms.Compose] = None
+
+        # rescale data to fit in [0, 1.0] if needed
+        self._rescale_data()
+
+    def _rescale_data(self):
+        max_val = self.data.max()
+        min_val = self.data.min()
+        if max_val > 1.0 or min_val < 0.0:
+            self.data = (self.data - min_val) / (max_val - min_val)
 
     def __getitem__(self, index):
         data, targets = self.data[index], self.targets[index]
@@ -59,7 +77,6 @@ class FEMNIST(BaseDataset):
         train_data_transform=None,
         train_target_transform=None,
     ) -> None:
-        super().__init__()
         if not isinstance(root, Path):
             root = Path(root)
         if not os.path.isfile(root / "data.npy") or not os.path.isfile(
@@ -72,18 +89,19 @@ class FEMNIST(BaseDataset):
         data = np.load(root / "data.npy")
         targets = np.load(root / "targets.npy")
 
-        self.data = torch.from_numpy(data).float().reshape(-1, 1, 28, 28)
-        self.targets = torch.from_numpy(targets).long()
-        self.classes = list(range(62))
-        self.test_data_transform = test_data_transform
-        self.test_target_transform = test_target_transform
-        self.train_data_transform = train_data_transform
-        self.train_target_transform = train_target_transform
+        super().__init__(
+            data=torch.from_numpy(data).float().reshape(-1, 1, 28, 28),
+            targets=torch.from_numpy(targets).long(),
+            classes=list(range(62)),
+            test_data_transform=test_data_transform,
+            test_target_transform=test_target_transform,
+            train_data_transform=train_data_transform,
+            train_target_transform=train_target_transform,
+        )
 
 
 class Synthetic(BaseDataset):
     def __init__(self, root, *args, **kwargs) -> None:
-        super().__init__()
         if not isinstance(root, Path):
             root = Path(root)
         if not os.path.isfile(root / "data.npy") or not os.path.isfile(
@@ -96,9 +114,11 @@ class Synthetic(BaseDataset):
         data = np.load(root / "data.npy")
         targets = np.load(root / "targets.npy")
 
-        self.data = torch.from_numpy(data).float()
-        self.targets = torch.from_numpy(targets).long()
-        self.classes = sorted(self.targets.unique().tolist())
+        super().__init__(
+            data=torch.from_numpy(data).float(),
+            targets=torch.from_numpy(targets).long(),
+            classes=sorted(np.unique(targets).tolist()),
+        )
 
 
 class CelebA(BaseDataset):
@@ -111,7 +131,6 @@ class CelebA(BaseDataset):
         train_data_transform=None,
         train_target_transform=None,
     ) -> None:
-        super().__init__()
         if not isinstance(root, Path):
             root = Path(root)
         if not os.path.isfile(root / "data.npy") or not os.path.isfile(
@@ -124,13 +143,15 @@ class CelebA(BaseDataset):
         data = np.load(root / "data.npy")
         targets = np.load(root / "targets.npy")
 
-        self.data = torch.from_numpy(data).permute([0, -1, 1, 2]).float()
-        self.targets = torch.from_numpy(targets).long()
-        self.test_data_transform = test_data_transform
-        self.test_target_transform = test_target_transform
-        self.train_data_transform = train_data_transform
-        self.train_target_transform = train_target_transform
-        self.classes = [0, 1]
+        super().__init__(
+            data=torch.from_numpy(data).permute([0, -1, 1, 2]).float(),
+            targets=torch.from_numpy(targets).long(),
+            classes=[0, 1],
+            test_data_transform=test_data_transform,
+            test_target_transform=test_target_transform,
+            train_data_transform=train_data_transform,
+            train_target_transform=train_target_transform,
+        )
 
 
 class MedMNIST(BaseDataset):
@@ -143,20 +164,18 @@ class MedMNIST(BaseDataset):
         train_data_transform=None,
         train_target_transform=None,
     ):
-        super().__init__()
         if not isinstance(root, Path):
             root = Path(root)
-        self.classes = list(range(11))
-        self.data = (
-            torch.Tensor(np.load(root / "raw" / "xdata.npy")).float().unsqueeze(1)
+
+        super().__init__(
+            data=torch.Tensor(np.load(root / "raw" / "xdata.npy")).float().unsqueeze(1),
+            targets=torch.Tensor(np.load(root / "raw" / "ydata.npy")).long().squeeze(),
+            classes=list(range(11)),
+            test_data_transform=test_data_transform,
+            test_target_transform=test_target_transform,
+            train_data_transform=train_data_transform,
+            train_target_transform=train_target_transform,
         )
-        self.targets = (
-            torch.Tensor(np.load(root / "raw" / "ydata.npy")).long().squeeze()
-        )
-        self.test_data_transform = test_data_transform
-        self.test_target_transform = test_target_transform
-        self.train_data_transform = train_data_transform
-        self.train_target_transform = train_target_transform
 
 
 class COVID19(BaseDataset):
@@ -169,22 +188,19 @@ class COVID19(BaseDataset):
         train_data_transform=None,
         train_target_transform=None,
     ):
-        super().__init__()
         if not isinstance(root, Path):
             root = Path(root)
-        self.data = (
-            torch.Tensor(np.load(root / "raw" / "xdata.npy"))
+        super().__init__(
+            data=torch.Tensor(np.load(root / "raw" / "xdata.npy"))
             .permute([0, -1, 1, 2])
-            .float()
+            .float(),
+            targets=torch.Tensor(np.load(root / "raw" / "ydata.npy")).long().squeeze(),
+            classes=[0, 1, 2, 3],
+            test_data_transform=test_data_transform,
+            test_target_transform=test_target_transform,
+            train_data_transform=train_data_transform,
+            train_target_transform=train_target_transform,
         )
-        self.targets = (
-            torch.Tensor(np.load(root / "raw" / "ydata.npy")).long().squeeze()
-        )
-        self.classes = [0, 1, 2, 3]
-        self.test_data_transform = test_data_transform
-        self.test_target_transform = test_target_transform
-        self.train_data_transform = train_data_transform
-        self.train_target_transform = train_target_transform
 
 
 class USPS(BaseDataset):
@@ -197,7 +213,6 @@ class USPS(BaseDataset):
         train_data_transform=None,
         train_target_transform=None,
     ):
-        super().__init__()
         if not isinstance(root, Path):
             root = Path(root)
         train_part = torchvision.datasets.USPS(root / "raw", True, download=True)
@@ -207,13 +222,15 @@ class USPS(BaseDataset):
         train_targets = torch.Tensor(train_part.targets).long()
         test_targets = torch.Tensor(test_part.targets).long()
 
-        self.data = torch.cat([train_data, test_data])
-        self.targets = torch.cat([train_targets, test_targets])
-        self.classes = list(range(10))
-        self.test_data_transform = test_data_transform
-        self.test_target_transform = test_target_transform
-        self.train_data_transform = train_data_transform
-        self.train_target_transform = train_target_transform
+        super().__init__(
+            data=torch.cat([train_data, test_data]),
+            targets=torch.cat([train_targets, test_targets]),
+            classes=list(range(10)),
+            test_data_transform=test_data_transform,
+            test_target_transform=test_target_transform,
+            train_data_transform=train_data_transform,
+            train_target_transform=train_target_transform,
+        )
 
 
 class SVHN(BaseDataset):
@@ -226,7 +243,6 @@ class SVHN(BaseDataset):
         train_data_transform=None,
         train_target_transform=None,
     ):
-        super().__init__()
         if not isinstance(root, Path):
             root = Path(root)
         train_part = torchvision.datasets.SVHN(root / "raw", "train", download=True)
@@ -236,13 +252,15 @@ class SVHN(BaseDataset):
         train_targets = torch.Tensor(train_part.labels).long()
         test_targets = torch.Tensor(test_part.labels).long()
 
-        self.data = torch.cat([train_data, test_data])
-        self.targets = torch.cat([train_targets, test_targets])
-        self.classes = list(range(10))
-        self.test_data_transform = test_data_transform
-        self.test_target_transform = test_target_transform
-        self.train_data_transform = train_data_transform
-        self.train_target_transform = train_target_transform
+        super().__init__(
+            data=torch.cat([train_data, test_data]),
+            targets=torch.cat([train_targets, test_targets]),
+            classes=list(range(10)),
+            test_data_transform=test_data_transform,
+            test_target_transform=test_target_transform,
+            train_data_transform=train_data_transform,
+            train_target_transform=train_target_transform,
+        )
 
 
 class MNIST(BaseDataset):
@@ -255,20 +273,22 @@ class MNIST(BaseDataset):
         train_data_transform=None,
         train_target_transform=None,
     ):
-        super().__init__()
         train_part = torchvision.datasets.MNIST(root, True, download=True)
         test_part = torchvision.datasets.MNIST(root, False)
         train_data = torch.Tensor(train_part.data).float().unsqueeze(1)
         test_data = torch.Tensor(test_part.data).float().unsqueeze(1)
         train_targets = torch.Tensor(train_part.targets).long().squeeze()
         test_targets = torch.Tensor(test_part.targets).long().squeeze()
-        self.data = torch.cat([train_data, test_data])
-        self.targets = torch.cat([train_targets, test_targets])
-        self.classes = list(range(10))
-        self.test_data_transform = test_data_transform
-        self.test_target_transform = test_target_transform
-        self.train_data_transform = train_data_transform
-        self.train_target_transform = train_target_transform
+
+        super().__init__(
+            data=torch.cat([train_data, test_data]),
+            targets=torch.cat([train_targets, test_targets]),
+            classes=list(range(10)),
+            test_data_transform=test_data_transform,
+            test_target_transform=test_target_transform,
+            train_data_transform=train_data_transform,
+            train_target_transform=train_target_transform,
+        )
 
 
 class FashionMNIST(BaseDataset):
@@ -281,20 +301,22 @@ class FashionMNIST(BaseDataset):
         train_data_transform=None,
         train_target_transform=None,
     ):
-        super().__init__()
         train_part = torchvision.datasets.FashionMNIST(root, True, download=True)
         test_part = torchvision.datasets.FashionMNIST(root, False, download=True)
         train_data = torch.Tensor(train_part.data).float().unsqueeze(1)
         test_data = torch.Tensor(test_part.data).float().unsqueeze(1)
         train_targets = torch.Tensor(train_part.targets).long().squeeze()
         test_targets = torch.Tensor(test_part.targets).long().squeeze()
-        self.data = torch.cat([train_data, test_data])
-        self.targets = torch.cat([train_targets, test_targets])
-        self.classes = list(range(10))
-        self.test_data_transform = test_data_transform
-        self.test_target_transform = test_target_transform
-        self.train_data_transform = train_data_transform
-        self.train_target_transform = train_target_transform
+
+        super().__init__(
+            data=torch.cat([train_data, test_data]),
+            targets=torch.cat([train_targets, test_targets]),
+            classes=list(range(10)),
+            test_data_transform=test_data_transform,
+            test_target_transform=test_target_transform,
+            train_data_transform=train_data_transform,
+            train_target_transform=train_target_transform,
+        )
 
 
 class EMNIST(BaseDataset):
@@ -307,7 +329,6 @@ class EMNIST(BaseDataset):
         train_data_transform=None,
         train_target_transform=None,
     ):
-        super().__init__()
         split = None
         if isinstance(args, Namespace):
             split = args.emnist_split
@@ -319,19 +340,22 @@ class EMNIST(BaseDataset):
             root, split=split, train=True, download=True
         )
         test_part = torchvision.datasets.EMNIST(
-            root, split=split, train=False, download=True
+            root, split=split, train=False, download=False
         )
         train_data = torch.Tensor(train_part.data).float().unsqueeze(1)
         test_data = torch.Tensor(test_part.data).float().unsqueeze(1)
         train_targets = torch.Tensor(train_part.targets).long().squeeze()
         test_targets = torch.Tensor(test_part.targets).long().squeeze()
-        self.data = torch.cat([train_data, test_data])
-        self.targets = torch.cat([train_targets, test_targets])
-        self.classes = list(range(len(train_part.classes)))
-        self.test_data_transform = test_data_transform
-        self.test_target_transform = test_target_transform
-        self.train_data_transform = train_data_transform
-        self.train_target_transform = train_target_transform
+
+        super().__init__(
+            data=torch.cat([train_data, test_data]),
+            targets=torch.cat([train_targets, test_targets]),
+            classes=list(range(len(train_part.classes))),
+            test_data_transform=test_data_transform,
+            test_target_transform=test_target_transform,
+            train_data_transform=train_data_transform,
+            train_target_transform=train_target_transform,
+        )
 
 
 class CIFAR10(BaseDataset):
@@ -344,20 +368,22 @@ class CIFAR10(BaseDataset):
         train_data_transform=None,
         train_target_transform=None,
     ):
-        super().__init__()
         train_part = torchvision.datasets.CIFAR10(root, True, download=True)
         test_part = torchvision.datasets.CIFAR10(root, False, download=True)
         train_data = torch.Tensor(train_part.data).permute([0, -1, 1, 2]).float()
         test_data = torch.Tensor(test_part.data).permute([0, -1, 1, 2]).float()
         train_targets = torch.Tensor(train_part.targets).long().squeeze()
         test_targets = torch.Tensor(test_part.targets).long().squeeze()
-        self.data = torch.cat([train_data, test_data])
-        self.targets = torch.cat([train_targets, test_targets])
-        self.classes = list(range(10))
-        self.test_data_transform = test_data_transform
-        self.test_target_transform = test_target_transform
-        self.train_data_transform = train_data_transform
-        self.train_target_transform = train_target_transform
+
+        super().__init__(
+            data=torch.cat([train_data, test_data]),
+            targets=torch.cat([train_targets, test_targets]),
+            classes=list(range(10)),
+            test_data_transform=test_data_transform,
+            test_target_transform=test_target_transform,
+            train_data_transform=train_data_transform,
+            train_target_transform=train_target_transform,
+        )
 
 
 class CIFAR100(BaseDataset):
@@ -370,27 +396,21 @@ class CIFAR100(BaseDataset):
         train_data_transform=None,
         train_target_transform=None,
     ):
-        super().__init__()
         train_part = torchvision.datasets.CIFAR100(root, True, download=True)
         test_part = torchvision.datasets.CIFAR100(root, False, download=True)
         train_data = torch.Tensor(train_part.data).permute([0, -1, 1, 2]).float()
         test_data = torch.Tensor(test_part.data).permute([0, -1, 1, 2]).float()
         train_targets = torch.Tensor(train_part.targets).long().squeeze()
         test_targets = torch.Tensor(test_part.targets).long().squeeze()
-        self.data = torch.cat([train_data, test_data])
-        self.targets = torch.cat([train_targets, test_targets])
-        self.classes = list(range(100))
-        self.test_data_transform = test_data_transform
-        self.test_target_transform = test_target_transform
-        self.train_data_transform = train_data_transform
-        self.train_target_transform = train_target_transform
-        super_class = None
-        if isinstance(args, Namespace):
+        data = torch.cat([train_data, test_data])
+        targets = torch.cat([train_targets, test_targets])
+        classes = list(range(100))
+
+        super_class = False
+        if isinstance(args, (Namespace, DictConfig)):
             super_class = args.super_class
         elif isinstance(args, dict):
             super_class = args["super_class"]
-        elif isinstance(args, DictConfig):
-            super_class = args.super_class
 
         if super_class:
             # super_class: [sub_classes]
@@ -421,10 +441,20 @@ class CIFAR100(BaseDataset):
                 for cls in sub_cls:
                     mapping[cls] = super_cls
             new_targets = []
-            for cls in self.targets:
+            for cls in targets:
                 new_targets.append(mapping[train_part.classes[cls]])
-            self.targets = torch.tensor(new_targets, dtype=torch.long)
-            self.classes = list(range(20))
+            targets = torch.tensor(new_targets, dtype=torch.long)
+            classes = list(range(20))
+
+        super().__init__(
+            data=data,
+            targets=targets,
+            classes=classes,
+            test_data_transform=test_data_transform,
+            test_target_transform=test_target_transform,
+            train_data_transform=train_data_transform,
+            train_target_transform=train_target_transform,
+        )
 
 
 class TinyImagenet(BaseDataset):
@@ -437,21 +467,20 @@ class TinyImagenet(BaseDataset):
         train_data_transform=None,
         train_target_transform=None,
     ):
-        super().__init__()
         if not isinstance(root, Path):
             root = Path(root)
         if not os.path.isdir(root / "raw"):
             raise RuntimeError(
                 "Using `data/download/tiny_imagenet.sh` to download the dataset first."
             )
-        self.classes = pd.read_table(
+        classes = pd.read_table(
             root / "raw/wnids.txt", sep="\t", engine="python", header=None
         )[0].tolist()
 
         if not os.path.isfile(root / "data.pt") or not os.path.isfile(
             root / "targets.pt"
         ):
-            mapping = dict(zip(self.classes, list(range(len(self.classes)))))
+            mapping = dict(zip(classes, list(range(len(classes)))))
             data = []
             targets = []
             for cls in os.listdir(root / "raw" / "train"):
@@ -480,13 +509,15 @@ class TinyImagenet(BaseDataset):
             torch.save(torch.stack(data), root / "data.pt")
             torch.save(torch.tensor(targets, dtype=torch.long), root / "targets.pt")
 
-        self.data = torch.load(root / "data.pt")
-        self.targets = torch.load(root / "targets.pt")
-        self.classes = list(range(len(self.classes)))
-        self.test_data_transform = test_data_transform
-        self.test_target_transform = test_target_transform
-        self.train_data_transform = train_data_transform
-        self.train_target_transform = train_target_transform
+        super().__init__(
+            data=torch.load(root / "data.pt"),
+            targets=torch.load(root / "targets.pt"),
+            classes=list(range(len(classes))),
+            test_data_transform=test_data_transform,
+            test_target_transform=test_target_transform,
+            train_data_transform=train_data_transform,
+            train_target_transform=train_target_transform,
+        )
 
 
 class CINIC10(BaseDataset):
@@ -499,14 +530,13 @@ class CINIC10(BaseDataset):
         train_data_transform=None,
         train_target_transform=None,
     ):
-        super().__init__()
         if not isinstance(root, Path):
             root = Path(root)
         if not os.path.isdir(root / "raw"):
             raise RuntimeError(
                 "Using `data/download/tiny_imagenet.sh` to download the dataset first."
             )
-        self.classes = [
+        classes = [
             "airplane",
             "automobile",
             "bird",
@@ -523,7 +553,7 @@ class CINIC10(BaseDataset):
         ):
             data = []
             targets = []
-            mapping = dict(zip(self.classes, range(10)))
+            mapping = dict(zip(classes, range(10)))
             for folder in ["test", "train", "valid"]:
                 for cls in os.listdir(Path(root) / "raw" / folder):
                     for img_name in os.listdir(root / "raw" / folder / cls):
@@ -536,13 +566,15 @@ class CINIC10(BaseDataset):
             torch.save(torch.stack(data), root / "data.pt")
             torch.save(torch.tensor(targets, dtype=torch.long), root / "targets.pt")
 
-        self.data = torch.load(root / "data.pt")
-        self.targets = torch.load(root / "targets.pt")
-        self.classes = list(range(len(self.classes)))
-        self.test_data_transform = test_data_transform
-        self.test_target_transform = test_target_transform
-        self.train_data_transform = train_data_transform
-        self.train_target_transform = train_target_transform
+        super().__init__(
+            data=torch.load(root / "data.pt"),
+            targets=torch.load(root / "targets.pt"),
+            classes=list(range(len(classes))),
+            test_data_transform=test_data_transform,
+            test_target_transform=test_target_transform,
+            train_data_transform=train_data_transform,
+            train_target_transform=train_target_transform,
+        )
 
 
 class DomainNet(BaseDataset):
@@ -555,7 +587,6 @@ class DomainNet(BaseDataset):
         train_data_transform=None,
         train_target_transform=None,
     ) -> None:
-        super().__init__()
         if not isinstance(root, Path):
             root = Path(root)
         if not os.path.isdir(root / "raw"):
@@ -579,20 +610,21 @@ class DomainNet(BaseDataset):
         with open(filename_list_path, "rb") as f:
             self.filename_list = pickle.load(f)
 
-        self.classes = list(range(len(metadata["classes"])))
-        self.targets = torch.load(targets_path)
         self.pre_transform = transforms.Compose(
-            [transforms.Resize(metadata["image_size"])]
+            [transforms.Resize(metadata["image_size"]), transforms.ToTensor()]
         )
-        self.test_data_transform = test_data_transform
-        self.test_target_transform = test_target_transform
-        self.train_data_transform = train_data_transform
-        self.train_target_transform = train_target_transform
+        super().__init__(
+            data=torch.empty(1, 1, 1, 1),  # dummy data
+            targets=torch.load(targets_path),
+            classes=list(range(len(metadata["classes"]))),
+            test_data_transform=test_data_transform,
+            test_target_transform=test_target_transform,
+            train_data_transform=train_data_transform,
+            train_target_transform=train_target_transform,
+        )
 
     def __getitem__(self, index):
-        data = self.pre_transform(
-            read_image(str(self.filename_list[index]), mode=ImageReadMode.RGB)
-        )
+        data = self.pre_transform(Image.open(self.filename_list[index]).convert("RGB"))
         targets = self.targets[index]
         if self.data_transform is not None:
             data = self.data_transform(data)
