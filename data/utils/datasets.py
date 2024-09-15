@@ -42,9 +42,8 @@ class BaseDataset(Dataset):
 
     def _rescale_data(self):
         max_val = self.data.max()
-        min_val = self.data.min()
-        if max_val > 1.0 or min_val < 0.0:
-            self.data = (self.data - min_val) / (max_val - min_val)
+        if max_val > 1.0:
+            self.data /= 255.0
 
     def __getitem__(self, index):
         data, targets = self.data[index], self.targets[index]
