@@ -2,7 +2,7 @@ import random
 import sys
 from collections import Counter
 from pathlib import Path
-from typing import Dict
+from typing import Dict, Union
 
 import numpy as np
 import torch
@@ -33,7 +33,7 @@ EFFICIENT_NETS = [
 ]
 
 
-def subsample(embeddings: torch.Tensor, num_samples: int):
+def subsample(embeddings: Union[torch.Tensor, np.ndarray], num_samples: int):
     if len(embeddings) < num_samples:
         return embeddings
     subsamples_idx = random.sample(range(len(embeddings)), num_samples)
@@ -102,19 +102,18 @@ def semantic_partition(
             x = x.to(device)
             if x.shape[1] == 1:
                 x = x.broadcast_to((x.shape[0], 3, *x.shape[2:]))
-            embeddings.append(efficient_net(x).cpu())
-    embeddings = torch.cat(embeddings).numpy()
-    embeddings = torch.tensor(StandardScaler(with_std=False).fit_transform(embeddings))
+            embeddings.append(efficient_net(x).cpu().numpy())
+    embeddings = np.concatenate(embeddings)
+    embeddings_scaled = StandardScaler(with_std=False).fit_transform(embeddings)
+    del embeddings
 
     # PCA transformation
-    if 0 < pca_components < embeddings.shape[1]:
+    if 0 < pca_components < embeddings_scaled.shape[1]:
         logger.log("PCA transforming...")
         pca = PCA(n_components=pca_components, random_state=seed)
 
-        pca.fit(subsample(embeddings, 100000).numpy())
-        embeddings = torch.tensor(
-            pca.transform(embeddings), dtype=torch.float, device=device
-        )
+        pca.fit(subsample(embeddings_scaled, 100000))
+        embeddings_scaled = pca.transform(embeddings_scaled)
 
     label_cluster_means: Dict[int, torch.Tensor] = {}
     label_cluster_trils: Dict[int, torch.Tensor] = {}
@@ -126,8 +125,8 @@ def semantic_partition(
         logger.log(f"Buliding clusters of label {current_label}")
 
         idx_current_label = np.where(targets == current_label)[0]
-        embeddings_of_current_label = (
-            subsample(embeddings[idx_current_label], 10000).cpu().numpy()
+        embeddings_of_current_label = subsample(
+            embeddings_scaled[idx_current_label], 10000
         )
         gmm = GaussianMixture(
             n_components=client_num,
