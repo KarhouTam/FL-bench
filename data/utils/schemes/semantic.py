@@ -2,6 +2,7 @@ import random
 import sys
 from collections import Counter
 from pathlib import Path
+from typing import Dict
 
 import numpy as np
 import torch
@@ -44,16 +45,23 @@ def pairwise_kl_div(
     trils_1: torch.Tensor,
     means_2: torch.Tensor,
     trils_2: torch.Tensor,
+    batch_size: int,
     device: torch.device,
 ):
     num_dist_1, num_dist_2 = means_1.shape[0], means_2.shape[0]
     pairwise_kl_matrix = torch.zeros((num_dist_1, num_dist_2), device=device)
 
-    for i in range(means_1.shape[0]):
-        for j in range(means_2.shape[0]):
-            pairwise_kl_matrix[i, j] = kl_divergence(
-                MultivariateNormal(means_1[i], scale_tril=trils_1[i]),
-                MultivariateNormal(means_2[j], scale_tril=trils_2[j]),
+    for i in range(0, means_1.shape[0], batch_size):
+        for j in range(0, means_2.shape[0], batch_size):
+            pairwise_kl_matrix[i : i + batch_size, j : j + batch_size] = kl_divergence(
+                MultivariateNormal(
+                    means_1[i : i + batch_size].unsqueeze(1),
+                    scale_tril=trils_1[i : i + batch_size].unsqueeze(1),
+                ),
+                MultivariateNormal(
+                    means_2[j : j + batch_size].unsqueeze(0),
+                    scale_tril=trils_2[j : j + batch_size].unsqueeze(0),
+                ),
             )
     return pairwise_kl_matrix
 
@@ -108,38 +116,38 @@ def semantic_partition(
             pca.transform(embeddings), dtype=torch.float, device=device
         )
 
-    label_cluster_means = [None for _ in range(len(label_set))]
-    label_cluster_trils = [None for _ in range(len(label_set))]
-
-    gmm = GaussianMixture(
-        n_components=client_num,
-        max_iter=gmm_max_iter,
-        reg_covar=1e-4,
-        init_params=gmm_init_params,
-        random_state=seed,
-    )
+    label_cluster_means: Dict[int, torch.Tensor] = {}
+    label_cluster_trils: Dict[int, torch.Tensor] = {}
 
     label_cluster_list = [
         [[] for _ in range(client_num)] for _ in range(len(label_set))
     ]
-    for label in label_set:
-        logger.log(f"Buliding clusters of label {label}")
+    for current_label in label_set:
+        logger.log(f"Buliding clusters of label {current_label}")
 
-        idx_current_label = np.where(targets == label)[0]
+        idx_current_label = np.where(targets == current_label)[0]
         embeddings_of_current_label = (
             subsample(embeddings[idx_current_label], 10000).cpu().numpy()
         )
-
+        gmm = GaussianMixture(
+            n_components=client_num,
+            max_iter=gmm_max_iter,
+            reg_covar=1e-4,
+            init_params=gmm_init_params,
+            random_state=seed,
+        )
         gmm.fit(embeddings_of_current_label)
 
         cluster_list = gmm.predict(embeddings_of_current_label)
 
         for idx, cluster in zip(idx_current_label.tolist(), cluster_list):
-            label_cluster_list[label][cluster].append(idx)
+            label_cluster_list[current_label][cluster].append(idx)
 
-        label_cluster_means[label] = torch.tensor(gmm.means_)
-        label_cluster_trils[label] = torch.linalg.cholesky(
-            torch.from_numpy(gmm.covariances_)
+        label_cluster_means[current_label] = torch.tensor(
+            gmm.means_, device=device, dtype=torch.float
+        )
+        label_cluster_trils[current_label] = torch.linalg.cholesky(
+            torch.from_numpy(gmm.covariances_).float().to(device)
         )
 
     cluster_assignment = [
@@ -166,6 +174,7 @@ def semantic_partition(
                 trils_1=label_cluster_trils[latest_matched_label],
                 means_2=label_cluster_means[label_to_match],
                 trils_2=label_cluster_trils[label_to_match],
+                batch_size=32,
                 device=device,
             )
             .cpu()
@@ -184,11 +193,11 @@ def semantic_partition(
         unmatched_labels.remove(label_to_match)
         latest_matched_label = label_to_match
 
-    for label in label_set:
+    for current_label in label_set:
         for client_id in client_ids:
-            partition["data_indices"][cluster_assignment[label][client_id]].extend(
-                label_cluster_list[label][client_id]
-            )
+            partition["data_indices"][
+                cluster_assignment[current_label][client_id]
+            ].extend(label_cluster_list[current_label][client_id])
 
     for i in range(client_num):
         stats[i] = {"x": None, "y": None}
