@@ -68,31 +68,28 @@ class FedAvgServer:
 
         self.output_dir = Path(HydraConfig.get().runtime.output_dir)
         with open(
-            FLBENCH_ROOT / "data" / self.args.common.dataset / "args.json", "r"
+            FLBENCH_ROOT / "data" / self.args.dataset.name / "args.json", "r"
         ) as f:
-            self.args.dataset = DictConfig(json.load(f))
+            self.args.dataset.update(DictConfig(json.load(f)))
 
         # get client party info
         try:
             partition_path = (
-                FLBENCH_ROOT / "data" / self.args.common.dataset / "partition.pkl"
+                FLBENCH_ROOT / "data" / self.args.dataset.name / "partition.pkl"
             )
             with open(partition_path, "rb") as f:
                 partition = pickle.load(f)
         except:
-            raise FileNotFoundError(f"Please partition {args.dataset} first.")
+            raise FileNotFoundError(f"Please partition {self.args.dataset.name} first.")
         self.train_clients: list[int] = partition["separation"]["train"]
         self.test_clients: list[int] = partition["separation"]["test"]
         self.val_clients: list[int] = partition["separation"]["val"]
         self.client_num: int = partition["separation"]["total"]
 
         # init model(s) parameters
-
-        # get_model_arch() would return a class depends on model's name,
-        # then init the model object by indicating the dataset and calling the class.
-        # Finally transfer the model object to the target device.
-        self.model: DecoupledModel = MODELS[self.args.common.model](
-            dataset=self.args.common.dataset
+        self.model: DecoupledModel = MODELS[self.args.model.name](
+            dataset=self.args.dataset.name,
+            pretrained=self.args.model.use_torchvision_pretrained_weights,
         )
         self.model.check_and_preprocess(self.args)
 
@@ -106,13 +103,14 @@ class FedAvgServer:
             zip(_init_global_params_name, _init_global_params)
         )
 
-        if self.args.common.external_model_params_file is not None:
+        if self.args.model.external_model_weights_path is not None:
             file_path = str(
-                (FLBENCH_ROOT / self.args.common.external_model_params_file).absolute()
+                (FLBENCH_ROOT / self.args.model.external_model_weights_path).absolute()
             )
             if os.path.isfile(file_path) and file_path.find(".pt") != -1:
-                external_params = torch.load(file_path, map_location="cpu")
-                self.public_model_params.update(external_params)
+                self.public_model_params.update(
+                    torch.load(file_path, map_location="cpu")
+                )
             elif not os.path.isfile(file_path):
                 raise FileNotFoundError(f"{file_path} is not a valid file path.")
             elif file_path.find(".pt") == -1:
@@ -235,8 +233,8 @@ class FedAvgServer:
                 num_workers=0,
                 init_args=dict(
                     model=deepcopy(self.model),
-                    optimizer_cls=self.get_client_optimizer(),
-                    lr_scheduler_cls=self.get_client_lr_scheduler(),
+                    optimizer_cls=self.get_client_optimizer_cls(),
+                    lr_scheduler_cls=self.get_client_lr_scheduler_cls(),
                     args=self.args,
                     dataset=self.get_dataset(),
                     data_indices=self.get_clients_data_indices(),
@@ -247,8 +245,8 @@ class FedAvgServer:
             )
         else:
             model_ref = ray.put(self.model.cpu())
-            optimzier_cls_ref = ray.put(self.get_client_optimizer())
-            lr_scheduler_cls_ref = ray.put(self.get_client_lr_scheduler())
+            optimzier_cls_ref = ray.put(self.get_client_optimizer_cls())
+            lr_scheduler_cls_ref = ray.put(self.get_client_lr_scheduler_cls())
             dataset_ref = ray.put(self.get_dataset())
             data_indices_ref = ray.put(self.get_clients_data_indices())
             args_ref = ray.put(self.args)
@@ -286,14 +284,12 @@ class FedAvgServer:
         """
         try:
             partition_path = (
-                FLBENCH_ROOT / "data" / self.args.common.dataset / "partition.pkl"
+                FLBENCH_ROOT / "data" / self.args.dataset.name / "partition.pkl"
             )
             with open(partition_path, "rb") as f:
                 partition = pickle.load(f)
         except:
-            raise FileNotFoundError(
-                f"Please partition {self.args.common.dataset} first."
-            )
+            raise FileNotFoundError(f"Please partition {self.args.dataset.name} first.")
 
         # [0: {"train": [...], "val": [...], "test": [...]}, ...]
         data_indices: list[dict[str, list[int]]] = partition["data_indices"]
@@ -307,8 +303,8 @@ class FedAvgServer:
         BaseDataset: This is the loaded dataset instance,
         which inherits from the BaseDataset class.
         """
-        dataset: BaseDataset = DATASETS[self.args.common.dataset](
-            root=FLBENCH_ROOT / "data" / self.args.common.dataset,
+        dataset: BaseDataset = DATASETS[self.args.dataset.name](
+            root=FLBENCH_ROOT / "data" / self.args.dataset.name,
             args=self.args.dataset,
             **self.get_dataset_transforms(),
         )
@@ -330,24 +326,22 @@ class FedAvgServer:
         test_data_transform = transforms.Compose(
             [
                 transforms.Normalize(
-                    DATA_MEAN[self.args.common.dataset],
-                    DATA_STD[self.args.common.dataset],
+                    DATA_MEAN[self.args.dataset.name], DATA_STD[self.args.dataset.name]
                 )
             ]
-            if self.args.common.dataset in DATA_MEAN
-            and self.args.common.dataset in DATA_STD
+            if self.args.dataset.name in DATA_MEAN
+            and self.args.dataset.name in DATA_STD
             else []
         )
         test_target_transform = transforms.Compose([])
         train_data_transform = transforms.Compose(
             [
                 transforms.Normalize(
-                    DATA_MEAN[self.args.common.dataset],
-                    DATA_STD[self.args.common.dataset],
+                    DATA_MEAN[self.args.dataset.name], DATA_STD[self.args.dataset.name]
                 )
             ]
-            if self.args.common.dataset in DATA_MEAN
-            and self.args.common.dataset in DATA_STD
+            if self.args.dataset.name in DATA_MEAN
+            and self.args.dataset.name in DATA_STD
             else []
         )
         train_target_transform = transforms.Compose([])
@@ -358,32 +352,32 @@ class FedAvgServer:
             test_target_transform=test_target_transform,
         )
 
-    def get_client_optimizer(self):
+    def get_client_optimizer_cls(self):
         """Get client-side model training optimizer.
 
         Returns:
             A partial initiated optimizer class that client only need to add `params` arg.
         """
         target_optimizer_cls: type[torch.optim.Optimizer] = OPTIMIZERS[
-            self.args.common.optimizer.name
+            self.args.optimizer.name
         ]
         keys_required = inspect.getfullargspec(target_optimizer_cls.__init__).args
         args_valid = {}
-        for key, value in self.args.common.optimizer.items():
+        for key, value in self.args.optimizer.items():
             if key in keys_required:
                 args_valid[key] = value
 
         optimizer_cls = functools.partial(target_optimizer_cls, **args_valid)
-        args_valid["name"] = self.args.common.optimizer.name
-        self.args.common.optimizer = DictConfig(args_valid)
+        args_valid["name"] = self.args.optimizer.name
+        self.args.optimizer = DictConfig(args_valid)
         return optimizer_cls
 
-    def get_client_lr_scheduler(self):
-        if hasattr(self.args.common, "lr_scheduler"):
-            if self.args.common.lr_scheduler.name is None:
-                del self.args.common.lr_scheduler
+    def get_client_lr_scheduler_cls(self):
+        if hasattr(self.args, "lr_scheduler"):
+            if self.args.lr_scheduler.name is None:
+                del self.args.lr_scheduler
                 return None
-            lr_scheduler_args = getattr(self.args.common, "lr_scheduler")
+            lr_scheduler_args = getattr(self.args, "lr_scheduler")
             if lr_scheduler_args.name is not None:
                 target_scheduler_cls: type[torch.optim.lr_scheduler.LRScheduler] = (
                     LR_SCHEDULERS[lr_scheduler_args.name]
@@ -393,13 +387,13 @@ class FedAvgServer:
                 ).args
 
                 args_valid = {}
-                for key, value in vars(self.args.common.lr_scheduler).items():
+                for key, value in vars(self.args.lr_scheduler).items():
                     if key in keys_required:
                         args_valid[key] = value
 
                 lr_scheduler_cls = functools.partial(target_scheduler_cls, **args_valid)
-                args_valid["name"] = self.args.common.lr_scheduler.name
-                self.args.common.lr_scheduler = DictConfig(args_valid)
+                args_valid["name"] = self.args.lr_scheduler.name
+                self.args.lr_scheduler = DictConfig(args_valid)
                 return lr_scheduler_cls
         else:
             return None
@@ -774,15 +768,12 @@ class FedAvgServer:
                             ls=linestyle[stage][split],
                         )
 
-            plt.title(f"{self.algorithm_name}_{self.args.common.dataset}")
+            plt.title(f"{self.algorithm_name}_{self.args.dataset.name}")
             plt.ylim(0, 100)
             plt.xlabel("Communication Rounds")
             plt.ylabel("Accuracy")
             plt.legend()
-            plt.savefig(
-                self.output_dir / f"metrics.png",
-                bbox_inches="tight",
-            )
+            plt.savefig(self.output_dir / f"metrics.png", bbox_inches="tight")
 
         # save each round's metrics stats
         if self.args.common.save_metrics:
@@ -808,15 +799,11 @@ class FedAvgServer:
                                 column=f"{metric}_{split}_{stage}",
                                 value=np.array(stats).T,
                             )
-            df.to_csv(
-                self.output_dir / f"metrics.csv",
-                index=True,
-                index_label="epoch",
-            )
+            df.to_csv(self.output_dir / f"metrics.csv", index=True, index_label="epoch")
 
         # save trained model(s) parameters
         if self.args.common.save_model:
-            model_name = f"{self.args.common.dataset}_{self.args.common.global_epoch}_{self.args.common.model}.pt"
+            model_name = f"{self.args.dataset.name}_{self.args.common.global_epoch}_{self.args.model}.pt"
             if not self.unique_model:
                 torch.save(self.public_model_params, self.output_dir / model_name)
             else:

@@ -62,24 +62,24 @@ class FedMDServer(FedAvgServer):
         test_data_transform = transforms.Compose(
             [
                 transforms.Normalize(
-                    DATA_MEAN[self.args.common.dataset],
-                    DATA_STD[self.args.common.dataset],
+                    DATA_MEAN[self.args.dataset.name],
+                    DATA_STD[self.args.dataset.name],
                 )
             ]
-            if self.args.common.dataset in DATA_MEAN
-            and self.args.common.dataset in DATA_STD
+            if self.args.dataset.name in DATA_MEAN
+            and self.args.dataset.name in DATA_STD
             else []
         )
         test_target_transform = transforms.Compose([])
         train_data_transform = transforms.Compose(
             [
                 transforms.Normalize(
-                    DATA_MEAN[self.args.common.dataset],
-                    DATA_STD[self.args.common.dataset],
+                    DATA_MEAN[self.args.dataset.name],
+                    DATA_STD[self.args.dataset.name],
                 )
             ]
-            if self.args.common.dataset in DATA_MEAN
-            and self.args.common.dataset in DATA_STD
+            if self.args.dataset.name in DATA_MEAN
+            and self.args.dataset.name in DATA_STD
             else []
         )
         train_target_transform = transforms.Compose([])

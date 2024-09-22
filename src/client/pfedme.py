@@ -57,7 +57,7 @@ class pFedMeClient(FedAvgClient):
                     param_l.data = (
                         param_l.data
                         - self.args.pfedme.lamda
-                        * self.args.common.optimizer.lr
+                        * self.args.optimizer.lr
                         * (param_l.data - param_p.data.cpu())
                     )
 

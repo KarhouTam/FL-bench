@@ -1,70 +1,109 @@
-# Full explaination are listed on README.md
+# This default config file shows all arguments.
+# NOTE: If your custom config file doesn't have all of following arguments (not including the advanced FL methods'),
+# the defaults can be found in src/utils/constants.py
 
+# The method name must be identical to the file name in src/server/<method>.py
 method: fedavg
 
-mode: parallel # [serial, parallel]
+dataset:
+  # [mnist, cifar10, cifar100, emnist, fmnist, femnist, medmnist,
+  # medmnistA, medmnistC, covid19, celeba, synthetic, svhn,
+  # tiny_imagenet, cinic10, domain]
+  name: mnist
 
-parallel: # It's fine to keep these configs.
-  # Go check doc of `https://docs.ray.io/en/latest/ray-core/api/doc/ray.init.html` for more details.
+model:
+  name: lenet5
+  use_torchvision_pretrained_weights: true # Whether to use torchvision integrated model weights.
+
+  # The model parameters `.pt` file relative path to the directory of FL-bench.
+  # This feature is enabled only when `unique_model=False`,
+  # which is pre-defined and fixed by each FL method.
+  external_model_weights_path: null
+
+# The learning rate scheduler that used for client local training.
+# Can be null if no lr_scheduler is needed.
+lr_scheduler:
+  name: null # [null, step, cosine, constant, plateau]
+  step_size: 10 # an arg example for setting step lr_scheduler
+
+# The optimizer that used for client local training.
+optimizer:
+  name: sgd # [sgd, adam, adamw, rmsprop, adagrad]
+  lr: 0.01
+  dampening: 0 # for SGD
+  weight_decay: 0
+  momentum: 0 # for [SGD, RMSprop]
+  alpha: 0.99 # for RMSprop
+  nesterov: false # for SGD
+  betas: [0.9, 0.999] # for [Adam, AdamW]
+  amsgrad: false # for [Adam, AdamW]
+
+mode: parallel # [serial, parallel]
+# It's fine to keep these configs. if mode is 'serial', these configs will be ignored.
+parallel: 
+  # The IP address of the selected ray cluster.
+  # Default as null, which means if there is no existing ray cluster,
+  # then Ray will create a new cluster at the beginning of the experiment
+  # and destroy it at the end.
+  # More details can be found in https://docs.ray.io/en/latest/ray-core/api/doc/ray.init.html.
   ray_cluster_addr: null # [null, auto, local]
 
-  # `null` implies that all cpus/gpus are included.
+  # The amount of computational resources you allocate for your Ray cluster.
+  # Default as null for all.
   num_cpus: null
   num_gpus: null
 
-  # should be set larger than 1, or training mode fallback to `serial`
-  # Set a larger `num_workers` can further boost efficiency, also let each worker have less computational resources.
+  # Should be set larger than 1, or training mode fallback to `serial`
+  # Set a larger `num_workers` can further boost efficiency,
+  # but also let each worker have less computational resources.
   num_workers: 2
 
 common:
-  # [mnist, cifar10, cifar100, emnist, fmnist, femnist, medmnist, medmnistA, medmnistC, covid19, celeba, synthetic, svhn, tiny_imagenet, cinic10, domain]
-  dataset: mnist
-  seed: 42
-  model: lenet5
-  join_ratio: 0.1
-  global_epoch: 100
-  local_epoch: 5
-  finetune_epoch: 0
-  batch_size: 32
-  test_interval: 100
+  seed: 42 # Random seed of the run.
+  join_ratio: 0.1 # Ratio for (client each round) / (client num in total).
+  global_epoch: 100 # Number of global epochs, also called communication round.
+  local_epoch: 5 # Number if epochs of client local training.
+  finetune_epoch: 0 # Number of epochs of clients fine-tunning their models before test.
+  batch_size: 32 # Data batch size for client local training.
+  test_interval: 100 # Interval round of performing test on all test clients.
+
+  # The ratio of stragglers (set in [0, 1]).
+  # Stragglers would not perform full-epoch local training as normal clients.
+  # Their local epoch would be randomly selected from range [straggler_min_local_epoch, local_epoch).
   straggler_ratio: 0
   straggler_min_local_epoch: 0
-  external_model_params_file: null
-  buffers: local # [local, global, drop]
-  optimizer:
-    name: sgd # [sgd, adam, adamw, rmsprop, adagrad]
-    lr: 0.01
-    dampening: 0 # for SGD
-    weight_decay: 0
-    momentum: 0 # for [SGD, RMSprop]
-    alpha: 0.99 # for RMSprop
-    nesterov: false # for SGD
-    betas: [0.9, 0.999] # for [Adam, AdamW]
-    amsgrad: false # for [Adam, AdamW]
 
-  lr_scheduler:
-    name: null # [null, step, cosine, constant, plateau]
-    step_size: 10 # an arg example for setting step lr_scheduler
+  # How to deal with parameter buffers (in model.buffers()) of each client model.
+  # global (default): buffers will be aggregated like other model parameters.
+  # local: clients' buffers are isolated.
+  # drop: clients will drop their buffers after training done.
+  buffers: global # [local, global, drop]
 
+  # Set eval_<...> as true for performing evaluation on <...>sets held by
+  # this round's joined clients before and after local training.
   eval_test: true
   eval_val: false
   eval_train: false
 
-  verbose_gap: 10
+  verbose_gap: 10 # Interval round of displaying clients training performance on terminal.
   visible: null # [null, visdom, tensorboard]
-  use_cuda: true
-  save_log: true
-  save_model: false
-  save_fig: true
-  save_metrics: true
+  use_cuda: true # Whether to use cuda for training.
+
+  save_log: true # Whether to save log files in out/<method>/<start_time>.
+  save_model: false # Whether to save model weights (*.pt) in out/<method>/<start_time>.
+  save_fig: true # Whether to save learning curve firgure (*.png) in out/<method>/<start_time>.
+  save_metrics: true # Whether to save metrics (*.csv) in out/<method>/<start_time>.
+
+  # Whether to delete output files after user press `Ctrl + C`,
+  # which indicates that the run is removable.
   delete_useless_run: true
 
-# You can set specific arguments for FL methods also
-# FL-bench uses FL method arguments by args.<method>.<arg>
+# You can set specific arguments for advanced FL methods also.
+# FL-bench uses FL method arguments by args.<method>.<arg>.
+# You need to follow the key set in `get_hyperparams()` in class <method>Server, src/server/<method>.py
+# FL-bench will ignore these arguments if they are not supported by the selected method,
+# e.g., if you are running FedProx, then pfedsim arguments will be ignored.
 fedprox:
   mu: 0.01
 pfedsim:
-  warmup_round: 0.7
-
-# NOTE: For those unmentioned arguments, the default values are set in `get_hyperparams()` in `class <method>Server` in `src/server/<method>.py`
-
+  warmup_round: 0.5

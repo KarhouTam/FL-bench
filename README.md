@@ -241,55 +241,31 @@ parallel:
 
 
 
-## Common Arguments 🔧
+## Arguments 🔧
 
-All common arguments have their default value. Go check [`DEFAULT_COMMON_ARGS`](src/utils/constants.py) in `src/utils/constants.py` for full details of common arguments. 
+FL-bench highly recommend through config file to customize your FL method and experiment settings. 
 
-⚠ Common arguments cannot be set via CLI.
+FL-bench offers a default config file [`config/defaults.yaml`](config/defaults.yaml) that contains all required arguments and corresponding comments.
 
-You can also write your own `.yaml` config file. I offer you a [template](config/template.yaml) in `config` and recommend you to save your config files there also. 
+All common arguments have their default value. Go check [`config/defaults.yaml`](config/defaults.yaml) or [`DEFAULTS`](src/utils/constants.py) in `src/utils/constants.py` for all argument defaults.
 
-One example: `python main.py fedavg config/template.yaml [cli_method_args...]`
+**NOTE** :If your custom config file does not contain all required arguments, FL-bench will fill those missing arguments with their defaults that loaded from [`DEFAULTS`](src/utils/constants.py).
 
-About the default values of specific FL method arguments, go check corresponding `FL-bench/src/server/<method>.py` for the full details.
-| Arguments                    | Type    | Description                                                                                                                                                                                                                                                                                            |
-| ---------------------------- | ------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| `--config-path`              | `str`   | The directory of config files. Defaults to `config`, means `./config`.                                                                                                                                                                                                                                 |
-| `--config-name`              | `str`   | The name of config file (w/o the `.yaml` extension). Defaults to `defaults`, which points to `config/defaults.yaml`.                                                                                                                                                                                   |
-| `dataset`                    | `str`   | The name of dataset that experiment run on.                                                                                                                                                                                                                                                            |
-| `model`                      | `str`   | The model backbone experiment used.                                                                                                                                                                                                                                                                    |
-| `seed`                       | `int`   | Random seed for running experiment.                                                                                                                                                                                                                                                                    |
-| `join_ratio`                 | `float` | Ratio for (client each round) / (client num in total).                                                                                                                                                                                                                                                 |
-| `global_epoch`               | `int`   | Global epoch, also called communication round.                                                                                                                                                                                                                                                         |
-| `local_epoch`                | `int`   | Local epoch for client local training.                                                                                                                                                                                                                                                                 |
-| `finetune_epoch`             | `int`   | Epoch for clients fine-tunning their models before test.                                                                                                                                                                                                                                               |
-| `buffers`                    | `str`   | How to deal with parameter buffers (in `model.buffers()`) of each client model. Options: [`local`, `global`, `drop`]. `local` (default): clients' buffers are isolated; `global`: buffers will be aggregated like other model parameters; `drop`: clients will drop their buffers after training done. |
-| `test_interval`              | `int`   | Interval round of performing test on clients.                                                                                                                                                                                                                                                          |
-| `eval_test`                  | `bool`  | `true` for performing evaluation on joined clients' testset before and after local training.                                                                                                                                                                                                           |
-| `eval_val`                   | `bool`  | `true` for performing evaluation on joined clients' valset before and after local training.                                                                                                                                                                                                            |
-| `eval_train`                 | `bool`  | `true` for performing evaluation on joined clients' trainset before and after local training.                                                                                                                                                                                                          |
-| `optimizer`                  | `dict`  | Client-side optimizer.  Argument request is the same as Optimizers in `torch.optim`.                                                                                                                                                                                                                   |
-| `lr_scheduler`               | `dict`  | Client-side learning rate scheduler.  Argument request is the same as schedulers in `torch.optim.lr_scheduler`.                                                                                                                                                                                        |
-| `verbose_gap`                | `int`   | Interval round of displaying clients training performance on terminal.                                                                                                                                                                                                                                 |
-| `batch_size`                 | `int`   | Data batch size for client local training.                                                                                                                                                                                                                                                             |
-| `use_cuda`                   | `bool`  | `true` indicates that tensors are in gpu.                                                                                                                                                                                                                                                              |
-| `visible`                    | `bool`  | Options: [`null`, `visdom`, `tensorboard`]                                                                                                                                                                                                                                                             |
-| `straggler_ratio`            | `float` | The ratio of stragglers (set in `[0, 1]`). Stragglers would not perform full-epoch local training as normal clients. Their local epoch would be randomly selected from range `[straggler_min_local_epoch, local_epoch)`.                                                                               |
-| `straggler_min_local_epoch`  | `int`   | The minimum value of local epoch for stragglers.                                                                                                                                                                                                                                                       |
-| `external_model_params_file` | `str`   | The model parameters `.pt` file **relative** path to the root of FL-bench. ⚠ This feature is enabled only when `unique_model=False`, which is pre-defined by each FL method.                                                                                                                           |
-| `save_log`                   | `bool`  | `true` for saving algorithm running log in `out/<method>/<start_time>`.                                                                                                                                                                                                                                |
-| `save_model`                 | `bool`  | `true` for saving output model(s) parameters in `out/<method>/<start_time>`.pt`.                                                                                                                                                                                                                       |
-| `save_fig`                   | `bool`  | `true` for saving the accuracy curves showed on Visdom into a `.pdf` file at `out/<method>/<start_time>`.                                                                                                                                                                                              |
-| `save_metrics`               | `bool`  | `true` for saving metrics stats into a `.csv` file at `out/<method>/<start_time>`.                                                                                                                                                                                                                     |
-| `delete_useless_run`         | `bool`  | `true` for deleting output files after user press `Ctrl + C`, which indicates that the run is removable.                                                                                                                                                                                               |
+About the default values of specific FL method arguments, go check corresponding `src/server/<method>.py` for the full details.
 
-### Parallel Training Arguments 👯‍♂️
 
-| Arguments                 | Type  | Description                                                                                                                                                                                                                                                                                                                |
-| ------------------------- | ----- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `num_workers`             | `int` | The number of parallel workers. Need to be set as an integer that larger than `1`.                                                                                                                                                                                                                                         |
-| `ray_cluster_addr`        | `str` | The IP address of the selected ray cluster. Default as `null`, which means if there is no existing ray cluster, `ray` will build a new cluster everytime you run the experiment and destroy it at the end. More details can be found in the [official docs](https://docs.ray.io/en/latest/ray-core/api/doc/ray.init.html). |
-| `num_cpus` and `num_gpus` | `int` | The amount of computational resources you allocate for your `Ray` cluster. Default as `null` for all.                                                                                                                                                                                                                      |
+However, FL-bench also supports CLI arguments for quick changings. Here are some examples:
+```
+# Using config/defaults.yaml but change the method to FedProx and set its mu to 0.1.
+python main.py method=fedprox fedprox.mu=0.1
+
+# Change learning rate to 0.1.
+python main.py optimizer.lr=0.1
+
+# Change batch size to 128.
+python main.py common.batch_size=128
+```
+
 
 
 
@@ -371,7 +347,7 @@ You can find all details in [`FedAvgClient`](src/client/fedavg.py) and [`FedAvgS
 
 ### Integrating Dataset
 
-- Inherit your own dataset class from `BaseDataset` in [`data/utils/datasets.py`](data/utils/datasets.py) and add your class in dict `DATASETS`.
+- Inherit your own dataset class from `BaseDataset` in [`data/utils/datasets.py`](data/utils/datasets.py) and add your class in dict `DATASETS`. Highly recommend to refer to the existing dataset classes for guidance.
 
 ### Customizing Model
 

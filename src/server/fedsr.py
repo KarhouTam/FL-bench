@@ -1,6 +1,5 @@
 import os
 from argparse import ArgumentParser, Namespace
-from collections import OrderedDict
 
 import torch
 import torch.distributions as distrib
@@ -67,7 +66,7 @@ class FedSRServer(FedAvgServer):
             args, algorithm_name, unique_model, use_fedavg_client_cls, return_diff
         )
         # reload the model
-        self.model = FedSRModel(self.model, self.args.common.dataset)
+        self.model = FedSRModel(self.model, self.args.dataset.name)
         self.model.check_and_preprocess(self.args)
 
         _init_global_params, _init_global_params_name = [], []
@@ -76,9 +75,9 @@ class FedSRServer(FedAvgServer):
             _init_global_params_name.append(key)
         self.public_model_param_names = list(self.public_model_params.keys())
 
-        if self.args.common.external_model_params_file is not None:
+        if self.args.model.external_model_weights_path is not None:
             file_path = str(
-                (FLBENCH_ROOT / self.args.common.external_model_params_file).absolute()
+                (FLBENCH_ROOT / self.args.model.external_model_weights_path).absolute()
             )
             if os.path.isfile(file_path) and file_path.find(".pt") != -1:
                 self.public_model_params.update(

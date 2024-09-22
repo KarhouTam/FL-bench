@@ -84,7 +84,7 @@ class APFLClient(FedAvgClient):
                 alpha_grad += diff @ grad
 
         alpha_grad += 0.02 * self.alpha
-        self.alpha.data -= self.args.common.optimizer.lr * alpha_grad
+        self.alpha.data -= self.args.optimizer.lr * alpha_grad
         self.alpha.clip_(0, 1.0)
 
     def evaluate(self):

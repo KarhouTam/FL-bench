@@ -54,48 +54,6 @@ def main(config: DictConfig):
                 config, parent_method_name, getattr(parent_config, parent_method_name)
             )
 
-    if config.mode == "parallel":
-        import ray
-
-        num_available_gpus = config.parallel.num_gpus
-        num_available_cpus = config.parallel.num_cpus
-        if num_available_gpus is None:
-            pynvml.nvmlInit()
-            num_total_gpus = pynvml.nvmlDeviceGetCount()
-            if "CUDA_VISIBLE_DEVICES" in os.environ.keys():
-                num_available_gpus = min(
-                    len(os.environ["CUDA_VISIBLE_DEVICES"].split(",")), num_total_gpus
-                )
-            else:
-                num_available_gpus = num_total_gpus
-        if num_available_cpus is None:
-            num_available_cpus = os.cpu_count()
-        try:
-            ray.init(
-                address=config.parallel.ray_cluster_addr,
-                namespace=method_name,
-                num_cpus=num_available_cpus,
-                num_gpus=num_available_gpus,
-                ignore_reinit_error=True,
-            )
-        except ValueError:
-            # have existing cluster
-            # then no pass num_cpus and num_gpus
-            ray.init(
-                address=config.parallel.ray_cluster_addr,
-                namespace=method_name,
-                ignore_reinit_error=True,
-            )
-
-        cluster_resources = ray.cluster_resources()
-        config.parallel.num_cpus = cluster_resources["CPU"]
-        config.parallel.num_gpus = cluster_resources["GPU"]
-    elif config.mode == "serial":
-        del config.parallel  # remove unused parallel config
-    else:
-        raise ValueError(
-            f"Invalid mode: {config.mode}. Needs to be 'parallel' or 'serial'."
-        )
     server = server_class(args=config)
     server.run()
 

@@ -25,10 +25,7 @@ class FedPACClient(FedAvgClient):
         self.h_ref = None
         self.optimizer = commons["optimizer_cls"](
             params=[
-                {
-                    "params": self.model.base.parameters(),
-                    "lr": self.args.common.optimizer.lr,
-                },
+                {"params": self.model.base.parameters(), "lr": self.args.optimizer.lr},
                 {
                     "params": self.model.classifier.parameters(),
                     "lr": self.args.fedpac.classifier_lr,
@@ -47,9 +44,9 @@ class FedPACClient(FedAvgClient):
         distrib2 = distrib1.mul(distrib1)
         self.v = 0
         self.h_ref = torch.zeros(
-            (NUM_CLASSES[self.args.common.dataset], feature_length), device=self.device
+            (NUM_CLASSES[self.args.dataset.name], feature_length), device=self.device
         )
-        for i in range(NUM_CLASSES[self.args.common.dataset]):
+        for i in range(NUM_CLASSES[self.args.dataset.name]):
             if isinstance(features[i], torch.Tensor):
                 size = features[i].shape[0]
                 mean = features[i].mean(dim=0)

@@ -96,8 +96,8 @@ class EmbedNetwork(nn.Module):
         self.args = args
 
         in_channels = (
-            INPUT_CHANNELS[self.args.common.dataset]
-            + bool(self.args.pefll.embed_y) * NUM_CLASSES[self.args.common.dataset]
+            INPUT_CHANNELS[self.args.dataset.name]
+            + bool(self.args.pefll.embed_y) * NUM_CLASSES[self.args.dataset.name]
         )
 
         self.model = nn.Sequential(
@@ -125,7 +125,7 @@ class EmbedNetwork(nn.Module):
             h, w = x.shape[2], x.shape[3]
             if h < 32 or w < 32:
                 x = self.resize(x)
-            y = F.one_hot(y, NUM_CLASSES[self.args.common.dataset])
+            y = F.one_hot(y, NUM_CLASSES[self.args.dataset.name])
             y = y.view(y.shape[0], y.shape[1], 1, 1)
             c = torch.zeros(
                 (x.shape[0], y.shape[1], x.shape[2], x.shape[3]), device=x.device

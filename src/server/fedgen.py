@@ -55,7 +55,7 @@ class FedGenServer(FedAvgServer):
         self.generator_lr_scheduler = torch.optim.lr_scheduler.ExponentialLR(
             self.generator_optimizer, gamma=0.98
         )
-        self.unique_labels = range(NUM_CLASSES[self.args.common.dataset])
+        self.unique_labels = range(NUM_CLASSES[self.args.dataset.name])
         self.teacher_model = deepcopy(self.model)
 
     def package(self, client_id: int):

@@ -45,7 +45,7 @@ class FedProtoServer(FedAvgServer):
         self, client_prototypes_list: list[dict[int, torch.Tensor]]
     ):
         self.global_prototypes = {}
-        for i in range(NUM_CLASSES[self.args.common.dataset]):
+        for i in range(NUM_CLASSES[self.args.dataset.name]):
             size = 0
             prototypes = torch.zeros(self.model.classifier.in_features)
             for client_prototypes in client_prototypes_list:

@@ -89,7 +89,7 @@ class FedPACServer(FedAvgServer):
                 h_j = client_packages[j]["h_ref"].to(self.device)
                 h_k = client_packages[k]["h_ref"].to(self.device)
                 H = torch.zeros((feature_length, feature_length), device=self.device)
-                for c in range(NUM_CLASSES[self.args.common.dataset]):
+                for c in range(NUM_CLASSES[self.args.dataset.name]):
                     H += torch.mm(
                         (h_i[c] - h_j[c]).reshape(feature_length, 1),
                         (h_i[c] - h_k[c]).reshape(1, feature_length),

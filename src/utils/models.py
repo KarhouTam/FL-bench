@@ -115,7 +115,7 @@ class FedAvgCNN(DecoupledModel):
         "usps": 800,
     }
 
-    def __init__(self, dataset: str):
+    def __init__(self, dataset: str, pretrained):
         super(FedAvgCNN, self).__init__()
         self.base = nn.Sequential(
             OrderedDict(
@@ -152,7 +152,7 @@ class LeNet5(DecoupledModel):
         "tiny_imagenet": 2704,
     }
 
-    def __init__(self, dataset: str) -> None:
+    def __init__(self, dataset: str, pretrained):
         super(LeNet5, self).__init__()
         self.base = nn.Sequential(
             OrderedDict(
@@ -192,7 +192,7 @@ class TwoNN(DecoupledModel):
         "synthetic": DATA_SHAPE["synthetic"],
     }
 
-    def __init__(self, dataset):
+    def __init__(self, dataset: str, pretrained):
         super(TwoNN, self).__init__()
         self.base = nn.Sequential(
             nn.Linear(self.feature_length[dataset], 200),
@@ -222,11 +222,10 @@ class TwoNN(DecoupledModel):
 
 
 class AlexNet(DecoupledModel):
-    def __init__(self, dataset):
+    def __init__(self, dataset, pretrained):
         super().__init__()
 
         # NOTE: If you don't want parameters pretrained, set `pretrained` as False
-        pretrained = True
         alexnet = models.alexnet(
             weights=models.AlexNet_Weights.DEFAULT if pretrained else None
         )
@@ -238,11 +237,10 @@ class AlexNet(DecoupledModel):
 
 
 class SqueezeNet(DecoupledModel):
-    def __init__(self, version, dataset):
+    def __init__(self, version, dataset, pretrained):
         super().__init__()
 
         # NOTE: If you don't want parameters pretrained, set `pretrained` as False
-        pretrained = True
         archs = {
             "0": (models.squeezenet1_0, models.SqueezeNet1_0_Weights.DEFAULT),
             "1": (models.squeezenet1_1, models.SqueezeNet1_1_Weights.DEFAULT),
@@ -265,7 +263,7 @@ class SqueezeNet(DecoupledModel):
 
 
 class DenseNet(DecoupledModel):
-    def __init__(self, version, dataset):
+    def __init__(self, version, dataset, pretrained):
         super().__init__()
         archs = {
             "121": (models.densenet121, models.DenseNet121_Weights.DEFAULT),
@@ -274,7 +272,6 @@ class DenseNet(DecoupledModel):
             "201": (models.densenet201, models.DenseNet201_Weights.DEFAULT),
         }
         # NOTE: If you don't want parameters pretrained, set `pretrained` as False
-        pretrained = True
         densenet: models.DenseNet = archs[version][0](
             weights=archs[version][1] if pretrained else None
         )
@@ -286,20 +283,20 @@ class DenseNet(DecoupledModel):
 
 
 class ResNet(DecoupledModel):
-    def __init__(self, version, dataset):
+    archs = {
+        "18": (models.resnet18, models.ResNet18_Weights.DEFAULT),
+        "34": (models.resnet34, models.ResNet34_Weights.DEFAULT),
+        "50": (models.resnet50, models.ResNet50_Weights.DEFAULT),
+        "101": (models.resnet101, models.ResNet101_Weights.DEFAULT),
+        "152": (models.resnet152, models.ResNet152_Weights.DEFAULT),
+    }
+
+    def __init__(self, version, dataset, pretrained):
         super().__init__()
-        archs = {
-            "18": (models.resnet18, models.ResNet18_Weights.DEFAULT),
-            "34": (models.resnet34, models.ResNet34_Weights.DEFAULT),
-            "50": (models.resnet50, models.ResNet50_Weights.DEFAULT),
-            "101": (models.resnet101, models.ResNet101_Weights.DEFAULT),
-            "152": (models.resnet152, models.ResNet152_Weights.DEFAULT),
-        }
 
         # NOTE: If you don't want parameters pretrained, set `pretrained` as False
-        pretrained = True
-        resnet: models.ResNet = archs[version][0](
-            weights=archs[version][1] if pretrained else None
+        resnet: models.ResNet = self.archs[version][0](
+            weights=self.archs[version][1] if pretrained else None
         )
         self.base = resnet
         self.classifier = nn.Linear(self.base.fc.in_features, NUM_CLASSES[dataset])
@@ -307,22 +304,18 @@ class ResNet(DecoupledModel):
 
 
 class MobileNet(DecoupledModel):
-    def __init__(self, version, dataset):
+    archs = {
+        "2": (models.mobilenet_v2, models.MobileNet_V2_Weights.DEFAULT),
+        "3s": (models.mobilenet_v3_small, models.MobileNet_V3_Small_Weights.DEFAULT),
+        "3l": (models.mobilenet_v3_large, models.MobileNet_V3_Large_Weights.DEFAULT),
+    }
+
+    def __init__(self, version, dataset, pretrained):
         super().__init__()
-        archs = {
-            "2": (models.mobilenet_v2, models.MobileNet_V2_Weights.DEFAULT),
-            "3s": (
-                models.mobilenet_v3_small,
-                models.MobileNet_V3_Small_Weights.DEFAULT,
-            ),
-            "3l": (
-                models.mobilenet_v3_large,
-                models.MobileNet_V3_Large_Weights.DEFAULT,
-            ),
-        }
         # NOTE: If you don't want parameters pretrained, set `pretrained` as False
-        pretrained = True
-        mobilenet = archs[version][0](weights=archs[version][1] if pretrained else None)
+        mobilenet = self.archs[version][0](
+            weights=self.archs[version][1] if pretrained else None
+        )
         self.base = mobilenet
         self.classifier = nn.Linear(
             mobilenet.classifier[-1].in_features, NUM_CLASSES[dataset]
@@ -331,22 +324,22 @@ class MobileNet(DecoupledModel):
 
 
 class EfficientNet(DecoupledModel):
-    def __init__(self, version, dataset):
+    archs = {
+        "0": (models.efficientnet_b0, models.EfficientNet_B0_Weights.DEFAULT),
+        "1": (models.efficientnet_b1, models.EfficientNet_B1_Weights.DEFAULT),
+        "2": (models.efficientnet_b2, models.EfficientNet_B2_Weights.DEFAULT),
+        "3": (models.efficientnet_b3, models.EfficientNet_B3_Weights.DEFAULT),
+        "4": (models.efficientnet_b4, models.EfficientNet_B4_Weights.DEFAULT),
+        "5": (models.efficientnet_b5, models.EfficientNet_B5_Weights.DEFAULT),
+        "6": (models.efficientnet_b6, models.EfficientNet_B6_Weights.DEFAULT),
+        "7": (models.efficientnet_b7, models.EfficientNet_B7_Weights.DEFAULT),
+    }
+
+    def __init__(self, version, dataset, pretrained):
         super().__init__()
-        archs = {
-            "0": (models.efficientnet_b0, models.EfficientNet_B0_Weights.DEFAULT),
-            "1": (models.efficientnet_b1, models.EfficientNet_B1_Weights.DEFAULT),
-            "2": (models.efficientnet_b2, models.EfficientNet_B2_Weights.DEFAULT),
-            "3": (models.efficientnet_b3, models.EfficientNet_B3_Weights.DEFAULT),
-            "4": (models.efficientnet_b4, models.EfficientNet_B4_Weights.DEFAULT),
-            "5": (models.efficientnet_b5, models.EfficientNet_B5_Weights.DEFAULT),
-            "6": (models.efficientnet_b6, models.EfficientNet_B6_Weights.DEFAULT),
-            "7": (models.efficientnet_b7, models.EfficientNet_B7_Weights.DEFAULT),
-        }
         # NOTE: If you don't want parameters pretrained, set `pretrained` as False
-        pretrained = True
-        efficientnet: models.EfficientNet = archs[version][0](
-            weights=archs[version][1] if pretrained else None
+        efficientnet: models.EfficientNet = self.archs[version][0](
+            weights=self.archs[version][1] if pretrained else None
         )
         self.base = efficientnet
         self.classifier = nn.Linear(
@@ -356,30 +349,18 @@ class EfficientNet(DecoupledModel):
 
 
 class ShuffleNet(DecoupledModel):
-    def __init__(self, version, dataset):
+    archs = {
+        "0_5": (models.shufflenet_v2_x0_5, models.ShuffleNet_V2_X0_5_Weights.DEFAULT),
+        "1_0": (models.shufflenet_v2_x1_0, models.ShuffleNet_V2_X1_0_Weights.DEFAULT),
+        "1_5": (models.shufflenet_v2_x1_5, models.ShuffleNet_V2_X1_5_Weights.DEFAULT),
+        "2_0": (models.shufflenet_v2_x2_0, models.ShuffleNet_V2_X2_0_Weights.DEFAULT),
+    }
+
+    def __init__(self, version, dataset, pretrained):
         super().__init__()
-        archs = {
-            "0_5": (
-                models.shufflenet_v2_x0_5,
-                models.ShuffleNet_V2_X0_5_Weights.DEFAULT,
-            ),
-            "1_0": (
-                models.shufflenet_v2_x1_0,
-                models.ShuffleNet_V2_X1_0_Weights.DEFAULT,
-            ),
-            "1_5": (
-                models.shufflenet_v2_x1_5,
-                models.ShuffleNet_V2_X1_5_Weights.DEFAULT,
-            ),
-            "2_0": (
-                models.shufflenet_v2_x2_0,
-                models.ShuffleNet_V2_X2_0_Weights.DEFAULT,
-            ),
-        }
         # NOTE: If you don't want parameters pretrained, set `pretrained` as False
-        pretrained = True
-        shufflenet: models.ShuffleNetV2 = archs[version][0](
-            weights=archs[version][1] if pretrained else None
+        shufflenet: models.ShuffleNetV2 = self.archs[version][0](
+            weights=self.archs[version][1] if pretrained else None
         )
         self.base = shufflenet
         self.classifier = nn.Linear(shufflenet.fc.in_features, NUM_CLASSES[dataset])
@@ -387,18 +368,18 @@ class ShuffleNet(DecoupledModel):
 
 
 class VGG(DecoupledModel):
-    def __init__(self, version, dataset):
+    archs = {
+        "11": (models.vgg11, models.VGG11_Weights.DEFAULT),
+        "13": (models.vgg13, models.VGG13_Weights.DEFAULT),
+        "16": (models.vgg16, models.VGG16_Weights.DEFAULT),
+        "19": (models.vgg19, models.VGG19_Weights.DEFAULT),
+    }
+
+    def __init__(self, version, dataset, pretrained):
         super().__init__()
-        archs = {
-            "11": (models.vgg11, models.VGG11_Weights.DEFAULT),
-            "13": (models.vgg13, models.VGG13_Weights.DEFAULT),
-            "16": (models.vgg16, models.VGG16_Weights.DEFAULT),
-            "19": (models.vgg19, models.VGG19_Weights.DEFAULT),
-        }
         # NOTE: If you don't want parameters pretrained, set `pretrained` as False
-        pretrained = True
-        vgg: models.VGG = archs[version][0](
-            weights=archs[version][1] if pretrained else None
+        vgg: models.VGG = self.archs[version][0](
+            weights=self.archs[version][1] if pretrained else None
         )
         self.base = vgg
         self.classifier = nn.Linear(
