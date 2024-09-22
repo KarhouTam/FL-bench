@@ -38,7 +38,7 @@ optimizer:
   betas: [0.9, 0.999] # for [Adam, AdamW]
   amsgrad: false # for [Adam, AdamW]
 
-mode: parallel # [serial, parallel]
+mode: serial # [serial, parallel]
 # It's fine to keep these configs. if mode is 'serial', these configs will be ignored.
 parallel: 
   # The IP address of the selected ray cluster.
