@@ -23,6 +23,23 @@ DEFAULTS = {
         'use_torchvision_pretrained_weights': True,
         'external_model_weights_path': None,
     },
+    'lr_scheduler': {
+        'name': None,
+        'step_size': 10,
+        'gamma': 0.1,
+        'T_max': 10,
+        'eta_min': 0,
+        'factor': 0.3334,
+        'total_iters': 5,
+        'mode': 'min',
+        'patience': 10,
+        'threshold': 0.0001,
+        'threshold_mode': 'rel',
+        'cooldown': 0,
+        'min_lr': 0,
+        'eps': 1e-08,
+        'last_epoch': -1,
+    },
     'optimizer': {
         'name': 'sgd',
         'lr': 0.01,
@@ -34,7 +51,7 @@ DEFAULTS = {
         'betas': [0.9, 0.999],
         'amsgrad': False,
     },
-    'mode': 'parallel',
+    'mode': 'serial',
     'parallel': {
         'ray_cluster_addr': None,
         'num_cpus': None,
@@ -51,8 +68,7 @@ DEFAULTS = {
         'test_interval': 100,
         'straggler_ratio': 0,
         'straggler_min_local_epoch': 0,
-        'buffers': 'local',
-        'lr_scheduler': {'name': None, 'step_size': 10},
+        'buffers': 'global',
         'eval_test': True,
         'eval_val': False,
         'eval_train': False,
@@ -65,13 +81,6 @@ DEFAULTS = {
         'save_metrics': True,
         'delete_useless_run': True,
     },
-}
-
-DEFAULT_PARALLEL_ARGS = {
-    "ray_cluster_addr": None,
-    "num_gpus": None,
-    "num_cpus": None,
-    "num_workers": 2,
 }
 
 INPUT_CHANNELS = {

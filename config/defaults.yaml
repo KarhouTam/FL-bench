@@ -35,11 +35,11 @@ lr_scheduler:
   total_iters: 5 # constant
   mode: min # plataeu
   patience: 10 # plateau
-  threshold: 1e-4 # plateau
+  threshold: 1.0e-4 # plateau
   threshold_mode: rel # plateau
   cooldown: 0 # plateau
   min_lr: 0 # plateau
-  eps: 1e-8 # plateau
+  eps: 1.0e-8 # plateau
   last_epoch: -1
 
 # The optimizer that used for client local training.
