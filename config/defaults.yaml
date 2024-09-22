@@ -13,7 +13,10 @@ dataset:
 
 model:
   name: lenet5
-  use_torchvision_pretrained_weights: true # Whether to use torchvision integrated model weights.
+
+  # Whether to use torchvision integrated model weights.
+  # Has no effect if model is lenet5, 2nn or fedavgcnn
+  use_torchvision_pretrained_weights: true
 
   # The model parameters `.pt` file relative path to the directory of FL-bench.
   # This feature is enabled only when `unique_model=False`,
@@ -24,7 +27,20 @@ model:
 # Can be null if no lr_scheduler is needed.
 lr_scheduler:
   name: null # [null, step, cosine, constant, plateau]
-  step_size: 10 # an arg example for setting step lr_scheduler
+  step_size: 10 # step
+  gamma: 0.1 # [step, plateau]
+  T_max: 10 # cosine
+  eta_min: 0 # cosine
+  factor: 0.3334 # [constant, plateau]
+  total_iters: 5 # constant
+  mode: min # plataeu
+  patience: 10 # plateau
+  threshold: 1e-4 # plateau
+  threshold_mode: rel # plateau
+  cooldown: 0 # plateau
+  min_lr: 0 # plateau
+  eps: 1e-8 # plateau
+  last_epoch: -1
 
 # The optimizer that used for client local training.
 optimizer:
@@ -40,7 +56,7 @@ optimizer:
 
 mode: serial # [serial, parallel]
 # It's fine to keep these configs. if mode is 'serial', these configs will be ignored.
-parallel: 
+parallel:
   # The IP address of the selected ray cluster.
   # Default as null, which means if there is no existing ray cluster,
   # then Ray will create a new cluster at the beginning of the experiment
