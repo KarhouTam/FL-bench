@@ -50,7 +50,7 @@ class FedAvgClient:
         self.lr_scheduler_cls = None
         if lr_scheduler_cls is not None:
             self.lr_scheduler_cls = lr_scheduler_cls
-            self.lr_scheduler = lr_scheduler_cls(optimizer=self.optimizer)
+            self.lr_scheduler = self.lr_scheduler_cls(optimizer=self.optimizer)
             self.init_lr_scheduler_state = deepcopy(self.lr_scheduler.state_dict())
 
         # [{"train": [...], "val": [...], "test": [...]}, ...]
