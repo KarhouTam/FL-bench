@@ -13,7 +13,6 @@ from src.utils.constants import NUM_CLASSES
 
 
 class CCVRServer(FedAvgServer):
-
     @staticmethod
     def get_hyperparams(args_list=None) -> Namespace:
         parser = ArgumentParser()

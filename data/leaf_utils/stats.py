@@ -25,7 +25,6 @@ args = parser.parse_args()
 
 
 def load_data(name):
-
     users = []
     num_samples = []
 

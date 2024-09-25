@@ -15,7 +15,6 @@ from src.utils.constants import DATA_SHAPE, NUM_CLASSES
 
 
 class FedGenServer(FedAvgServer):
-
     @staticmethod
     def get_hyperparams(args_list=None) -> Namespace:
         parser = ArgumentParser()
@@ -163,12 +162,12 @@ class Generator(nn.Module):
     def __init__(self, server: FedGenServer) -> None:
         super().__init__()
         # obtain the latent dim
-        x = torch.zeros(1, *DATA_SHAPE[server.args.common.dataset])
+        x = torch.zeros(1, *DATA_SHAPE[server.args.dataset.name])
         self.use_embedding = server.args.fedgen.use_embedding
         self.latent_dim = server.model.base(x).shape[-1]
         self.hidden_dim = server.args.fedgen.hidden_dim
         self.noise_dim = server.args.fedgen.noise_dim
-        self.class_num = NUM_CLASSES[server.args.common.dataset]
+        self.class_num = NUM_CLASSES[server.args.dataset.name]
 
         if server.args.fedgen.use_embedding:
             self.embedding = nn.Embedding(self.class_num, server.args.fedgen.noise_dim)

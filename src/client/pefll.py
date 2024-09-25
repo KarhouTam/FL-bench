@@ -13,7 +13,6 @@ from src.utils.constants import INPUT_CHANNELS, NUM_CLASSES
 
 
 class PeFLLClient(FedAvgClient):
-
     def __init__(self, embed_net, hyper_net, **commons):
         super().__init__(**commons)
         self.embed_net: EmbedNetwork = deepcopy(embed_net).to(self.device)

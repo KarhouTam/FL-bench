@@ -17,7 +17,6 @@ from src.utils.constants import DATA_SHAPE
 
 
 class FedFedServer(FedAvgServer):
-
     @staticmethod
     def get_hyperparams(arg_list=None) -> Namespace:
         parser = ArgumentParser()

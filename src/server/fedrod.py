@@ -12,7 +12,6 @@ from src.utils.constants import NUM_CLASSES
 
 
 class FedRoDServer(FedAvgServer):
-
     @staticmethod
     def get_hyperparams(args_list=None) -> Namespace:
         parser = ArgumentParser()

@@ -9,7 +9,6 @@ class FedRepClient(FedPerClient):
         self.model.train()
         self.dataset.train()
         for E in range(self.local_epoch):
-
             for x, y in self.trainloader:
                 if len(x) <= 1:
                     continue

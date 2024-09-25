@@ -9,7 +9,7 @@ import warnings
 from collections import OrderedDict
 from copy import deepcopy
 from pathlib import Path
-from typing import Any
+from typing import Any, Union
 
 import numpy as np
 import ray
@@ -352,7 +352,7 @@ class FedAvgServer:
             test_target_transform=test_target_transform,
         )
 
-    def get_client_optimizer_cls(self):
+    def get_client_optimizer_cls(self) -> type[torch.optim.Optimizer]:
         """Get client-side model training optimizer.
 
         Returns:
@@ -372,7 +372,15 @@ class FedAvgServer:
         self.args.optimizer = DictConfig(args_valid)
         return optimizer_cls
 
-    def get_client_lr_scheduler_cls(self):
+    def get_client_lr_scheduler_cls(
+        self,
+    ) -> Union[type[torch.optim.lr_scheduler.LRScheduler], None]:
+        """Get the client-side learning rate scheduler class. Return None if
+        lr_scheduler.name is NOne or no lr_scheduler arguement is provided.
+
+        Returns:
+            None or a partial initiated lr_scheduler class that client only need to add `optimizer` arg.
+        """
         if hasattr(self.args, "lr_scheduler"):
             if self.args.lr_scheduler.name is None:
                 del self.args.lr_scheduler
@@ -387,7 +395,7 @@ class FedAvgServer:
                 ).args
 
                 args_valid = {}
-                for key, value in vars(self.args.lr_scheduler).items():
+                for key, value in self.args.lr_scheduler.items():
                     if key in keys_required:
                         args_valid[key] = value
 

@@ -14,7 +14,6 @@ from src.server.fedavg import FedAvgServer
 
 # Codes below are modified from FedAP's official repo: https://github.com/microsoft/PersonalizedFL
 class FedAPServer(FedAvgServer):
-
     @staticmethod
     def get_hyperparams(args_list=None) -> Namespace:
         parser = ArgumentParser()

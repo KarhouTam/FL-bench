@@ -9,11 +9,11 @@ import numpy as np
 import pandas as pd
 import torch
 import torchvision
-from PIL import Image
 from omegaconf import DictConfig
+from PIL import Image
 from torch.utils.data import Dataset
 from torchvision import transforms
-from torchvision.io.image import read_image, ImageReadMode
+from torchvision.io.image import ImageReadMode, read_image
 
 
 class BaseDataset(Dataset):

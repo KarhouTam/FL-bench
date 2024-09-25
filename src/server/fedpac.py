@@ -12,7 +12,6 @@ from src.utils.constants import NUM_CLASSES
 
 
 class FedPACServer(FedAvgServer):
-
     @staticmethod
     def get_hyperparams(args_list=None):
         parser = ArgumentParser()
