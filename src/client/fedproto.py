@@ -11,14 +11,14 @@ class FedProtoClient(FedAvgClient):
     def __init__(self, **commons):
         super().__init__(**commons)
         shape = (
-            NUM_CLASSES[self.args.common.dataset],
+            NUM_CLASSES[self.args.dataset.name],
             self.model.classifier.in_features,
         )
         self.global_prototypes = torch.zeros(shape, device=self.device)
         self.accumulated_features = torch.zeros(shape, device=self.device)
         self.personal_params_name = list(self.model.state_dict().keys())
         self.label_counts = torch.zeros(
-            NUM_CLASSES[self.args.common.dataset], 1, device=self.device
+            NUM_CLASSES[self.args.dataset.name], 1, device=self.device
         )
 
     def set_parameters(self, package: dict[str, Any]):
@@ -35,7 +35,7 @@ class FedProtoClient(FedAvgClient):
         self.set_parameters(server_package)
         self.train_with_eval()
 
-        for i in range(NUM_CLASSES[self.args.common.dataset]):
+        for i in range(NUM_CLASSES[self.args.dataset.name]):
             if self.label_counts[i] > 0:
                 self.client_prototypes[i] = (
                     self.accumulated_features[i] / self.label_counts[i]

@@ -39,22 +39,18 @@ class FedMDServer(FedAvgServer):
         use_fedavg_client_cls=False,
         return_diff=False,
     ):
-        if args.fedmd.public_dataset == "mnist" and args.common.dataset not in [
+        if args.fedmd.public_dataset == "mnist" and args.dataset.name not in [
             "femnist",
             "emnist",
         ]:
             raise NotImplementedError(
-                "The public dataset is mnist and the --dataset should be in [femnist, emnist] (now: {})".format(
-                    args.common.dataset
-                )
+                "The public dataset is mnist and the dataset.name "
+                f"should be in [femnist, emnist] (now: {args.dataset.name})"
             )
-        elif (
-            args.fedmd.public_dataset == "cifar10" and args.common.dataset != "cifar100"
-        ):
+        elif args.fedmd.public_dataset == "cifar10" and args.dataset.name != "cifar100":
             raise NotImplementedError(
-                "The public dataset is cifar10 and the dataset should be cifar100 (now: {})".format(
-                    args.common.dataset
-                )
+                "The public dataset is cifar10 and the dataset "
+                f"should be cifar100 (now: {args.dataset.name})"
             )
         super().__init__(
             args, algorithm_name, unique_model, use_fedavg_client_cls, return_diff
@@ -62,24 +58,22 @@ class FedMDServer(FedAvgServer):
         test_data_transform = transforms.Compose(
             [
                 transforms.Normalize(
-                    DATA_MEAN[self.args.common.dataset],
-                    DATA_STD[self.args.common.dataset],
+                    DATA_MEAN[self.args.dataset.name], DATA_STD[self.args.dataset.name]
                 )
             ]
-            if self.args.common.dataset in DATA_MEAN
-            and self.args.common.dataset in DATA_STD
+            if self.args.dataset.name in DATA_MEAN
+            and self.args.dataset.name in DATA_STD
             else []
         )
         test_target_transform = transforms.Compose([])
         train_data_transform = transforms.Compose(
             [
                 transforms.Normalize(
-                    DATA_MEAN[self.args.common.dataset],
-                    DATA_STD[self.args.common.dataset],
+                    DATA_MEAN[self.args.dataset.name], DATA_STD[self.args.dataset.name]
                 )
             ]
-            if self.args.common.dataset in DATA_MEAN
-            and self.args.common.dataset in DATA_STD
+            if self.args.dataset.name in DATA_MEAN
+            and self.args.dataset.name in DATA_STD
             else []
         )
         train_target_transform = transforms.Compose([])

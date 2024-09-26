@@ -121,7 +121,6 @@ for f in files:
         new_user_count += num_new_users
 
     else:
-
         ctot_num_samples = 0
 
         users = data["users"]

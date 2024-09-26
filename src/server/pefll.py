@@ -11,7 +11,6 @@ from src.server.fedavg import FedAvgServer
 
 # about other hyperparameter settings, most you can find in the common section.
 class PeFLLServer(FedAvgServer):
-
     @staticmethod
     def get_hyperparams(args_list=None) -> Namespace:
         parser = ArgumentParser()

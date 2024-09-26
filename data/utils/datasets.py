@@ -3,17 +3,17 @@ import os
 import pickle
 from argparse import Namespace
 from pathlib import Path
-from typing import List, Optional
+from typing import Dict, List, Optional, Type
 
 import numpy as np
 import pandas as pd
 import torch
 import torchvision
-from PIL import Image
 from omegaconf import DictConfig
+from PIL import Image
 from torch.utils.data import Dataset
 from torchvision import transforms
-from torchvision.io.image import read_image, ImageReadMode
+from torchvision.io.image import ImageReadMode, read_image
 
 
 class BaseDataset(Dataset):
@@ -632,7 +632,7 @@ class DomainNet(BaseDataset):
         return data, targets
 
 
-DATASETS = {
+DATASETS: Dict[str, Type[BaseDataset]] = {
     "cifar10": CIFAR10,
     "cifar100": CIFAR100,
     "mnist": MNIST,

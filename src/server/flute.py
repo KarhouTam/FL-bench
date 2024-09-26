@@ -11,7 +11,6 @@ from src.utils.constants import NUM_CLASSES
 
 
 class FLUTEServer(FedAvgServer):
-
     @staticmethod
     def get_hyperparams(args_list=None) -> Namespace:
         parser = ArgumentParser()
@@ -43,7 +42,7 @@ class FLUTEServer(FedAvgServer):
         self.update_neural_collapse(clients_package)
 
     def update_neural_collapse(self, client_packages: dict[int, dict[str, Any]]):
-        num_classes = NUM_CLASSES[self.args.common.dataset]
+        num_classes = NUM_CLASSES[self.args.dataset.name]
 
         classifier_weights = torch.stack(
             [

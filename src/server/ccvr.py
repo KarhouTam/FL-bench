@@ -13,7 +13,6 @@ from src.utils.constants import NUM_CLASSES
 
 
 class CCVRServer(FedAvgServer):
-
     @staticmethod
     def get_hyperparams(args_list=None) -> Namespace:
         parser = ArgumentParser()
@@ -49,7 +48,7 @@ class CCVRServer(FedAvgServer):
             features_covs.append(client_packages[client_id]["covs"])
             features_count.append(client_packages[client_id]["counts"])
 
-        num_classes = NUM_CLASSES[self.args.common.dataset]
+        num_classes = NUM_CLASSES[self.args.dataset.name]
         labels_count = [sum(cnts) for cnts in zip(*features_count)]
         classes_mean = [None for _ in range(num_classes)]
         classes_cov = [None for _ in range(num_classes)]
@@ -131,7 +130,7 @@ class CCVRServer(FedAvgServer):
         )
         criterion = torch.nn.CrossEntropyLoss()
         optimizer = torch.optim.SGD(
-            self.model.classifier.parameters(), lr=self.args.common.optimizer.lr
+            self.model.classifier.parameters(), lr=self.args.optimizer.lr
         )
 
         self.model.load_state_dict(self.public_model_params, strict=False)

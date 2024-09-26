@@ -8,7 +8,6 @@ from src.server.fedavg import FedAvgServer
 
 
 class FedIIRServer(FedAvgServer):
-
     @staticmethod
     def get_hyperparams(args_list=None) -> Namespace:
         parser = ArgumentParser()

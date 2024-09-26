@@ -17,7 +17,6 @@ from src.utils.constants import DATA_SHAPE
 
 
 class FedFedServer(FedAvgServer):
-
     @staticmethod
     def get_hyperparams(arg_list=None) -> Namespace:
         parser = ArgumentParser()
@@ -205,10 +204,10 @@ class VAE(nn.Module):
                 return x + self.block(x)
 
         self.args = deepcopy(args)
-        img_depth = DATA_SHAPE[self.args.common.dataset][0]
-        img_shape = DATA_SHAPE[self.args.common.dataset][:-1]
+        img_depth = DATA_SHAPE[self.args.dataset.name][0]
+        img_shape = DATA_SHAPE[self.args.dataset.name][:-1]
 
-        dummy_input = torch.randn(2, *DATA_SHAPE[self.args.common.dataset])
+        dummy_input = torch.randn(2, *DATA_SHAPE[self.args.dataset.name])
         self.encoder = nn.Sequential(
             nn.Conv2d(
                 img_depth,

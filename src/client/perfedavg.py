@@ -73,12 +73,9 @@ class PerFedAvgClient(FedAvgClient):
                         self.model_plus.parameters(),
                         self.model_minus.parameters(),
                     ):
-                        param_cur.grad = (
-                            param_cur.grad
-                            - self.args.common.optimizer.lr
-                            / (2 * self.args.perfedavg.delta)
-                            * (param_plus.grad - param_minus.grad)
-                        )
+                        param_cur.grad = param_cur.grad - self.args.optimizer.lr / (
+                            2 * self.args.perfedavg.delta
+                        ) * (param_plus.grad - param_minus.grad)
                         param_plus.grad.zero_()
                         param_minus.grad.zero_()
 

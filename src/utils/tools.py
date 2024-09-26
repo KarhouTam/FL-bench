@@ -2,6 +2,7 @@ import os
 import random
 from argparse import Namespace
 from collections import OrderedDict
+from copy import deepcopy
 from pathlib import Path
 from typing import Callable, Iterator, Sequence, Union
 
@@ -12,7 +13,7 @@ from omegaconf import DictConfig
 from rich.console import Console
 from torch.utils.data import DataLoader
 
-from src.utils.constants import DEFAULT_COMMON_ARGS, DEFAULT_PARALLEL_ARGS
+from src.utils.constants import DEFAULTS
 from src.utils.metrics import Metrics
 
 
@@ -63,8 +64,8 @@ def get_optimal_cuda_device(use_cuda: bool) -> torch.device:
 
 
 def vectorize(
-        src: OrderedDict[str, torch.Tensor] | list[torch.Tensor] | torch.nn.Module,
-        detach=True,
+    src: OrderedDict[str, torch.Tensor] | list[torch.Tensor] | torch.nn.Module,
+    detach=True,
 ) -> torch.Tensor:
     """Vectorize(Flatten) and concatenate all tensors in `src`.
 
@@ -88,10 +89,10 @@ def vectorize(
 
 @torch.no_grad()
 def evalutate_model(
-        model: torch.nn.Module,
-        dataloader: DataLoader,
-        criterion=torch.nn.CrossEntropyLoss(reduction="sum"),
-        device=torch.device("cpu"),
+    model: torch.nn.Module,
+    dataloader: DataLoader,
+    criterion=torch.nn.CrossEntropyLoss(reduction="sum"),
+    device=torch.device("cpu"),
 ) -> Metrics:
     """For evaluating the `model` over `dataloader` and return metrics.
 
@@ -117,9 +118,9 @@ def evalutate_model(
 
 
 def parse_args(
-        config: DictConfig,
-        method_name: str,
-        get_method_args_func: Callable[[Sequence[str] | None], Namespace] | None,
+    config: DictConfig,
+    method_name: str,
+    get_method_args_func: Callable[[Sequence[str] | None], Namespace] | None,
 ) -> DictConfig:
     """Purge arguments from default args dict, config file and CLI and produce
     the final arguments.
@@ -131,38 +132,81 @@ def parse_args(
     Returns:
         DictConfig: The final argument namespace.
     """
-    ARGS = dict(
-        mode="serial", common=DEFAULT_COMMON_ARGS, parallel=DEFAULT_PARALLEL_ARGS
-    )
-    if "common" in config.keys():
-        ARGS["common"].update(config["common"])
-    if "parallel" in config.keys():
-        ARGS["parallel"].update(config["parallel"])
-    if "mode" in config.keys():
-        ARGS["mode"] = config["mode"]
+    final_args = DictConfig(DEFAULTS)
+
+    def _merge_configs(defaults: DictConfig, config: DictConfig) -> DictConfig:
+        merged = DictConfig({})
+        for key, default_value in defaults.items():
+            if key in config:
+                if isinstance(default_value, DictConfig) and isinstance(
+                    config[key], DictConfig
+                ):
+                    merged[key] = _merge_configs(default_value, config[key])
+                else:
+                    merged[key] = config[key]
+            else:
+                merged[key] = default_value
+        return merged
+
+    final_args = _merge_configs(final_args, config)
+
     if get_method_args_func is not None:
-        ARGS[method_name] = get_method_args_func([]).__dict__
+        final_args[method_name] = DictConfig(get_method_args_func([]).__dict__)
 
-    for field in ["common", "parallel", method_name]:
-        if field in config.keys():
-            for key in config[field].keys():
-                ARGS[field][key] = config[field][key]
+    assert final_args.mode in [
+        "serial",
+        "parallel",
+    ], f"Unrecongnized mode: {final_args.mode}"
+    if final_args.mode == "parallel":
+        import ray
 
-    assert ARGS["mode"] in ["serial", "parallel"], f"Unrecongnized mode: {ARGS['mode']}"
-    if ARGS["mode"] == "parallel":
-        if ARGS["parallel"]["num_workers"] < 2:
-            print(
-                f"num_workers is less than 2: {ARGS['parallel']['num_workers']}, "
-                "mode is fallback to serial."
+        num_available_gpus = final_args.parallel.num_gpus
+        num_available_cpus = final_args.parallel.num_cpus
+        if num_available_gpus is None:
+            pynvml.nvmlInit()
+            num_total_gpus = pynvml.nvmlDeviceGetCount()
+            if "CUDA_VISIBLE_DEVICES" in os.environ.keys():
+                num_available_gpus = min(
+                    len(os.environ["CUDA_VISIBLE_DEVICES"].split(",")), num_total_gpus
+                )
+            else:
+                num_available_gpus = num_total_gpus
+        if num_available_cpus is None:
+            num_available_cpus = os.cpu_count()
+
+        try:
+            ray.init(
+                address=config.parallel.ray_cluster_addr,
+                namespace=method_name,
+                num_cpus=num_available_cpus,
+                num_gpus=num_available_gpus,
+                ignore_reinit_error=True,
             )
-            ARGS["mode"] = "serial"
-            del ARGS["parallel"]
-    return DictConfig(ARGS)
+        except ValueError:
+            # have existing cluster
+            # then ignore num_cpus and num_gpus
+            ray.init(
+                address=config.parallel.ray_cluster_addr,
+                namespace=method_name,
+                ignore_reinit_error=True,
+            )
+
+        cluster_resources = ray.cluster_resources()
+        final_args.parallel.num_cpus = cluster_resources["CPU"]
+        final_args.parallel.num_gpus = cluster_resources["GPU"]
+        if final_args.parallel.num_workers < 2:
+            print(
+                f"num_workers is less than 2: {final_args.parallel.num_workers}, "
+                "mode fallbacks to serial."
+            )
+            final_args.mode = "serial"
+            del final_args.parallel
+    return final_args
 
 
 class Logger:
     def __init__(
-            self, stdout: Console, enable_log: bool, logfile_path: Union[Path, str]
+        self, stdout: Console, enable_log: bool, logfile_path: Union[Path, str]
     ):
         """This class is for solving the incompatibility between the progress
         bar and log function in library `rich`.

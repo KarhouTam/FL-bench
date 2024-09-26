@@ -8,7 +8,7 @@ from src.utils.constants import NUM_CLASSES
 class FLUTEClient(FedPerClient):
     def __init__(self, **commons):
         super().__init__(**commons)
-        self.num_classes = NUM_CLASSES[self.args.common.dataset]
+        self.num_classes = NUM_CLASSES[self.args.dataset.name]
         self.clients_data_labels = []
         for indices in self.data_indices:
             data_labels = torch.zeros((self.num_classes, 1), device=self.device)
@@ -25,7 +25,6 @@ class FLUTEClient(FedPerClient):
         self.model.train()
         self.dataset.train()
         for E in range(self.local_epoch):
-
             for x, y in self.trainloader:
                 if len(x) <= 1:
                     continue

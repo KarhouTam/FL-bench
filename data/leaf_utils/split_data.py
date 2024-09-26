@@ -40,7 +40,6 @@ def create_jsons_for(user_files, which_set, max_users, include_hierarchy):
         user_count += 1
 
         if (user_count == max_users) or (i == len(user_files) - 1):
-
             all_data = {}
             all_data["users"] = users
             if include_hierarchy:
@@ -215,7 +214,6 @@ else:
 
         removed = 0
         for i, u in enumerate(data["users"]):
-
             curr_num_samples = len(data["user_data"][u]["y"])
             if curr_num_samples >= 2:
                 # ensures number of train and test samples both >= 1

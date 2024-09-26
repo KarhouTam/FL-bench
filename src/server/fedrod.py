@@ -12,7 +12,6 @@ from src.utils.constants import NUM_CLASSES
 
 
 class FedRoDServer(FedAvgServer):
-
     @staticmethod
     def get_hyperparams(args_list=None) -> Namespace:
         parser = ArgumentParser()
@@ -41,7 +40,7 @@ class FedRoDServer(FedAvgServer):
                 self.model.classifier.weight.numel()
                 + self.model.classifier.bias.numel()
             )
-            input_dim = NUM_CLASSES[self.args.common.dataset]
+            input_dim = NUM_CLASSES[self.args.dataset.name]
             self.hypernetwork = HyperNetwork(
                 input_dim, self.args.fedrod.hyper_hidden_dim, output_dim
             )

@@ -10,7 +10,6 @@ from src.server.fedavg import FedAvgServer
 
 
 class pFedHNServer(FedAvgServer):
-
     @staticmethod
     def get_hyperparams(args_list=None) -> Namespace:
         parser = ArgumentParser()
@@ -36,7 +35,7 @@ class pFedHNServer(FedAvgServer):
         return_diff=True,
     ):
         if args.mode == "parallel":
-            raise NotImplementedError("pFedHN does not support paralell mode.")
+            raise NotImplementedError("pFedHN does not support parallel mode.")
         if args.common.buffers == "global":
             raise NotImplementedError("pFedHN does not support global buffers.")
         algo = "pFedHN" if args.pfedhn.version == "pfedhn" else "pFedHN-PC"
