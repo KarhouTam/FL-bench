@@ -155,9 +155,9 @@ python main.py method=fedavg
 Defaults are set in both [`config/defaults.yaml`](config/defaults.yaml) and [`src/utils/constants.py`](src/utils/constants.py).
 
 ### How To Customize FL method Arguments 🤖
-- By modifying config file
+- By modifying config file.
 - By explicitly setting in CLI, e.g., `python main.py --config-name my_cfg.yaml method=fedprox fedprox.mu=0.01`.
-- By modifying the default value in `src/utils/constants.py/DEFAULT_COMMON_ARGS` or `get_hyperparams()` of the method
+- By modifying the default value in `config/defaults.yaml` or `get_hyperparams()` in `src/server/<method>.py`
 
 ⚠ For the same FL method argument, the priority of argument setting is **CLI > Config file > Default value**. 
 
