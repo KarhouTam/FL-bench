@@ -235,6 +235,12 @@ class AlexNet(DecoupledModel):
         )
         self.base.classifier[-1] = nn.Identity()
 
+    def forward(self, x: Tensor) -> Tensor:
+        # if input is grayscale, repeat it to 3 channels
+        if x.shape[1] == 1:
+            x = x.broadcast_to(x.shape[0], 3, *x.shape[2:])
+        return super().forward(x)
+
 
 class SqueezeNet(DecoupledModel):
     def __init__(self, version, dataset, pretrained):
@@ -261,6 +267,12 @@ class SqueezeNet(DecoupledModel):
             nn.Flatten(),
         )
 
+    def forward(self, x: Tensor) -> Tensor:
+        # if input is grayscale, repeat it to 3 channels
+        if x.shape[1] == 1:
+            x = x.broadcast_to(x.shape[0], 3, *x.shape[2:])
+        return super().forward(x)
+
 
 class DenseNet(DecoupledModel):
     def __init__(self, version, dataset, pretrained):
@@ -280,6 +292,12 @@ class DenseNet(DecoupledModel):
             densenet.classifier.in_features, NUM_CLASSES[dataset]
         )
         self.base.classifier = nn.Identity()
+
+    def forward(self, x: Tensor) -> Tensor:
+        # if input is grayscale, repeat it to 3 channels
+        if x.shape[1] == 1:
+            x = x.broadcast_to(x.shape[0], 3, *x.shape[2:])
+        return super().forward(x)
 
 
 class ResNet(DecoupledModel):
@@ -302,6 +320,12 @@ class ResNet(DecoupledModel):
         self.classifier = nn.Linear(self.base.fc.in_features, NUM_CLASSES[dataset])
         self.base.fc = nn.Identity()
 
+    def forward(self, x: Tensor) -> Tensor:
+        # if input is grayscale, repeat it to 3 channels
+        if x.shape[1] == 1:
+            x = x.broadcast_to(x.shape[0], 3, *x.shape[2:])
+        return super().forward(x)
+
 
 class MobileNet(DecoupledModel):
     archs = {
@@ -321,6 +345,12 @@ class MobileNet(DecoupledModel):
             mobilenet.classifier[-1].in_features, NUM_CLASSES[dataset]
         )
         self.base.classifier[-1] = nn.Identity()
+
+    def forward(self, x: Tensor) -> Tensor:
+        # if input is grayscale, repeat it to 3 channels
+        if x.shape[1] == 1:
+            x = x.broadcast_to(x.shape[0], 3, *x.shape[2:])
+        return super().forward(x)
 
 
 class EfficientNet(DecoupledModel):
@@ -347,6 +377,12 @@ class EfficientNet(DecoupledModel):
         )
         self.base.classifier[-1] = nn.Identity()
 
+    def forward(self, x: Tensor) -> Tensor:
+        # if input is grayscale, repeat it to 3 channels
+        if x.shape[1] == 1:
+            x = x.broadcast_to(x.shape[0], 3, *x.shape[2:])
+        return super().forward(x)
+
 
 class ShuffleNet(DecoupledModel):
     archs = {
@@ -365,6 +401,12 @@ class ShuffleNet(DecoupledModel):
         self.base = shufflenet
         self.classifier = nn.Linear(shufflenet.fc.in_features, NUM_CLASSES[dataset])
         self.base.fc = nn.Identity()
+
+    def forward(self, x: Tensor) -> Tensor:
+        # if input is grayscale, repeat it to 3 channels
+        if x.shape[1] == 1:
+            x = x.broadcast_to(x.shape[0], 3, *x.shape[2:])
+        return super().forward(x)
 
 
 class VGG(DecoupledModel):
@@ -386,6 +428,12 @@ class VGG(DecoupledModel):
             vgg.classifier[-1].in_features, NUM_CLASSES[dataset]
         )
         self.base.classifier[-1] = nn.Identity()
+
+    def forward(self, x: Tensor) -> Tensor:
+        # if input is grayscale, repeat it to 3 channels
+        if x.shape[1] == 1:
+            x = x.broadcast_to(x.shape[0], 3, *x.shape[2:])
+        return super().forward(x)
 
 
 # NOTE: You can build your custom model here.
