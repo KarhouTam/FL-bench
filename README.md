@@ -144,7 +144,11 @@ About methods of generating federated dastaset, go check [`data/README.md`](data
 ```sh
 python main.py [--config-path, --config-name] [method=<METHOD_NAME> args...]
 ```
-- `method`: The algorithm's name, e.g., `method=fedavg`. ❗ Method name should be identical to the `.py` file name in `src/server`.
+
+- `method`: The algorithm's name, e.g., `method=fedavg`. 
+>   \[!NOTE\]
+>   `method` should be identical to the `.py` file name in `src/server`.
+
 - `--config-path`: Relative path to the directory of the config file. Defaults to `config`.
 - `--config-name`: Name of `.yaml` config file (w/o the `.yaml` extension). Defaults to `defaults`, which points to `config/defaults.yaml`.
 
@@ -159,44 +163,47 @@ Defaults are set in both [`config/defaults.yaml`](config/defaults.yaml) and [`sr
 - By explicitly setting in CLI, e.g., `python main.py --config-name my_cfg.yaml method=fedprox fedprox.mu=0.01`.
 - By modifying the default value in `config/defaults.yaml` or `get_hyperparams()` in `src/server/<method>.py`
 
-⚠ For the same FL method argument, the priority of argument setting is **CLI > Config file > Default value**. 
-
-For example, the default value of `fedprox.mu` is `1`, 
-```python
-# src/server/fedprox.py
-class FedProxServer(FedAvgServer):
-
-    @staticmethod
-    def get_hyperparams(args_list=None) -> Namespace:
-        parser = ArgumentParser()
-        parser.add_argument("--mu", type=float, default=1.0)
-        return parser.parse_args(args_list)
-
-```
-and your `.yaml` config file has
-```yaml
-# config/your_config.yaml
-...
-fedprox:
-  mu: 0.01
-```
-
-```shell
-python main.py method=fedprox                                  # fedprox.mu = 1
-python main.py --config-name your_config method=fedprox        # fedprox.mu = 0.01
-``` 
+> \[!NOTE\]
+> For the same FL method argument, the priority of argument setting is **CLI > Config file > Default value**. 
+> 
+> For example, the default value of `fedprox.mu` is `1`, 
+> ```python
+> # src/server/fedprox.py
+> class FedProxServer(FedAvgServer):
+> 
+>     @staticmethod
+>     def get_hyperparams(args_list=None) -> Namespace:
+>         parser = ArgumentParser()
+>         parser.add_argument("--mu", type=float, default=1.0)
+>         return parser.parse_args(args_list)
+> 
+> ```
+> and your `.yaml` config file has
+> ```yaml
+> # config/your_config.yaml
+> ...
+> fedprox:
+>   mu: 0.01
+> ```
+> 
+> ```shell
+> python main.py method=fedprox                                  # fedprox.mu = 1
+> python main.py --config-name your_config method=fedprox        # fedprox.mu = 0.01
+> ``` 
 
 ### Monitor 📈
 FL-bench supports `visdom` and `tensorboard`.
 
 #### Activate
-**👀 NOTE:** You needs to launch `visdom` / `tensorboard` server by yourself.
+
 ```yaml
 # your_config.yaml
 common:
   ...
   visible: tensorboard # options: [null, visdom, tensorboard]
 ```
+> \[!NOTE\]
+> You needs to launch `visdom` / `tensorboard` server by yourself.
 
 #### Launch `visdom` / `tensorboard` Server
 
@@ -221,21 +228,26 @@ parallel:
 ```
 ### Manually Create `Ray` Cluster (Optional)
 A `Ray` cluster would be created implicitly everytime you run experiment in parallel mode.
-Or you can create it manually by the command shown below to avoid creating and destroying cluster every time you run experiment.
-```shell
-ray start --head [OPTIONS]
-```
-👀 **NOTE:** You need to keep `num_cpus: null` and `num_gpus: null` in your config file for connecting to a existing `Ray` cluster.
-```yaml
-# your_config_file.yaml
-# Connect to an existing Ray cluster in localhost.
-mode: parallel
-parallel:
-  ...
-  num_gpus: null
-  num_cpus: null
-...
-```
+
+> \[!TIP\]
+> You can create it manually by the command shown below to avoid creating and destroying cluster every time you run experiment.
+> ```shell
+> ray start --head [OPTIONS]
+> ```
+
+> \[!NOTE\]
+> You need to keep `num_cpus: null` and `num_gpus: null` in your config file for connecting to a existing `Ray` cluster.
+> 
+> ```yaml
+> # your_config_file.yaml
+> # Connect to an existing Ray cluster in localhost.
+> mode: parallel
+> parallel:
+>   ...
+>   num_gpus: null
+>   num_cpus: null
+> ...
+> ```
 
 
 
@@ -249,22 +261,23 @@ FL-bench offers a default config file [`config/defaults.yaml`](config/defaults.y
 
 All common arguments have their default value. Go check [`config/defaults.yaml`](config/defaults.yaml) or [`DEFAULTS`](src/utils/constants.py) in `src/utils/constants.py` for all argument defaults.
 
-**NOTE** :If your custom config file does not contain all required arguments, FL-bench will fill those missing arguments with their defaults that loaded from [`DEFAULTS`](src/utils/constants.py).
+> \[!NOTE\]
+> If your custom config file does not contain all required arguments, FL-bench will fill those missing arguments with their defaults that loaded from [`DEFAULTS`](src/utils/constants.py).
 
 About the default values of specific FL method arguments, go check corresponding `src/server/<method>.py` for the full details.
 
-
-However, FL-bench also supports CLI arguments for quick changings. Here are some examples:
-```
-# Using config/defaults.yaml but change the method to FedProx and set its mu to 0.1.
-python main.py method=fedprox fedprox.mu=0.1
-
-# Change learning rate to 0.1.
-python main.py optimizer.lr=0.1
-
-# Change batch size to 128.
-python main.py common.batch_size=128
-```
+> \[!TIP\]
+> FL-bench also supports CLI arguments for quick changings. Here are some examples:
+> ```
+> # Using config/defaults.yaml but change the method to FedProx and set its mu to 0.1.
+> python main.py method=fedprox fedprox.mu=0.1
+> 
+> # Change learning rate to 0.1.
+> python main.py optimizer.lr=0.1
+> 
+> # Change batch size to 128.
+> python main.py common.batch_size=128
+> ```
 
 
 
@@ -281,8 +294,8 @@ This benchmark supports bunch of models that common and integrated in Torchvisio
 - ...
 
 
-
-🤗 You can define your own custom model by filling the `CustomModel` class in [`src/utils/models.py`](src/utils/models.py) and use it by defining `model: custom` in your `.yaml` config file.
+> \[!TIP\]
+> You can define your own custom model by filling the `CustomModel` class in [`src/utils/models.py`](src/utils/models.py) and use it by defining `model: custom` in your `.yaml` config file.
 
 ## Datasets and [Partition Strategies](data/README.md) 🎨
 
