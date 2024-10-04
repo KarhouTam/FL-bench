@@ -3378,12 +3378,12 @@ reference = "mirrors"
 
 [[package]]
 name = "tensorboard"
-version = "2.16.2"
+version = "2.17.1"
 description = "TensorBoard lets you watch Tensors Flow"
 optional = false
 python-versions = ">=3.9"
 files = [
-    {file = "tensorboard-2.16.2-py3-none-any.whl", hash = "sha256:9f2b4e7dad86667615c0e5cd072f1ea8403fc032a299f0072d6f74855775cc45"},
+    {file = "tensorboard-2.17.1-py3-none-any.whl", hash = "sha256:253701a224000eeca01eee6f7e978aea7b408f60b91eb0babdb04e78947b773e"},
 ]
 
 [package.dependencies]
@@ -3391,6 +3391,7 @@ absl-py = ">=0.4"
 grpcio = ">=1.48.2"
 markdown = ">=2.6.8"
 numpy = ">=1.12.0"
+packaging = "*"
 protobuf = ">=3.19.6,<4.24.0 || >4.24.0"
 setuptools = ">=41.0.0"
 six = ">1.9"
@@ -4026,4 +4027,4 @@ reference = "mirrors"
 [metadata]
 lock-version = "2.0"
 python-versions = ">=3.10, <=3.12"
-content-hash = "5d954abe9f04c9106a2b66507114e5c8a508da7ec5605929b144a3e5e7d4835f"
+content-hash = "8673db5c3babf901da404df6436fe153f8154f36ca8957b2ab3ccac63b1a06cb"

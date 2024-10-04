@@ -29,7 +29,7 @@ faiss-cpu = "^1.7.4"
 pynvml = "^11.5.0"
 PyYAML = "^6.0.1"
 ray = { extras = ["default"], version = "2.36.1" }
-tensorboard = "^2.16.2"
+tensorboard = "^2.17.1"
 cvxpy = "^1.5.1"
 hydra-core = "^1.3.2"
 
