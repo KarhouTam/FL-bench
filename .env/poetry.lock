@@ -529,37 +529,31 @@ reference = "mirrors"
 
 [[package]]
 name = "cvxpy"
-version = "1.5.1"
+version = "1.5.3"
 description = "A domain-specific language for modeling convex optimization problems in Python."
 optional = false
 python-versions = ">=3.8"
 files = [
-    {file = "cvxpy-1.5.1-cp310-cp310-macosx_10_9_universal2.whl", hash = "sha256:6dddec006aa1a52d6c3764bde5ae758ebbab9774be1b9581437bd47dc3f7ebe1"},
-    {file = "cvxpy-1.5.1-cp310-cp310-macosx_10_9_x86_64.whl", hash = "sha256:7dc7f13d8768c5aef1d84869028577be595b87cad0eb30552189c420de59cc54"},
-    {file = "cvxpy-1.5.1-cp310-cp310-manylinux_2_17_aarch64.manylinux2014_aarch64.whl", hash = "sha256:d4896083243e8d3a5edeb9ab2580982777cf52ca5f22c79707899a211fc8c6f6"},
-    {file = "cvxpy-1.5.1-cp310-cp310-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:2fcd27482ae6f6672650cc0629335ee6da4ab1b9f524669527185a55338f906e"},
-    {file = "cvxpy-1.5.1-cp310-cp310-win_amd64.whl", hash = "sha256:6d9e5b72863ba50093bb7c8e3d5fd7066c623acbc3e5cd0c645e64e6a337a3ae"},
-    {file = "cvxpy-1.5.1-cp311-cp311-macosx_10_9_universal2.whl", hash = "sha256:91c1d84d56553746b607f38ea2e15279f66dcc0cb1baeff607a28c1d2a4714f4"},
-    {file = "cvxpy-1.5.1-cp311-cp311-macosx_10_9_x86_64.whl", hash = "sha256:1cb757857ea1426646e71f6211b295d49077e111211820b2b49edcb7071d0e08"},
-    {file = "cvxpy-1.5.1-cp311-cp311-manylinux_2_17_aarch64.manylinux2014_aarch64.whl", hash = "sha256:2cb57357e420119ef5101267d245d16a1e04f8db62fd09a68bd10abb52caebdc"},
-    {file = "cvxpy-1.5.1-cp311-cp311-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:ae3a32eb415280dc84b1164796433e0300ef31f9a7b83f668dff37ced1982f0f"},
-    {file = "cvxpy-1.5.1-cp311-cp311-win_amd64.whl", hash = "sha256:344f802046605244c5485d875475a848f450db39da6ac47fbaec137b2ea8c2e4"},
-    {file = "cvxpy-1.5.1-cp312-cp312-macosx_10_9_universal2.whl", hash = "sha256:dbfaebfe33e15f1a6a51b7ac6289977e34d0944b777a99766983648f0ee59353"},
-    {file = "cvxpy-1.5.1-cp312-cp312-macosx_10_9_x86_64.whl", hash = "sha256:2f83212a00d5e4e0ab1c76eca93405e1a7c31d382fb3eaf0e9f6451bf56df20d"},
-    {file = "cvxpy-1.5.1-cp312-cp312-manylinux_2_17_aarch64.manylinux2014_aarch64.whl", hash = "sha256:cee602c6e882e4d65bac8b141c6a52c8df82e079b88c738aeeb0597ddc09a9f4"},
-    {file = "cvxpy-1.5.1-cp312-cp312-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:c240df0c069a3df374a7a3da016d0152653ffd0c8f254576f71d4d21fb443599"},
-    {file = "cvxpy-1.5.1-cp312-cp312-win_amd64.whl", hash = "sha256:54512207b80fc49d2603f9988caa310d11a168d6a6975397fd0d871a0e359476"},
-    {file = "cvxpy-1.5.1-cp38-cp38-macosx_10_9_universal2.whl", hash = "sha256:20f7a9231a0a1a23473d46d8fc37b81703404b7af6eba5ebdffe231faeeaacaf"},
-    {file = "cvxpy-1.5.1-cp38-cp38-macosx_10_9_x86_64.whl", hash = "sha256:8be18b3288d7d25e10d0ae8f8ee5bb6703fd63e5f1a5f168f2921fcd438d34b1"},
-    {file = "cvxpy-1.5.1-cp38-cp38-manylinux_2_17_aarch64.manylinux2014_aarch64.whl", hash = "sha256:840e410d82b48ca526bf8cf67ed11c77dcaa4cca7e3c227826dcde934bf9fb10"},
-    {file = "cvxpy-1.5.1-cp38-cp38-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:bcc2f8dc1eab118ee0df93a83d2b46dfb68ec15046bbf1d46a6bddbb705e45a6"},
-    {file = "cvxpy-1.5.1-cp38-cp38-win_amd64.whl", hash = "sha256:9d5c59f312e71bbfb9d2089843061897fb53fa146971833a156c133f5e8f77fd"},
-    {file = "cvxpy-1.5.1-cp39-cp39-macosx_10_9_universal2.whl", hash = "sha256:1fa5f0a3dddbe89d14027271ab0e489613c23760e53450eeca1bdaa269fc6dc9"},
-    {file = "cvxpy-1.5.1-cp39-cp39-macosx_10_9_x86_64.whl", hash = "sha256:765a6eead577ef1e0842ccb41e8d76b95a10ff635deb6cf311e5784164ac254b"},
-    {file = "cvxpy-1.5.1-cp39-cp39-manylinux_2_17_aarch64.manylinux2014_aarch64.whl", hash = "sha256:d20e9ff4cd47b46fdb5a224a05f999c701995488820172a1b9ee3445a25f7386"},
-    {file = "cvxpy-1.5.1-cp39-cp39-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:ee887cafbf5ca7ff455eec9a1c00d6140aef6e0af31d5389f5545d5674ce7403"},
-    {file = "cvxpy-1.5.1-cp39-cp39-win_amd64.whl", hash = "sha256:8cde26f0946cf2100e261f060e2b192dddc3417dd6ff8e6895cb172d16863d7c"},
-    {file = "cvxpy-1.5.1.tar.gz", hash = "sha256:225c90abe61a143dde2ff72d1acf9875b58d8c047ad589abc1b735640735dbfc"},
+    {file = "cvxpy-1.5.3-cp310-cp310-macosx_10_9_universal2.whl", hash = "sha256:8af2372d16ff03b6e325be25f5fae907fa0f8f284c629e4cace479794d9b1988"},
+    {file = "cvxpy-1.5.3-cp310-cp310-macosx_10_9_x86_64.whl", hash = "sha256:4f648bc3a2046349b6455a924a145e8d37f055f1e25661d46cfc96f258053dea"},
+    {file = "cvxpy-1.5.3-cp310-cp310-manylinux_2_17_aarch64.manylinux2014_aarch64.whl", hash = "sha256:88f790d67ce30bf9ad5e267a89f665f4caccf18a1a6bb110edd8097c55a383df"},
+    {file = "cvxpy-1.5.3-cp310-cp310-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:4897024ee50d5ba47508bbee761703b8db46a76442e3da83e2640021199a3d2c"},
+    {file = "cvxpy-1.5.3-cp310-cp310-win_amd64.whl", hash = "sha256:3de937f03be371f37814d0bb9ccea8b93f6c49b38d3be3e6e54cb0016249494f"},
+    {file = "cvxpy-1.5.3-cp311-cp311-macosx_10_9_universal2.whl", hash = "sha256:bfa9713c0b378383674c56b82f2b16ea746d0fdb5682a4ee8d25ce21a9a46bb4"},
+    {file = "cvxpy-1.5.3-cp311-cp311-macosx_10_9_x86_64.whl", hash = "sha256:ec4c8208d125d2c709964ae5783a07fc0fc847caafaaf738719d70f1b122e913"},
+    {file = "cvxpy-1.5.3-cp311-cp311-manylinux_2_17_aarch64.manylinux2014_aarch64.whl", hash = "sha256:45aa9bbff2b695801ee72e4152f8745ef1308304d1137f07f4ac2f3bd92e19a1"},
+    {file = "cvxpy-1.5.3-cp311-cp311-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:7d202584bda28e47e84034eab41d88b5f42a696854407386a121429c0e687f85"},
+    {file = "cvxpy-1.5.3-cp311-cp311-win_amd64.whl", hash = "sha256:031208910db7cb1679e553fda6878760d2b191e07b130365f2cd8a9489677c77"},
+    {file = "cvxpy-1.5.3-cp312-cp312-macosx_10_9_universal2.whl", hash = "sha256:ba61d01b4a095eeedf2244feea2bc4225c4f1a38ece716ec338183f0e2c7b72e"},
+    {file = "cvxpy-1.5.3-cp312-cp312-macosx_10_9_x86_64.whl", hash = "sha256:7ee652f36cbe04aae292423f031156390251a0fbc55e53b808a24172bf95677b"},
+    {file = "cvxpy-1.5.3-cp312-cp312-manylinux_2_17_aarch64.manylinux2014_aarch64.whl", hash = "sha256:62ae140c573462f2007795d7042875848560d7a4fe5e090285b32f268b078f67"},
+    {file = "cvxpy-1.5.3-cp312-cp312-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:70bcd7207b02afd052fa993c262a0601ad8d39fa2f901b227b34fea7b17dca1a"},
+    {file = "cvxpy-1.5.3-cp312-cp312-win_amd64.whl", hash = "sha256:3d8b619c2053d5f127dbd5aa9ceb5a5bdffaa3fa6c5519617364279a183b75bc"},
+    {file = "cvxpy-1.5.3-cp39-cp39-macosx_10_9_universal2.whl", hash = "sha256:8a5cc5885a32e94c9012d0312b3e18259dd08bbe25093bd53f6ccb009fbec2a0"},
+    {file = "cvxpy-1.5.3-cp39-cp39-macosx_10_9_x86_64.whl", hash = "sha256:883c0144be5632ac38e376e03bb52122ffcd99e35ad96d450f02fe28d1a554d0"},
+    {file = "cvxpy-1.5.3-cp39-cp39-manylinux_2_17_aarch64.manylinux2014_aarch64.whl", hash = "sha256:0a4ddff3bfcc4fa02d03e2163c610e9e65a4c897c49308d7e312d7bd979e3d48"},
+    {file = "cvxpy-1.5.3-cp39-cp39-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:5566c0bc763f45117e09fe3f5c63571280b4907f0d210a72243c1d15a18873be"},
+    {file = "cvxpy-1.5.3-cp39-cp39-win_amd64.whl", hash = "sha256:be881c2d32017676b11ee6330cce9a3983470eb27b8bef2152345a76432bc1be"},
 ]
 
 [package.dependencies]
@@ -1147,7 +1141,7 @@ reference = "mirrors"
 [[package]]
 name = "jsonpatch"
 version = "1.33"
-description = "Apply JSON-Patches (RFC 6902) "
+description = "Apply JSON-Patches (RFC 6902)"
 optional = false
 python-versions = ">=2.7, !=3.0.*, !=3.1.*, !=3.2.*, !=3.3.*, !=3.4.*, !=3.5.*, !=3.6.*"
 files = [
@@ -1166,7 +1160,7 @@ reference = "mirrors"
 [[package]]
 name = "jsonpointer"
 version = "2.4"
-description = "Identify specific nodes in a JSON document (RFC 6901) "
+description = "Identify specific nodes in a JSON document (RFC 6901)"
 optional = false
 python-versions = ">=2.7, !=3.0.*, !=3.1.*, !=3.2.*, !=3.3.*, !=3.4.*, !=3.5.*, !=3.6.*"
 files = [
@@ -2503,7 +2497,7 @@ reference = "mirrors"
 [[package]]
 name = "py-spy"
 version = "0.3.14"
-description = "Sampling profiler for Python programs "
+description = "Sampling profiler for Python programs"
 optional = false
 python-versions = "*"
 files = [
@@ -4024,4 +4018,4 @@ reference = "mirrors"
 [metadata]
 lock-version = "2.0"
 python-versions = ">=3.10, <=3.12"
-content-hash = "0ca11989877645c55969679971d6f4082a1fdf649c29b9ae1cc7d898d652c26d"
+content-hash = "bfaebe8507f42d9c748dddbb58d43b9e87911273307c37633e7b3139c528c477"
