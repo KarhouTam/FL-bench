@@ -113,14 +113,10 @@ cd .env && sed -i "10,14d" pyproject.toml && poetry lock --no-update && poetry i
 
 ### Docker 🐳
 
-For those China mainland users
-```shell
-docker pull registry.cn-hangzhou.aliyuncs.com/karhoutam/fl-bench:master
-```
-For others
 ```sh
 docker pull ghcr.io/karhoutam/fl-bench:master
 ```
+
 An example of building container
 ```sh
 docker run -it --name fl-bench -v path/to/FL-bench:/root/FL-bench --privileged --gpus all ghcr.io/karhoutam/fl-bench:master
