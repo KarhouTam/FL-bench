@@ -150,8 +150,17 @@ def parse_args(
 
     final_args = _merge_configs(final_args, config)
 
+    if hasattr(config, method_name):
+        final_args[method_name] = config[method_name]
+
     if get_method_args_func is not None:
-        final_args[method_name] = DictConfig(get_method_args_func([]).__dict__)
+        default_method_args = DictConfig(get_method_args_func([]).__dict__)
+        if hasattr(final_args, method_name):
+            for key in default_method_args.keys():
+                if key not in final_args[method_name].keys():
+                    final_args[method_name][key] = default_method_args[key]
+        else:
+            final_args[method_name] = default_method_args
 
     assert final_args.mode in [
         "serial",
