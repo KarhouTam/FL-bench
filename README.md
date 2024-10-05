@@ -184,8 +184,9 @@ Defaults are set in both [`config/defaults.yaml`](config/defaults.yaml) and [`sr
 > ```
 > 
 > ```shell
-> python main.py method=fedprox                                  # fedprox.mu = 1
-> python main.py --config-name your_config method=fedprox        # fedprox.mu = 0.01
+> python main.py method=fedprox                                            # fedprox.mu = 1
+> python main.py --config-name your_config method=fedprox                  # fedprox.mu = 0.01
+> python main.py --config-name your_config method=fedprox fedprox.mu=0.001 # fedprox.mu = 0.001
 > ``` 
 
 ### Monitor 📈
