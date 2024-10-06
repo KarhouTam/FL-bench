@@ -2,6 +2,8 @@ name: Docker Image Publish
 
 on:
   push:
+    branches:
+      - master
     paths:
       - ".env/**"
       - ".github/workflows/docker-publish.yml"
