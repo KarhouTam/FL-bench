@@ -1147,7 +1147,7 @@ reference = "mirrors"
 [[package]]
 name = "jsonpatch"
 version = "1.33"
-description = "Apply JSON-Patches (RFC 6902)"
+description = "Apply JSON-Patches (RFC 6902) "
 optional = false
 python-versions = ">=2.7, !=3.0.*, !=3.1.*, !=3.2.*, !=3.3.*, !=3.4.*, !=3.5.*, !=3.6.*"
 files = [
@@ -1166,7 +1166,7 @@ reference = "mirrors"
 [[package]]
 name = "jsonpointer"
 version = "2.4"
-description = "Identify specific nodes in a JSON document (RFC 6901)"
+description = "Identify specific nodes in a JSON document (RFC 6901) "
 optional = false
 python-versions = ">=2.7, !=3.0.*, !=3.1.*, !=3.2.*, !=3.3.*, !=3.4.*, !=3.5.*, !=3.6.*"
 files = [
@@ -2503,7 +2503,7 @@ reference = "mirrors"
 [[package]]
 name = "py-spy"
 version = "0.3.14"
-description = "Sampling profiler for Python programs"
+description = "Sampling profiler for Python programs "
 optional = false
 python-versions = "*"
 files = [
@@ -3524,48 +3524,6 @@ url = "https://mirrors.sustech.edu.cn/pypi/simple"
 reference = "mirrors"
 
 [[package]]
-name = "torchaudio"
-version = "2.2.0"
-description = "An audio package for PyTorch"
-optional = false
-python-versions = "*"
-files = [
-    {file = "torchaudio-2.2.0-cp310-cp310-macosx_10_13_x86_64.whl", hash = "sha256:59e56836cd2be81940cebacd3f4ee3779c4b78378a3e61945446da77c16384b4"},
-    {file = "torchaudio-2.2.0-cp310-cp310-macosx_11_0_arm64.whl", hash = "sha256:dc48f966cc1973a8d58a9686335e517ac00ddae9cd7b592916a04b77499ef2bb"},
-    {file = "torchaudio-2.2.0-cp310-cp310-manylinux1_x86_64.whl", hash = "sha256:e2dc32b76eab278707cef43dbbadaad324a98b0f77f088cc4bbe5c2b08a56af1"},
-    {file = "torchaudio-2.2.0-cp310-cp310-manylinux2014_aarch64.whl", hash = "sha256:d4ea094b8721a361982db062ee993f2a6f71dfe16f62a84f8900b2364f33a2e4"},
-    {file = "torchaudio-2.2.0-cp310-cp310-win_amd64.whl", hash = "sha256:3636fb7d8a7a964b5b49cc9372d231bbdcf985b65a5f8780f68979c75e2dcca1"},
-    {file = "torchaudio-2.2.0-cp311-cp311-macosx_10_13_x86_64.whl", hash = "sha256:971ede9e8488a8b85d6724a0586c3828648703d805054f5d1275d32060c17949"},
-    {file = "torchaudio-2.2.0-cp311-cp311-macosx_11_0_arm64.whl", hash = "sha256:6a84522a48d4605e42f68e5729c0b0ea3c5a604c97aa34f10b8147ed010eee07"},
-    {file = "torchaudio-2.2.0-cp311-cp311-manylinux1_x86_64.whl", hash = "sha256:622098474488bd6d3be3ad0d3b3357bc67544a212a5e6eaff1738c234264e1f4"},
-    {file = "torchaudio-2.2.0-cp311-cp311-manylinux2014_aarch64.whl", hash = "sha256:9be18ca20a0c2e8ca0b633887114083c928c95e454870b1d6ea8cfe05982cec9"},
-    {file = "torchaudio-2.2.0-cp311-cp311-win_amd64.whl", hash = "sha256:acc9c1e371cc007b32db3c4db2c24b44793eb9102156642d5b0811813049adb9"},
-    {file = "torchaudio-2.2.0-cp312-cp312-macosx_10_13_x86_64.whl", hash = "sha256:9fd98ae6f7fa191d9e3399b6653962e416f63ac172b97b0c24d63fd46243f94e"},
-    {file = "torchaudio-2.2.0-cp312-cp312-macosx_11_0_arm64.whl", hash = "sha256:a26447ec3d8be03a0b9f429a9de09c7ad4119de08c78491e4cc6569bed1cfdd6"},
-    {file = "torchaudio-2.2.0-cp312-cp312-manylinux1_x86_64.whl", hash = "sha256:0e874a34c0bee0e9374907512a7e89688ab7ed179b2f7f30b878fb991a852237"},
-    {file = "torchaudio-2.2.0-cp312-cp312-manylinux2014_aarch64.whl", hash = "sha256:a8dbb5f76327a3f2e31dcd3bf93b6716f6ba0342aeb182bb2782daf67b3a5aea"},
-    {file = "torchaudio-2.2.0-cp312-cp312-win_amd64.whl", hash = "sha256:eb4b03f69d1e399f0ed082b37eeaf189754102512772eded257be908f71d948e"},
-    {file = "torchaudio-2.2.0-cp38-cp38-macosx_10_13_x86_64.whl", hash = "sha256:c5cb0b4896b107f4d1e7347ce2963c9bb77d248e8a9db5886164eca1b3ba620a"},
-    {file = "torchaudio-2.2.0-cp38-cp38-macosx_11_0_arm64.whl", hash = "sha256:0d03829a187ec893b3253d1182af0b5be09a93ad5f94e1e8debf6269e1c7dcd6"},
-    {file = "torchaudio-2.2.0-cp38-cp38-manylinux1_x86_64.whl", hash = "sha256:29006c87112861c851974a529f487aaee9d3674d4e5f8a392744eb7c3a023576"},
-    {file = "torchaudio-2.2.0-cp38-cp38-manylinux2014_aarch64.whl", hash = "sha256:196593bf43e503f10ff8c1c60afa974b5f50b5ceb229d7405cceca7b5d560216"},
-    {file = "torchaudio-2.2.0-cp38-cp38-win_amd64.whl", hash = "sha256:43d65cb127faecdc513b16cc91040a8249d26d025e032e7d53278a770bb2c493"},
-    {file = "torchaudio-2.2.0-cp39-cp39-macosx_10_13_x86_64.whl", hash = "sha256:31d0c65b2fa37c00b0c582fc2acb69a72b7ff70b81a1754d9007d562ff143880"},
-    {file = "torchaudio-2.2.0-cp39-cp39-macosx_11_0_arm64.whl", hash = "sha256:fb1046eba9a3b7f6762f6a37e44330dc6c9625501da4bebbeaf896cea406f2d7"},
-    {file = "torchaudio-2.2.0-cp39-cp39-manylinux1_x86_64.whl", hash = "sha256:1a76b4a4e5faf969de8be3c7d323edcf574f214da49ce98c21304b436e01ffb6"},
-    {file = "torchaudio-2.2.0-cp39-cp39-manylinux2014_aarch64.whl", hash = "sha256:840eb865b0647ef1c177f7efee14add24daf5062a7b4e49947fb98d4ab990663"},
-    {file = "torchaudio-2.2.0-cp39-cp39-win_amd64.whl", hash = "sha256:494addc560824102e7f292beda181b7ccb89b14bd689bb1d21a699a51ce607d9"},
-]
-
-[package.dependencies]
-torch = "2.2.0"
-
-[package.source]
-type = "legacy"
-url = "https://mirrors.sustech.edu.cn/pypi/simple"
-reference = "mirrors"
-
-[[package]]
 name = "torchvision"
 version = "0.17.0"
 description = "image and video datasets and models for torch deep learning"
@@ -4027,4 +3985,4 @@ reference = "mirrors"
 [metadata]
 lock-version = "2.0"
 python-versions = ">=3.10, <=3.12"
-content-hash = "8673db5c3babf901da404df6436fe153f8154f36ca8957b2ab3ccac63b1a06cb"
+content-hash = "30140e80175fe623a1570b888d26f5433d09e9055658f202c12db4834216933c"
