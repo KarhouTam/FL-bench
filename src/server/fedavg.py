@@ -4,6 +4,8 @@ import json
 import os
 import pickle
 import random
+import shutil
+import traceback
 import time
 import warnings
 from collections import OrderedDict
@@ -697,15 +699,17 @@ class FedAvgServer:
         try:
             self.train()
         except KeyboardInterrupt:
-            # when user press Ctrl+C
-            # indicates that this run should be considered as useless and deleted.
+            # when user manually terminates the run, FL-bench
+            # indicates that run should be considered as useless and deleted.
             self.logger.close()
             del self.train_progress_bar
             if self.args.common.delete_useless_run:
                 if os.path.isdir(self.output_dir):
-                    os.removedirs(self.output_dir)
+                    shutil.rmtree(self.output_dir)
                 return
-        except:
+        except Exception as e:
+            self.logger.log(traceback.format_exc())
+            self.logger.log(f"Exception occurred: {e}")
             self.logger.close()
             del self.train_progress_bar
             raise
