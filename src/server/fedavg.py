@@ -11,7 +11,7 @@ import warnings
 from collections import OrderedDict
 from copy import deepcopy
 from pathlib import Path
-from typing import Any, Union
+from typing import Any, Union, List, Dict
 
 import numpy as np
 import ray
@@ -89,9 +89,9 @@ class FedAvgServer:
                 partition = pickle.load(f)
         except:
             raise FileNotFoundError(f"Please partition {self.args.dataset.name} first.")
-        self.train_clients: list[int] = partition["separation"]["train"]
-        self.test_clients: list[int] = partition["separation"]["test"]
-        self.val_clients: list[int] = partition["separation"]["val"]
+        self.train_clients: List[int] = partition["separation"]["train"]
+        self.test_clients: List[int] = partition["separation"]["test"]
+        self.val_clients: List[int] = partition["separation"]["val"]
         self.client_num: int = partition["separation"]["total"]
 
         # init model(s) parameters
@@ -139,7 +139,7 @@ class FedAvgServer:
 
         self.client_lr_scheduler_states = {i: {} for i in range(self.client_num)}
 
-        self.client_local_epoches: list[int] = [
+        self.client_local_epoches: List[int] = [
             self.args.common.local_epoch
         ] * self.client_num
 
@@ -172,7 +172,7 @@ class FedAvgServer:
             )
             for _ in range(self.args.common.global_epoch)
         ]
-        self.selected_clients: list[int] = []
+        self.selected_clients: List[int] = []
         self.current_epoch = 0
 
         # For controlling behaviors of some specific methods while testing (not used by all methods)
@@ -198,7 +198,7 @@ class FedAvgServer:
             enable_log=self.args.common.save_log,
             logfile_path=self.output_dir / "main.log",
         )
-        self.test_results: dict[int, dict[str, dict[str, Metrics]]] = {}
+        self.test_results: Dict[int, Dict[str, Dict[str, Metrics]]] = {}
         self.train_progress_bar = track(
             range(self.args.common.global_epoch),
             "[bold green]Training...",
@@ -292,7 +292,7 @@ class FedAvgServer:
                 ),
             )
 
-    def get_clients_data_indices(self) -> list[dict[str, list[int]]]:
+    def get_clients_data_indices(self) -> List[Dict[str, List[int]]]:
         """Gets a list of client data indices.
 
         Load and return the client-side data index from the partition file for the specified dataset.
@@ -301,7 +301,7 @@ class FedAvgServer:
             FileNotFoundError: If the partition file does not exist.
 
         Returns:
-        list[dict[str, list[int]]]: A list of client-side data indexes, where each element is a dictionary,
+        List[Dict[str, List[int]]]: A list of client-side data indexes, where each element is a dictionary,
         Contains the keys "train", "val", and "test" for a list of data indexes for each partition.
         """
         try:
@@ -314,7 +314,7 @@ class FedAvgServer:
             raise FileNotFoundError(f"Please partition {self.args.dataset.name} first.")
 
         # [0: {"train": [...], "val": [...], "test": [...]}, ...]
-        data_indices: list[dict[str, list[int]]] = partition["data_indices"]
+        data_indices: List[Dict[str, List[int]]] = partition["data_indices"]
 
         return data_indices
 
@@ -622,7 +622,7 @@ class FedAvgServer:
         )
 
     @torch.no_grad()
-    def aggregate(self, client_packages: OrderedDict[int, dict[str, Any]]):
+    def aggregate(self, client_packages: OrderedDict[int, Dict[str, Any]]):
         """Aggregate clients model parameters and produce global model
         parameters.
 
@@ -845,11 +845,79 @@ class FedAvgServer:
         if self.args.common.test_server_interval > 0:
             _print(["centralized"])
 
-    def run(self):
-        """The entrypoint of FL-bench experiment.
+    def save_model_weights(self):
+        model_name = f"{self.args.dataset.name}_{self.args.common.global_epoch}_{self.args.model}.pt"
+        if not self.unique_model:
+            torch.save(self.public_model_params, self.output_dir / model_name)
+        else:
+            warnings.warn(
+                f"{self.algorithm_name}'s unique_model = True, "
+                "which does not support saving model parameters. "
+                "So the saving is skipped."
+            )
 
-        Raises:
-            RuntimeError: When FL-bench trainer is not set properly.
+    def save_training_curves_figure(self):
+        """
+        Save the training curves of FL-bench experiment.
+        """
+        import matplotlib
+        from matplotlib import pyplot as plt
+
+        matplotlib.use("Agg")
+        linestyle = {
+            "before": {"train": "dotted", "val": "dashed", "test": "solid"},
+            "after": {"train": "dotted", "val": "dashed", "test": "solid"},
+        }
+        for stage in ["before", "after"]:
+            for split in ["train", "val", "test"]:
+                if len(self.global_metrics[stage][split]) > 0:
+                    plt.plot(
+                        [
+                            metrics.accuracy
+                            for metrics in self.global_metrics[stage][split]
+                        ],
+                        label=f"{split}set ({stage}LocalTraining)",
+                        ls=linestyle[stage][split],
+                    )
+
+        plt.title(f"{self.algorithm_name}_{self.args.dataset.name}")
+        plt.ylim(0, 100)
+        plt.xlabel("Communication Rounds")
+        plt.ylabel("Accuracy")
+        plt.legend()
+        plt.savefig(self.output_dir / f"metrics.png", bbox_inches="tight")
+
+    def save_metrics_stats(self):
+        """
+        Save the metrics stats of FL-bench experiment.
+        """
+        import pandas as pd
+
+        df = pd.DataFrame()
+        for stage in ["before", "after"]:
+            for split in ["train", "val", "test"]:
+                if len(self.global_metrics[stage][split]) > 0:
+                    for metric in [
+                        "accuracy",
+                        # "micro_precision",
+                        # "macro_precision",
+                        # "micro_recall",
+                        # "macro_recall",
+                    ]:
+                        stats = [
+                            getattr(metrics, metric)
+                            for metrics in self.global_metrics[stage][split]
+                        ]
+                        df.insert(
+                            loc=df.shape[1],
+                            column=f"{metric}_{split}_{stage}",
+                            value=np.array(stats).T,
+                        )
+        df.to_csv(self.output_dir / f"metrics.csv", index=True, index_label="epoch")
+
+    def run(self):
+        """
+        The entrypoint of FL-bench experiment.
         """
         self.logger.log("=" * 20, self.algorithm_name, "=" * 20)
         self.logger.log("Experiment Arguments:")
@@ -895,15 +963,18 @@ class FedAvgServer:
         )
         self.logger.log("=" * 20, self.algorithm_name, "Experiment Results:", "=" * 20)
         self.logger.log(
-            "Format: [green](before local fine-tuning) -> [blue](after local fine-tuning)\n",
+            "Display format: [green](before local fine-tuning) -> "
+            "[blue](after local fine-tuning)\n",
             "So if finetune_epoch = 0, x.xx% -> 0.00% is normal.",
         )
         all_test_results = {
             epoch: {
                 group: {
                     split: {
-                        "loss": f"{metrics['before'][split].loss:.4f} -> {metrics['after'][split].loss:.4f}",
-                        "accuracy": f"{metrics['before'][split].accuracy:.2f}% -> {metrics['after'][split].accuracy:.2f}%",
+                        "loss": f"{metrics['before'][split].loss:.4f} -> "
+                        f"{metrics['after'][split].loss:.4f}",
+                        "accuracy": f"{metrics['before'][split].accuracy:.2f}% -> "
+                        f"{metrics['after'][split].accuracy:.2f}%",
                     }
                     for split, flag in [
                         (
@@ -939,66 +1010,12 @@ class FedAvgServer:
 
         # plot the training curves
         if self.args.common.save_fig:
-            import matplotlib
-            from matplotlib import pyplot as plt
-
-            matplotlib.use("Agg")
-            linestyle = {
-                "before": {"train": "dotted", "val": "dashed", "test": "solid"},
-                "after": {"train": "dotted", "val": "dashed", "test": "solid"},
-            }
-            for stage in ["before", "after"]:
-                for split in ["train", "val", "test"]:
-                    if len(self.global_metrics[stage][split]) > 0:
-                        plt.plot(
-                            [
-                                metrics.accuracy
-                                for metrics in self.global_metrics[stage][split]
-                            ],
-                            label=f"{split}set ({stage}LocalTraining)",
-                            ls=linestyle[stage][split],
-                        )
-
-            plt.title(f"{self.algorithm_name}_{self.args.dataset.name}")
-            plt.ylim(0, 100)
-            plt.xlabel("Communication Rounds")
-            plt.ylabel("Accuracy")
-            plt.legend()
-            plt.savefig(self.output_dir / f"metrics.png", bbox_inches="tight")
+            self.save_training_curves_figure()
 
         # save each round's metrics stats
         if self.args.common.save_metrics:
-            import pandas as pd
-
-            df = pd.DataFrame()
-            for stage in ["before", "after"]:
-                for split in ["train", "val", "test"]:
-                    if len(self.global_metrics[stage][split]) > 0:
-                        for metric in [
-                            "accuracy",
-                            # "micro_precision",
-                            # "macro_precision",
-                            # "micro_recall",
-                            # "macro_recall",
-                        ]:
-                            stats = [
-                                getattr(metrics, metric)
-                                for metrics in self.global_metrics[stage][split]
-                            ]
-                            df.insert(
-                                loc=df.shape[1],
-                                column=f"{metric}_{split}_{stage}",
-                                value=np.array(stats).T,
-                            )
-            df.to_csv(self.output_dir / f"metrics.csv", index=True, index_label="epoch")
+            self.save_metrics_stats()
 
         # save trained model(s) parameters
         if self.args.common.save_model:
-            model_name = f"{self.args.dataset.name}_{self.args.common.global_epoch}_{self.args.model}.pt"
-            if not self.unique_model:
-                torch.save(self.public_model_params, self.output_dir / model_name)
-            else:
-                warnings.warn(
-                    f"{self.algorithm_name}'s unique_model = True, which does not support saving model parameters. "
-                    "So the saving is skipped."
-                )
+            self.save_model_weights()
