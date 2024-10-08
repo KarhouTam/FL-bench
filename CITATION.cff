@@ -1,6 +1,3 @@
-# This CITATION.cff file was generated with cffinit.
-# Visit https://bit.ly/cffinit to generate yours today!
-
 cff-version: 1.2.0
 title: 'FL-bench: A federated learning benchmark for solving image classification tasks'
 message: >-
@@ -22,4 +19,4 @@ abstract: >-
   classification tasks.
 keywords:
   - federated learning
-license: MIT
+license: GNU General Public License v3.0

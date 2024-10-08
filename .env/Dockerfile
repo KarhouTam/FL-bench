@@ -5,13 +5,12 @@ RUN apt update && \
     cd /usr/bin && \
     ln -s python3.10 python
 
-WORKDIR /root
-
-COPY .env/requirements.txt /tmp
+COPY ./ /root/FL-bench
 
 RUN pip install --upgrade pip && \
-    pip install -r /tmp/requirements.txt
+    pip install -r /root/FL-bench/.env/requirements.txt
 
+WORKDIR /root
 
 # visdom ray-dashboard tensorboard
 EXPOSE 8097 8265 6006
