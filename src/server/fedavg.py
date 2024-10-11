@@ -35,7 +35,7 @@ from src.utils.constants import (
 )
 from src.utils.metrics import Metrics
 from src.utils.models import MODELS, DecoupledModel
-from src.utils.tools import Logger, fix_random_seed, get_optimal_cuda_device
+from src.utils.tools import Logger, evaluate_model, fix_random_seed, get_optimal_cuda_device
 from src.utils.trainer import FLbenchTrainer
 
 
@@ -217,6 +217,37 @@ class FedAvgServer:
         self.trainer: FLbenchTrainer = None
         if use_fedavg_client_cls:
             self.init_trainer()
+
+        # create setup for centralized evaluation
+        self.dataset = self.get_dataset()
+        data_indices = self.get_clients_data_indices()
+        val_indices = np.concatenate(
+            [data_indices[i]["val"] for i in self.train_clients]
+        )
+        test_indices = np.concatenate(
+            [data_indices[i]["test"] for i in self.train_clients]
+        )
+        train_indices = np.concatenate(
+            [data_indices[i]["train"] for i in self.train_clients]
+        )
+        self.valset = torch.utils.data.Subset(self.dataset, val_indices)
+        self.testset = torch.utils.data.Subset(self.dataset, test_indices)
+        self.trainset = torch.utils.data.Subset(self.dataset, train_indices)
+        self.valloader = torch.utils.data.DataLoader(
+            self.valset,
+            batch_size=self.args.common.batch_size,
+            shuffle=False,
+        )
+        self.testloader = torch.utils.data.DataLoader(
+            self.testset,
+            batch_size=self.args.common.batch_size,
+            shuffle=False,
+        )
+        self.trainloader = torch.utils.data.DataLoader(
+            self.trainset,
+            batch_size=self.args.common.batch_size,
+            shuffle=False,
+        )
 
     def init_trainer(self, fl_client_cls=FedAvgClient, **extras):
         """Initiate the FL-bench trainier that responsible to client training.
@@ -421,13 +452,15 @@ class FedAvgServer:
             begin = time.time()
             self.train_one_round()
             end = time.time()
-            self.log_info()
             avg_round_time = (avg_round_time * self.current_epoch + (end - begin)) / (
                 self.current_epoch + 1
             )
 
             if (E + 1) % self.args.common.test_interval == 0:
                 self.test()
+            
+            self.log_info()
+
 
         self.logger.log(
             f"{self.algorithm_name}'s average time taken by each global epoch: "
@@ -497,7 +530,57 @@ class FedAvgServer:
 
             self.test_results[self.current_epoch + 1] = results
 
+        metrics = self.evaluate()
+        self.test_results[self.current_epoch + 1]["server"] = {"after" : metrics}
+
         self.testing = False
+    
+    @torch.no_grad()
+    def evaluate(self, model: torch.nn.Module = None) -> dict[str, Metrics]:
+        """Evaluating server model.
+
+        Args:
+            model: Used model. Defaults to None, which will fallback to `self.model`.
+
+        Returns:
+            A evalution results dict: {
+                `train`: results on client training set.
+                `val`: results on client validation set.
+                `test`: results on client test set.
+            }
+        """
+        target_model = self.model if model is None else model
+        target_model.eval()
+        self.dataset.eval()
+        train_metrics = Metrics()
+        val_metrics = Metrics()
+        test_metrics = Metrics()
+        criterion = torch.nn.CrossEntropyLoss(reduction="sum")
+
+        if len(self.testset) > 0 and self.args.common.eval_test:
+            test_metrics = evaluate_model(
+                model=target_model,
+                dataloader=self.testloader,
+                criterion=criterion,
+                device=self.device,
+            )
+
+        if len(self.valset) > 0 and self.args.common.eval_val:
+            val_metrics = evaluate_model(
+                model=target_model,
+                dataloader=self.valloader,
+                criterion=criterion,
+                device=self.device,
+            )
+
+        if len(self.trainset) > 0 and self.args.common.eval_train:
+            train_metrics = evaluate_model(
+                model=target_model,
+                dataloader=self.trainloader,
+                criterion=criterion,
+                device=self.device,
+            )
+        return {"train": train_metrics, "val": val_metrics, "test": test_metrics}
 
     def get_client_model_params(self, client_id: int) -> OrderedDict[str, torch.Tensor]:
         """This function is for outputting model parameters that asked by
@@ -559,6 +642,7 @@ class FedAvgServer:
                 aggregated = torch.sum(client_params * weights, dim=-1)
 
                 global_param.data = aggregated
+        self.model.load_state_dict(self.public_model_params)
 
     def show_convergence(self):
         """Collect the number of epoches that FL method reach specific
@@ -598,12 +682,12 @@ class FedAvgServer:
 
     def log_info(self):
         """Accumulate client evaluation results at each round."""
-        for stage in ["before", "after"]:
-            for split, flag in [
+        for split, flag in [
                 ("train", self.args.common.eval_train),
                 ("val", self.args.common.eval_val),
                 ("test", self.args.common.eval_test),
             ]:
+            for stage in ["before", "after"]:
                 if flag:
                     global_metrics = Metrics()
                     for i in self.selected_clients:
@@ -634,6 +718,30 @@ class FedAvgServer:
                             self.current_epoch,
                             new_style=True,
                         )
+
+            # log server accuracy
+            if flag:
+                if self.args.common.visible == "visdom":
+                    self.viz.line(
+                        [self.test_results[self.current_epoch+1]["server"]["after"][split].accuracy],
+                        [self.current_epoch],
+                        win=f"Accuracy-{self.monitor_window_name_suffix}/{split}set-CentralizedEvaluation",
+                        update="append",
+                        name=self.algorithm_name,
+                        opts=dict(
+                            title=f"Accuracy-{self.monitor_window_name_suffix}/{split}set-CentralizedEvaluation",
+                            xlabel="Communication Rounds",
+                            ylabel="Accuracy",
+                            legend=[self.algorithm_name],
+                        ),
+                    )
+                elif self.args.common.visible == "tensorboard":
+                    self.tensorboard.add_scalar(
+                        f"Accuracy-{self.monitor_window_name_suffix}/{split}set-CentralizedEvaluation",
+                        self.test_results[self.current_epoch+1]["server"]["after"][split].accuracy,
+                        self.current_epoch,
+                        new_style=True,
+                    )
 
     def show_max_metrics(self):
         """Show the maximum stats that FL method get."""

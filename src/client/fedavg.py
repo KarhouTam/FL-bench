@@ -9,7 +9,7 @@ from torch.utils.data import DataLoader, Subset
 from data.utils.datasets import BaseDataset
 from src.utils.metrics import Metrics
 from src.utils.models import DecoupledModel
-from src.utils.tools import evalutate_model, get_optimal_cuda_device
+from src.utils.tools import evaluate_model, get_optimal_cuda_device
 
 
 class FedAvgClient:
@@ -124,8 +124,8 @@ class FedAvgClient:
         self.client_id = package["client_id"]
         self.local_epoch = package["local_epoch"]
         self.load_data_indices()
-
-        if package["optimizer_state"]:
+        
+        if package["optimizer_state"] and not self.args.common.reset_optimizer_on_global_epoch:
             self.optimizer.load_state_dict(package["optimizer_state"])
         else:
             self.optimizer.load_state_dict(self.init_optimizer_state)
@@ -241,7 +241,7 @@ class FedAvgClient:
         criterion = torch.nn.CrossEntropyLoss(reduction="sum")
 
         if len(self.testset) > 0 and self.args.common.eval_test:
-            test_metrics = evalutate_model(
+            test_metrics = evaluate_model(
                 model=target_model,
                 dataloader=self.testloader,
                 criterion=criterion,
@@ -249,7 +249,7 @@ class FedAvgClient:
             )
 
         if len(self.valset) > 0 and self.args.common.eval_val:
-            val_metrics = evalutate_model(
+            val_metrics = evaluate_model(
                 model=target_model,
                 dataloader=self.valloader,
                 criterion=criterion,
@@ -257,7 +257,7 @@ class FedAvgClient:
             )
 
         if len(self.trainset) > 0 and self.args.common.eval_train:
-            train_metrics = evalutate_model(
+            train_metrics = evaluate_model(
                 model=target_model,
                 dataloader=self.trainloader,
                 criterion=criterion,

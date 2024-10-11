@@ -64,6 +64,7 @@ DEFAULTS = {
         "global_epoch": 100,
         "local_epoch": 5,
         "finetune_epoch": 0,
+        "reset_optimizer_on_global_epoch": False,
         "batch_size": 32,
         "test_interval": 100,
         "straggler_ratio": 0,
