@@ -53,7 +53,7 @@ class ElasticClient(FedAvgClient):
                 else:
                     sensitivity[i] = 1.0
 
-        self.train_with_eval()
+        self.train_locally()
 
         client_package = self.package()
         client_package["sensitivity"] = sensitivity.cpu()

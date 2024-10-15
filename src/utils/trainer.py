@@ -37,21 +37,21 @@ class FLbenchTrainer:
             self.test = self._parallel_test
             self.exec = self._parallel_exec
 
-    def _serial_train(self):
+    def _serial_train(self, evaluate_clients: bool = True):
         client_packages = OrderedDict()
         for client_id in self.server.selected_clients:
             server_package = self.server.package(client_id)
-            client_package = self.worker.train(server_package)
+            client_package = self.worker.train(server_package, evaluate_clients)
             client_packages[client_id] = client_package
 
-            if self.server.verbose:
+            if self.server.verbose and client_package["eval_results"]:
                 self.server.logger.log(
                     *client_package["eval_results"]["message"], sep="\n"
                 )
-
-            self.server.client_metrics[client_id][self.server.current_epoch] = (
-                client_package["eval_results"]
-            )
+            if client_package["eval_results"]:
+                self.server.client_metrics[client_id][self.server.current_epoch] = (
+                    client_package["eval_results"]
+                )
             self.server.clients_personal_model_params[client_id].update(
                 client_package["personal_model_params"]
             )
@@ -64,7 +64,7 @@ class FLbenchTrainer:
 
         return client_packages
 
-    def _parallel_train(self):
+    def _parallel_train(self, evaluate_clients: bool = True):
         clients = self.server.selected_clients
         i = 0
         futures = []
@@ -75,7 +75,7 @@ class FLbenchTrainer:
             while i < len(clients) and len(idle_workers) > 0:
                 worker_id = idle_workers.popleft()
                 server_package = ray.put(self.server.package(clients[i]))
-                future = self.workers[worker_id].train.remote(server_package)
+                future = self.workers[worker_id].train.remote(server_package, evaluate_clients)
                 job_map[future] = (clients[i], worker_id)
                 futures.append(future)
                 i += 1
@@ -88,14 +88,15 @@ class FLbenchTrainer:
                     idle_workers.append(worker_id)
                     client_packages[client_id] = client_package
 
-                    if self.server.verbose:
+                    if self.server.verbose and client_package["eval_results"]:
                         self.server.logger.log(
                             *client_package["eval_results"]["message"], sep="\n"
                         )
 
-                    self.server.client_metrics[client_id][self.server.current_epoch] = (
-                        client_package["eval_results"]
-                    )
+                    if client_package["eval_results"]:
+                        self.server.client_metrics[client_id][self.server.current_epoch] = (
+                            client_package["eval_results"]
+                        )
                     self.server.clients_personal_model_params[client_id].update(
                         client_package["personal_model_params"]
                     )

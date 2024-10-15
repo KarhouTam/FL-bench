@@ -33,7 +33,7 @@ class FedProtoClient(FedAvgClient):
 
     def train(self, server_package: dict[str, Any]):
         self.set_parameters(server_package)
-        self.train_with_eval()
+        self.train_locally()
 
         for i in range(NUM_CLASSES[self.args.dataset.name]):
             if self.label_counts[i] > 0:

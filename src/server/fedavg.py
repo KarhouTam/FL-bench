@@ -35,7 +35,7 @@ from src.utils.constants import (
 )
 from src.utils.metrics import Metrics
 from src.utils.models import MODELS, DecoupledModel
-from src.utils.tools import Logger, fix_random_seed, get_optimal_cuda_device
+from src.utils.tools import Logger, evaluate_model, fix_random_seed, get_optimal_cuda_device, initialize_data_loaders
 from src.utils.trainer import FLbenchTrainer
 
 
@@ -215,10 +215,19 @@ class FedAvgServer:
 
         # init trainer
         self.trainer: FLbenchTrainer = None
+        self.dataset = self.get_dataset()
+        data_indices = self.get_clients_data_indices()
         if use_fedavg_client_cls:
-            self.init_trainer()
+            self.init_trainer(dataset=self.dataset, client_indices=data_indices)
 
-    def init_trainer(self, fl_client_cls=FedAvgClient, **extras):
+        # create setup for centralized evaluation
+        self.trainloader, self.testloader, self.valloader, self.trainset, self.testset, self.valset = initialize_data_loaders(
+            self.dataset, data_indices, self.args.common.batch_size
+        )
+        
+
+
+    def init_trainer(self, dataset, client_indices, fl_client_cls=FedAvgClient, **extras):
         """Initiate the FL-bench trainier that responsible to client training.
         `extras` are the arguments of `fl_client_cls.__init__()` that not in
         `[model, args, optimizer_cls, lr_scheduler_cls, dataset, data_indices,
@@ -238,8 +247,8 @@ class FedAvgServer:
                     optimizer_cls=self.get_client_optimizer_cls(),
                     lr_scheduler_cls=self.get_client_lr_scheduler_cls(),
                     args=self.args,
-                    dataset=self.get_dataset(),
-                    data_indices=self.get_clients_data_indices(),
+                    dataset=dataset,
+                    data_indices=client_indices,
                     device=self.device,
                     return_diff=self.return_diff,
                     **extras,
@@ -249,8 +258,8 @@ class FedAvgServer:
             model_ref = ray.put(self.model.cpu())
             optimzier_cls_ref = ray.put(self.get_client_optimizer_cls())
             lr_scheduler_cls_ref = ray.put(self.get_client_lr_scheduler_cls())
-            dataset_ref = ray.put(self.get_dataset())
-            data_indices_ref = ray.put(self.get_clients_data_indices())
+            dataset_ref = ray.put(dataset)
+            data_indices_ref = ray.put(client_indices)
             args_ref = ray.put(self.args)
             device_ref = ray.put(None)  # in parallel mode, workers decide their device
             return_diff_ref = ray.put(self.return_diff)
@@ -421,13 +430,18 @@ class FedAvgServer:
             begin = time.time()
             self.train_one_round()
             end = time.time()
-            self.log_info()
             avg_round_time = (avg_round_time * self.current_epoch + (end - begin)) / (
                 self.current_epoch + 1
             )
 
-            if (E + 1) % self.args.common.test_interval == 0:
+            if self.args.common.test_interval > 0 and (E + 1) % self.args.common.test_interval == 0:
                 self.test()
+            if self.args.common.test_server_interval > 0 and (E + 1) % self.args.common.test_server_interval == 0:
+                self.test_server()
+
+            
+            self.log_info()
+
 
         self.logger.log(
             f"{self.algorithm_name}'s average time taken by each global epoch: "
@@ -438,7 +452,7 @@ class FedAvgServer:
         """The function of indicating specific things FL method need to do (at
         server side) in each communication round."""
 
-        client_packages = self.trainer.train()
+        client_packages = self.trainer.train(evaluate_clients=(self.args.common.test_interval > 0))
         self.aggregate(client_packages)
 
     def package(self, client_id: int):
@@ -495,9 +509,81 @@ class FedAvgServer:
                 if len(self.test_clients) > 0:
                     self.trainer.test(self.test_clients, results["test_clients"])
 
-            self.test_results[self.current_epoch + 1] = results
+            if self.current_epoch + 1 not in self.test_results:
+                self.test_results[self.current_epoch + 1] = results
+            else:
+                self.test_results[self.current_epoch + 1].update(results)
 
         self.testing = False
+
+    def test_server(self):
+        """The function for testing FL method's output (a single global model
+        or personalized client models)."""
+        self.testing = True
+        if self.args.common.buffers == "local":
+            metrics = self.evaluate()
+            self.test_results[self.current_epoch + 1]["server"] = {"after" : metrics}
+        else:
+            # compute global model's metrics from clients metrics
+            if self.val_clients == self.train_clients == self.test_clients:
+                pass
+        
+        metrics = self.evaluate()
+        if self.current_epoch + 1 not in self.test_results:
+            self.test_results[self.current_epoch + 1] = {"server" : {"after" : metrics}}
+        else:
+            self.test_results[self.current_epoch + 1]["server"] = {"after" : metrics}
+
+        self.testing = False
+    
+    @torch.no_grad()
+    def evaluate(self, model: torch.nn.Module = None, model_in_eval_mode: bool = True) -> dict[str, Metrics]:
+        """Evaluating server model.
+
+        Args:
+            model: Used model. Defaults to None, which will fallback to `self.model`.
+
+        Returns:
+            A evalution results dict: {
+                `train`: results on client training set.
+                `val`: results on client validation set.
+                `test`: results on client test set.
+            }
+        """
+        target_model = self.model if model is None else model
+        self.dataset.eval()
+        train_metrics = Metrics()
+        val_metrics = Metrics()
+        test_metrics = Metrics()
+        criterion = torch.nn.CrossEntropyLoss(reduction="sum")
+
+        if len(self.testset) > 0 and self.args.common.eval_test:
+            test_metrics = evaluate_model(
+                model=target_model,
+                dataloader=self.testloader,
+                criterion=criterion,
+                device=self.device,
+                model_in_eval_mode=model_in_eval_mode
+            )
+
+        if len(self.valset) > 0 and self.args.common.eval_val:
+            val_metrics = evaluate_model(
+                model=target_model,
+                dataloader=self.valloader,
+                criterion=criterion,
+                device=self.device,
+                model_in_eval_mode=model_in_eval_mode
+            )
+
+        if len(self.trainset) > 0 and self.args.common.eval_train:
+            train_metrics = evaluate_model(
+                model=target_model,
+                dataloader=self.trainloader,
+                criterion=criterion,
+                device=self.device,
+                model_in_eval_mode=model_in_eval_mode
+            )
+        return {"train": train_metrics, "val": val_metrics, "test": test_metrics}
 
     def get_client_model_params(self, client_id: int) -> OrderedDict[str, torch.Tensor]:
         """This function is for outputting model parameters that asked by
@@ -559,6 +645,7 @@ class FedAvgServer:
                 aggregated = torch.sum(client_params * weights, dim=-1)
 
                 global_param.data = aggregated
+        self.model.load_state_dict(self.public_model_params, strict=False)
 
     def show_convergence(self):
         """Collect the number of epoches that FL method reach specific
@@ -598,13 +685,13 @@ class FedAvgServer:
 
     def log_info(self):
         """Accumulate client evaluation results at each round."""
-        for stage in ["before", "after"]:
-            for split, flag in [
+        for split, flag in [
                 ("train", self.args.common.eval_train),
                 ("val", self.args.common.eval_val),
                 ("test", self.args.common.eval_test),
             ]:
-                if flag:
+            for stage in ["before", "after"]:
+                if flag and any(self.current_epoch in self.client_metrics[i] for i in self.selected_clients):
                     global_metrics = Metrics()
                     for i in self.selected_clients:
                         global_metrics.update(
@@ -634,6 +721,30 @@ class FedAvgServer:
                             self.current_epoch,
                             new_style=True,
                         )
+
+            # log server accuracy
+            if flag and self.current_epoch+1 in self.test_results:
+                if self.args.common.visible == "visdom":
+                    self.viz.line(
+                        [self.test_results[self.current_epoch+1]["server"]["after"][split].accuracy],
+                        [self.current_epoch + 1],
+                        win=f"Accuracy-{self.monitor_window_name_suffix}/{split}set-CentralizedEvaluation",
+                        update="append",
+                        name=self.algorithm_name,
+                        opts=dict(
+                            title=f"Accuracy-{self.monitor_window_name_suffix}/{split}set-CentralizedEvaluation",
+                            xlabel="Communication Rounds",
+                            ylabel="Accuracy",
+                            legend=[self.algorithm_name],
+                        ),
+                    )
+                elif self.args.common.visible == "tensorboard":
+                    self.tensorboard.add_scalar(
+                        f"Accuracy-{self.monitor_window_name_suffix}/{split}set-CentralizedEvaluation",
+                        self.test_results[self.current_epoch+1]["server"]["after"][split].accuracy,
+                        self.current_epoch + 1,
+                        new_style=True,
+                    )
 
     def show_max_metrics(self):
         """Show the maximum stats that FL method get."""
