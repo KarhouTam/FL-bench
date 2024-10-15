@@ -35,7 +35,7 @@ from src.utils.constants import (
 )
 from src.utils.metrics import Metrics
 from src.utils.models import MODELS, DecoupledModel
-from src.utils.tools import Logger, evaluate_model, fix_random_seed, get_optimal_cuda_device
+from src.utils.tools import Logger, evaluate_model, fix_random_seed, get_optimal_cuda_device, initialize_data_loaders
 from src.utils.trainer import FLbenchTrainer
 
 
@@ -215,41 +215,19 @@ class FedAvgServer:
 
         # init trainer
         self.trainer: FLbenchTrainer = None
-        if use_fedavg_client_cls:
-            self.init_trainer()
-
-        # create setup for centralized evaluation
         self.dataset = self.get_dataset()
         data_indices = self.get_clients_data_indices()
-        val_indices = np.concatenate(
-            [data_indices[i]["val"] for i in self.train_clients]
-        )
-        test_indices = np.concatenate(
-            [data_indices[i]["test"] for i in self.train_clients]
-        )
-        train_indices = np.concatenate(
-            [data_indices[i]["train"] for i in self.train_clients]
-        )
-        self.valset = torch.utils.data.Subset(self.dataset, val_indices)
-        self.testset = torch.utils.data.Subset(self.dataset, test_indices)
-        self.trainset = torch.utils.data.Subset(self.dataset, train_indices)
-        self.valloader = torch.utils.data.DataLoader(
-            self.valset,
-            batch_size=self.args.common.batch_size,
-            shuffle=False,
-        )
-        self.testloader = torch.utils.data.DataLoader(
-            self.testset,
-            batch_size=self.args.common.batch_size,
-            shuffle=False,
-        )
-        self.trainloader = torch.utils.data.DataLoader(
-            self.trainset,
-            batch_size=self.args.common.batch_size,
-            shuffle=False,
-        )
+        if use_fedavg_client_cls:
+            self.init_trainer(dataset=self.dataset, client_indices=data_indices)
 
-    def init_trainer(self, fl_client_cls=FedAvgClient, **extras):
+        # create setup for centralized evaluation
+        self.trainloader, self.testloader, self.valloader, self.trainset, self.testset, self.valset = initialize_data_loaders(
+            self.dataset, data_indices, self.args.common.batch_size
+        )
+        
+
+
+    def init_trainer(self, dataset, client_indices, fl_client_cls=FedAvgClient, **extras):
         """Initiate the FL-bench trainier that responsible to client training.
         `extras` are the arguments of `fl_client_cls.__init__()` that not in
         `[model, args, optimizer_cls, lr_scheduler_cls, dataset, data_indices,
@@ -269,8 +247,8 @@ class FedAvgServer:
                     optimizer_cls=self.get_client_optimizer_cls(),
                     lr_scheduler_cls=self.get_client_lr_scheduler_cls(),
                     args=self.args,
-                    dataset=self.get_dataset(),
-                    data_indices=self.get_clients_data_indices(),
+                    dataset=dataset,
+                    data_indices=client_indices,
                     device=self.device,
                     return_diff=self.return_diff,
                     **extras,
@@ -280,8 +258,8 @@ class FedAvgServer:
             model_ref = ray.put(self.model.cpu())
             optimzier_cls_ref = ray.put(self.get_client_optimizer_cls())
             lr_scheduler_cls_ref = ray.put(self.get_client_lr_scheduler_cls())
-            dataset_ref = ray.put(self.get_dataset())
-            data_indices_ref = ray.put(self.get_clients_data_indices())
+            dataset_ref = ray.put(dataset)
+            data_indices_ref = ray.put(client_indices)
             args_ref = ray.put(self.args)
             device_ref = ray.put(None)  # in parallel mode, workers decide their device
             return_diff_ref = ray.put(self.return_diff)
@@ -530,13 +508,22 @@ class FedAvgServer:
 
             self.test_results[self.current_epoch + 1] = results
 
+        if self.args.common.buffers == "local":
+            metrics = self.evaluate()
+            self.test_results[self.current_epoch + 1]["server"] = {"after" : metrics}
+        else:
+            # compute global model's metrics from clients metrics
+            if self.val_clients == self.train_clients == self.test_clients:
+                pass
+        
         metrics = self.evaluate()
         self.test_results[self.current_epoch + 1]["server"] = {"after" : metrics}
+        self.logger.log(metrics["test"].accuracy)
 
         self.testing = False
     
     @torch.no_grad()
-    def evaluate(self, model: torch.nn.Module = None) -> dict[str, Metrics]:
+    def evaluate(self, model: torch.nn.Module = None, model_in_eval_mode: bool = True) -> dict[str, Metrics]:
         """Evaluating server model.
 
         Args:
@@ -550,7 +537,6 @@ class FedAvgServer:
             }
         """
         target_model = self.model if model is None else model
-        target_model.eval()
         self.dataset.eval()
         train_metrics = Metrics()
         val_metrics = Metrics()
@@ -563,6 +549,7 @@ class FedAvgServer:
                 dataloader=self.testloader,
                 criterion=criterion,
                 device=self.device,
+                model_in_eval_mode=model_in_eval_mode
             )
 
         if len(self.valset) > 0 and self.args.common.eval_val:
@@ -571,6 +558,7 @@ class FedAvgServer:
                 dataloader=self.valloader,
                 criterion=criterion,
                 device=self.device,
+                model_in_eval_mode=model_in_eval_mode
             )
 
         if len(self.trainset) > 0 and self.args.common.eval_train:
@@ -579,6 +567,7 @@ class FedAvgServer:
                 dataloader=self.trainloader,
                 criterion=criterion,
                 device=self.device,
+                model_in_eval_mode=model_in_eval_mode
             )
         return {"train": train_metrics, "val": val_metrics, "test": test_metrics}
 
@@ -642,7 +631,7 @@ class FedAvgServer:
                 aggregated = torch.sum(client_params * weights, dim=-1)
 
                 global_param.data = aggregated
-        self.model.load_state_dict(self.public_model_params)
+        self.model.load_state_dict(self.public_model_params, strict=False)
 
     def show_convergence(self):
         """Collect the number of epoches that FL method reach specific

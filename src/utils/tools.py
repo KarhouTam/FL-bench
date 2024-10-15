@@ -93,6 +93,7 @@ def evaluate_model(
     dataloader: DataLoader,
     criterion=torch.nn.CrossEntropyLoss(reduction="sum"),
     device=torch.device("cpu"),
+    model_in_eval_mode: bool = True,
 ) -> Metrics:
     """For evaluating the `model` over `dataloader` and return metrics.
 
@@ -101,11 +102,15 @@ def evaluate_model(
         dataloader (DataLoader): Target dataloader.
         criterion (optional): The metric criterion. Defaults to torch.nn.CrossEntropyLoss(reduction="sum").
         device (torch.device, optional): The device that holds the computation. Defaults to torch.device("cpu").
+        model_in_eval_mode (bool, optional): Set as `True` to switch model to eval mode. Defaults to `True`.
 
     Returns:
         Metrics: The metrics objective.
     """
-    model.eval()
+    if model_in_eval_mode:
+        model.eval()
+    else:
+        model.train()
     model.to(device)
     metrics = Metrics()
     for x, y in dataloader:
@@ -248,3 +253,56 @@ class Logger:
     def close(self):
         if self.logfile_output_stream:
             self.logfile_output_stream.close()
+
+
+def initialize_data_loaders(
+    dataset: torch.utils.data.Dataset,
+    data_indices: list[dict[str, list[int]]],
+    batch_size: int=32,
+) -> tuple[DataLoader, DataLoader, DataLoader, torch.utils.data.Subset, torch.utils.data.Subset, torch.utils.data.Subset]:
+    """
+    Initializes and returns data loaders for training, validation, and testing.
+
+    Args:
+        dataset (torch.utils.data.Dataset): The dataset to be used for loading data.
+        data_indices (list[dict[str, list[int]]]): A list of dictionaries containing indices for train, validation, and test data.
+        batch_size (int, optional): The batch size for the data loaders. Defaults to 32.
+
+    Returns:
+        tuple: A tuple containing the following elements:
+            - trainloader (torch.utils.data.DataLoader): The data loader for training data.
+            - valloader (torch.utils.data.DataLoader): The data loader for validation data.
+            - testloader (torch.utils.data.DataLoader): The data loader for testing data.
+            - trainset (torch.utils.data.Subset): The subset of the dataset containing training data.
+            - valset (torch.utils.data.Subset): The subset of the dataset containing validation data.
+            - testset (torch.utils.data.Subset): The subset of the dataset containing testing data.
+    """
+    val_indices = np.concatenate(
+        [client_i_indices["val"] for client_i_indices in data_indices]
+    )
+    test_indices = np.concatenate(
+        [client_i_indices["test"] for client_i_indices in data_indices]
+    )
+    train_indices = np.concatenate(
+        [client_i_indices["train"] for client_i_indices in data_indices]
+    )
+    valset = torch.utils.data.Subset(dataset, val_indices)
+    testset = torch.utils.data.Subset(dataset, test_indices)
+    trainset = torch.utils.data.Subset(dataset, train_indices)
+    valloader = torch.utils.data.DataLoader(
+        valset,
+        batch_size=batch_size,
+        shuffle=False,
+    )
+    testloader = torch.utils.data.DataLoader(
+        testset,
+        batch_size=batch_size,
+        shuffle=False,
+    )
+    trainloader = torch.utils.data.DataLoader(
+        trainset,
+        batch_size=batch_size,
+        shuffle=False,
+    )
+
+    return trainloader, testloader, valloader, trainset, testset, valset
