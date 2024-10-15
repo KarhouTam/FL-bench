@@ -20,7 +20,7 @@ class FedMDClient(FedAvgClient):
     def train(self, server_package: dict[str, Any]):
         self.set_parameters(server_package)
         self.digest()
-        self.train_with_eval()
+        self.train_locally()
         return self.package()
 
     def digest(self):

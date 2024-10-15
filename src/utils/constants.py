@@ -67,6 +67,7 @@ DEFAULTS = {
         "reset_optimizer_on_global_epoch": False,
         "batch_size": 32,
         "test_interval": 100,
+        "test_server_interval": 100,
         "straggler_ratio": 0,
         "straggler_min_local_epoch": 0,
         "buffers": "global",

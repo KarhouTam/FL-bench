@@ -82,7 +82,7 @@ class FedAvgClient:
         self.valset.indices = self.data_indices[self.client_id]["val"]
         self.testset.indices = self.data_indices[self.client_id]["test"]
 
-    def train_with_eval(self):
+    def train_locally(self, evaluate_clients: bool = True):
         """Wraps `fit()` with `evaluate()` and collect model evaluation
         results.
 
@@ -98,27 +98,32 @@ class FedAvgClient:
             "before": {"train": Metrics(), "val": Metrics(), "test": Metrics()},
             "after": {"train": Metrics(), "val": Metrics(), "test": Metrics()},
         }
-        eval_results["before"] = self.evaluate()
+        if evaluate_clients:
+            eval_results["before"] = self.evaluate()
         if self.local_epoch > 0:
             self.fit()
-            eval_results["after"] = self.evaluate()
+            if evaluate_clients:
+                eval_results["after"] = self.evaluate()
 
-        eval_msg = []
-        for split, color, flag, subset in [
-            ["train", "yellow", self.args.common.eval_train, self.trainset],
-            ["val", "green", self.args.common.eval_val, self.valset],
-            ["test", "cyan", self.args.common.eval_test, self.testset],
-        ]:
-            if len(subset) > 0 and flag:
-                eval_msg.append(
-                    f"client [{self.client_id}]\t"
-                    f"[{color}]({split}set)\t"
-                    f"loss: {eval_results['before'][split].loss:.4f} -> {eval_results['after'][split].loss:.4f}\t"
-                    f"accuracy: {eval_results['before'][split].accuracy:.2f}% -> {eval_results['after'][split].accuracy:.2f}%"
-                )
+        if evaluate_clients:
+            eval_msg = []
+            for split, color, flag, subset in [
+                ["train", "yellow", self.args.common.eval_train, self.trainset],
+                ["val", "green", self.args.common.eval_val, self.valset],
+                ["test", "cyan", self.args.common.eval_test, self.testset],
+            ]:
+                if len(subset) > 0 and flag:
+                    eval_msg.append(
+                        f"client [{self.client_id}]\t"
+                        f"[{color}]({split}set)\t"
+                        f"loss: {eval_results['before'][split].loss:.4f} -> {eval_results['after'][split].loss:.4f}\t"
+                        f"accuracy: {eval_results['before'][split].accuracy:.2f}% -> {eval_results['after'][split].accuracy:.2f}%"
+                    )
 
-        eval_results["message"] = eval_msg
-        self.eval_results = eval_results
+            eval_results["message"] = eval_msg
+            self.eval_results = eval_results
+        else:
+            self.eval_results = None
 
     def set_parameters(self, package: dict[str, Any]):
         self.client_id = package["client_id"]
@@ -148,9 +153,9 @@ class FedAvgClient:
                 for key in self.regular_params_name
             )
 
-    def train(self, server_package: dict[str, Any]):
+    def train(self, server_package: dict[str, Any], evaluate_clients: bool = True) -> dict:
         self.set_parameters(server_package)
-        self.train_with_eval()
+        self.train_locally(evaluate_clients=evaluate_clients)
         client_package = self.package()
         return client_package
 

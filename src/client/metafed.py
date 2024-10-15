@@ -101,7 +101,7 @@ class MetaFedClient(FedAvgClient):
 
     def train(self, server_package: dict[str, Any]):
         self.set_parameters(server_package)
-        self.train_with_eval()
+        self.train_locally()
         client_package = self.package()
         metrics = evaluate_model(
             self.model, self.special_valloader, device=self.device
@@ -132,7 +132,7 @@ class MetaFedClient(FedAvgClient):
                 / 10
                 * self.args.metafed.lamda
             )
-        self.train_with_eval()
+        self.train_locally()
         return dict(
             client_model_params=OrderedDict(
                 (key, param.detach().cpu().clone())

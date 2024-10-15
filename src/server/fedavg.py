@@ -434,8 +434,11 @@ class FedAvgServer:
                 self.current_epoch + 1
             )
 
-            if (E + 1) % self.args.common.test_interval == 0:
+            if self.args.common.test_interval > 0 and (E + 1) % self.args.common.test_interval == 0:
                 self.test()
+            if self.args.common.test_server_interval > 0 and (E + 1) % self.args.common.test_server_interval == 0:
+                self.test_server()
+
             
             self.log_info()
 
@@ -449,7 +452,7 @@ class FedAvgServer:
         """The function of indicating specific things FL method need to do (at
         server side) in each communication round."""
 
-        client_packages = self.trainer.train()
+        client_packages = self.trainer.train(evaluate_clients=(self.args.common.test_interval > 0))
         self.aggregate(client_packages)
 
     def package(self, client_id: int):
@@ -506,8 +509,17 @@ class FedAvgServer:
                 if len(self.test_clients) > 0:
                     self.trainer.test(self.test_clients, results["test_clients"])
 
-            self.test_results[self.current_epoch + 1] = results
+            if self.current_epoch + 1 not in self.test_results:
+                self.test_results[self.current_epoch + 1] = results
+            else:
+                self.test_results[self.current_epoch + 1].update(results)
 
+        self.testing = False
+
+    def test_server(self):
+        """The function for testing FL method's output (a single global model
+        or personalized client models)."""
+        self.testing = True
         if self.args.common.buffers == "local":
             metrics = self.evaluate()
             self.test_results[self.current_epoch + 1]["server"] = {"after" : metrics}
@@ -517,8 +529,10 @@ class FedAvgServer:
                 pass
         
         metrics = self.evaluate()
-        self.test_results[self.current_epoch + 1]["server"] = {"after" : metrics}
-        self.logger.log(metrics["test"].accuracy)
+        if self.current_epoch + 1 not in self.test_results:
+            self.test_results[self.current_epoch + 1] = {"server" : {"after" : metrics}}
+        else:
+            self.test_results[self.current_epoch + 1]["server"] = {"after" : metrics}
 
         self.testing = False
     
@@ -677,7 +691,7 @@ class FedAvgServer:
                 ("test", self.args.common.eval_test),
             ]:
             for stage in ["before", "after"]:
-                if flag:
+                if flag and any(self.current_epoch in self.client_metrics[i] for i in self.selected_clients):
                     global_metrics = Metrics()
                     for i in self.selected_clients:
                         global_metrics.update(
@@ -709,11 +723,11 @@ class FedAvgServer:
                         )
 
             # log server accuracy
-            if flag:
+            if flag and self.current_epoch+1 in self.test_results:
                 if self.args.common.visible == "visdom":
                     self.viz.line(
                         [self.test_results[self.current_epoch+1]["server"]["after"][split].accuracy],
-                        [self.current_epoch],
+                        [self.current_epoch + 1],
                         win=f"Accuracy-{self.monitor_window_name_suffix}/{split}set-CentralizedEvaluation",
                         update="append",
                         name=self.algorithm_name,
@@ -728,7 +742,7 @@ class FedAvgServer:
                     self.tensorboard.add_scalar(
                         f"Accuracy-{self.monitor_window_name_suffix}/{split}set-CentralizedEvaluation",
                         self.test_results[self.current_epoch+1]["server"]["after"][split].accuracy,
-                        self.current_epoch,
+                        self.current_epoch + 1,
                         new_style=True,
                     )
 
