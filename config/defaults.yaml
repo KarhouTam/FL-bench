@@ -54,7 +54,7 @@ optimizer:
   betas: [0.9, 0.999] # for [Adam, AdamW]
   amsgrad: false # for [Adam, AdamW]
 
-mode: parallel # [serial, parallel]
+mode: serial # [serial, parallel]
 # It's fine to keep these configs. if mode is 'serial', these configs will be ignored.
 parallel:
   # The IP address of the selected ray cluster.
@@ -67,12 +67,12 @@ parallel:
   # The amount of computational resources you allocate for your Ray cluster.
   # Default as null for all.
   num_cpus: null
-  num_gpus: 1
+  num_gpus: null
 
   # Should be set larger than 1, or training mode fallback to `serial`
   # Set a larger `num_workers` can further boost efficiency,
   # but also let each worker have less computational resources.
-  num_workers: 10
+  num_workers: 2
 
 common:
   seed: 42 # Random seed of the run.
@@ -105,7 +105,7 @@ common:
   eval_train: false
 
   verbose_gap: 10 # Interval round of displaying clients training performance on terminal.
-  visible: tensorboard # [null, visdom, tensorboard]
+  visible: null # [null, visdom, tensorboard]
   use_cuda: true # Whether to use cuda for training.
 
   save_log: true # Whether to save log files in out/<method>/<start_time>.
