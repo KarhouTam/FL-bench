@@ -10,7 +10,7 @@ class FedBNServer(FedAvgServer):
         algo: str = "FedBN",
         unique_model=False,
         use_fedavg_client_cls=False,
-        return_diff=False,
+        return_diff=True,
     ):
         super().__init__(args, algo, unique_model, use_fedavg_client_cls, return_diff)
         self.init_trainer(FedBNClient)

@@ -3,6 +3,7 @@ import os
 import random
 from argparse import Namespace
 from collections import OrderedDict
+import time
 from typing import Callable, Sequence, Union
 from pathlib import Path
 
@@ -227,11 +228,12 @@ class Logger:
         if self.enable_log:
             self.logfile_stream = open(logfile_path, "w")
             self.logger = Console(
-                file=self.logfile_stream, record=True, log_path=False, log_time=False
+                file=self.logfile_stream, record=True, log_path=False, log_time=False, width=160
             )
 
     def log(self, *args, **kwargs):
-        self.stdout.log(*args, **kwargs)
+        timestr = time.strftime("[%Y-%m-%d %H:%M:%S]", time.localtime())
+        self.stdout.log(timestr, *args, **kwargs)
         if self.enable_log:
             self.logger.log(*args, **kwargs)
 

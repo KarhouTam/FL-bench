@@ -49,7 +49,7 @@ class FedAvgClient:
             )
         elif self.args.common.buffers == "drop":
             self.init_buffers = deepcopy(OrderedDict(self.model.named_buffers()))
-
+    
         self.optimizer = optimizer_cls(params=trainable_params(self.model))
         self.init_optimizer_state = deepcopy(self.optimizer.state_dict())
 
@@ -224,7 +224,6 @@ class FedAvgClient:
                 self.optimizer.zero_grad()
                 loss.backward()
                 self.optimizer.step()
-
             if self.lr_scheduler is not None:
                 self.lr_scheduler.step()
 

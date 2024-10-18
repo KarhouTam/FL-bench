@@ -284,7 +284,7 @@ class ResNet(DecoupledModel):
         }
 
         # NOTE: If you don't want parameters pretrained, set `pretrained` as False
-        pretrained = True
+        pretrained = False
         resnet: models.ResNet = archs[version][0](
             weights=archs[version][1] if pretrained else None
         )
@@ -408,11 +408,71 @@ class CustomModel(DecoupledModel):
         pass
 
 
+class MyAlexNet(DecoupledModel):
+    """
+    used for cifar10
+    """
+    def __init__(self, dataset: str, use_bn: bool = True):
+        super().__init__()
+        self.base = nn.Sequential(
+            OrderedDict([
+                ('conv1', nn.Conv2d(3, 64, kernel_size=5, padding=2)),
+                ('bn1', nn.BatchNorm2d(64)),
+                ('relu1', nn.ReLU(inplace=True)),
+                ('maxpool1', nn.MaxPool2d(kernel_size=3, stride=2)),
+
+                ('conv2', nn.Conv2d(64, 192, kernel_size=5, padding=2)),
+                ('bn2', nn.BatchNorm2d(192)),
+                ('relu2', nn.ReLU(inplace=True)),
+                ('maxpool2', nn.MaxPool2d(kernel_size=3, stride=2)),
+
+                ('conv3', nn.Conv2d(192, 384, kernel_size=3, padding=1)),
+                ('bn3', nn.BatchNorm2d(384)),
+                ('relu3', nn.ReLU(inplace=True)),
+
+                ('conv4', nn.Conv2d(384, 256, kernel_size=3, padding=1)),
+                ('bn4', nn.BatchNorm2d(256)),
+                ('relu4', nn.ReLU(inplace=True)),
+
+                ('conv5', nn.Conv2d(256, 256, kernel_size=3, padding=1)),
+                ('bn5', nn.BatchNorm2d(256)),
+                ('relu5', nn.ReLU(inplace=True)),
+                ('maxpool5', nn.MaxPool2d(kernel_size=3, stride=2)),
+
+                ('avgpool', nn.AdaptiveAvgPool2d((6, 6))),
+            ])
+        )
+
+        self.classifier = nn.Sequential(
+            OrderedDict([
+                ('flatten', nn.Flatten(1)),
+
+                ('fc1', nn.Linear(256 * 6 * 6, 4096)),
+                ('bn6', nn.BatchNorm1d(4096)),
+                ('relu6', nn.ReLU(inplace=True)),
+
+                ('fc2', nn.Linear(4096, 4096)),
+                ('bn7', nn.BatchNorm1d(4096)),
+                ('relu7', nn.ReLU(inplace=True)),
+            
+                ('fc3', nn.Linear(4096, NUM_CLASSES[dataset])),
+            ])
+        )
+
+        if not use_bn:
+            for name in list(self.base._modules.keys()):
+                if 'bn' in name:
+                    del self.base._modules[name]
+            for name in list(self.classifier._modules.keys()):
+                if 'bn' in name:
+                    del self.classifier._modules[name]
+
 MODELS = {
     "custom": CustomModel,
     "lenet5": LeNet5,
     "avgcnn": FedAvgCNN,
     "alex": AlexNet,
+    "myalex": MyAlexNet,
     "2nn": TwoNN,
     "squeeze0": partial(SqueezeNet, version="0"),
     "squeeze1": partial(SqueezeNet, version="1"),

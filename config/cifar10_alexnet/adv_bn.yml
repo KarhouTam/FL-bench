@@ -1,0 +1,81 @@
+# Full explaination are listed on README.md
+
+mode: serial # [serial, parallel]
+
+parallel: # It's fine to keep these configs.
+  # Go check doc of `https://docs.ray.io/en/latest/ray-core/api/doc/ray.init.html` for more details.
+  ray_cluster_addr: null # [null, auto, local]
+
+  # `null` implies that all cpus/gpus are included.
+  num_cpus: null
+  num_gpus: null
+
+  # should be set larger than 1, or training mode fallback to `serial`
+  # Set a larger `num_workers` can further boost efficiency, also let each worker have less computational resources.
+  num_workers: 10
+
+common:
+  # [mnist, cifar10, cifar100, emnist, fmnist, femnist, medmnist, medmnistA, medmnistC, covid19, celeba, synthetic, svhn, tiny_imagenet, cinic10, domain]
+  dataset: cifar10
+  seed: 42
+  model: myalex
+  join_ratio: 1
+  global_epoch: 150
+  local_epoch: 5
+  finetune_epoch: 0
+  batch_size: 32
+  test_interval: 4
+  straggler_ratio: 0
+  straggler_min_local_epoch: 0
+  external_model_params_file: ""
+  buffers: local # [local, global, drop]
+  optimizer:
+    name: sgd # [sgd, adam, adamw, rmsprop, adagrad]
+    lr: 0.01
+    dampening: 0 # for SGD
+    weight_decay: 0
+    momentum: 0 # for [SGD, RMSprop]
+    alpha: 0.99 # for RMSprop
+    nesterov: false # for SGD
+    betas: [0.9, 0.999] # for [Adam, AdamW]
+    amsgrad: false # for [Adam, AdamW]
+  
+
+  lr_scheduler:
+    name: null # [null, step, cosine, constant, plateau]
+    step_size: 10 # an arg example for setting step lr_scheduler
+
+  eval_test: true
+  eval_val: false
+  eval_train: false
+
+  verbose_gap: 4
+  visible: tensorboard # [null, visdom, tensorboard]
+  use_cuda: true
+  save_log: true
+  save_model: true
+  save_fig: true
+  save_metrics: true
+  check_convergence: true
+
+  desc: "alexnet_bn"
+  save_each_round: true
+  agg_cond_list: [
+    {
+      'cond': 'r[0-1000)',
+      'unselect_layer': ['bn']
+    }
+  ] # 优先级从左到右
+  cross_dict: 
+  cross_type: 
+
+# You can set specific arguments for FL methods also
+# FL-bench uses FL method arguments by args.<method>.<arg>
+# e.g.
+fedprox:
+  mu: 0.01
+pfedsim:
+  warmup_round: 0.7
+# ...
+
+# NOTE: For those unmentioned arguments, the default values are set in `get_hyperparams()` in `class <method>Server` in `src/server/<method>.py`

@@ -1,0 +1,7 @@
+bak
+out
+log
+cifar10
+cifar10.bak
+*.pyc
+__pycache__

@@ -43,9 +43,10 @@ class FLbenchTrainer:
             clients_package[client_id] = client_package
 
             if self.server.verbose:
-                self.server.logger.log(
-                    *client_package["eval_results"]["message"], sep="\n"
-                )
+                if "message" in client_package["eval_results"]:
+                    self.server.logger.log(
+                        *client_package["eval_results"]["message"], sep="\n"
+                    )
 
             self.server.clients_metrics[client_id][self.server.current_epoch] = (
                 client_package["eval_results"]

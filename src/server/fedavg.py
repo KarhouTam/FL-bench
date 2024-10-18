@@ -37,6 +37,7 @@ from src.utils.tools import (
     trainable_params,
     get_optimal_cuda_device,
 )
+from src.utils.my_utils import calculate_data_size
 
 
 class FedAvgServer:
@@ -46,7 +47,7 @@ class FedAvgServer:
         algo: str = "FedAvg",
         unique_model=False,
         use_fedavg_client_cls=True,
-        return_diff=False,
+        return_diff=True,
     ):
         """
         Args:
@@ -56,8 +57,9 @@ class FedAvgServer:
             `use_fedavg_client_cls`: `True` indicates that using default `FedAvgClient()` as the client class.
             `return_diff`: `True` indicates that clients return `diff = W_global - W_local` as parameter update; `False` for `W_local` only.
         """
+
         self.args = args
-        self.algo = algo
+        self.algo = f'{algo}-{args.common.desc}'
         self.unique_model = unique_model
         self.return_diff = return_diff
         fix_random_seed(self.args.common.seed)
@@ -90,9 +92,15 @@ class FedAvgServer:
         # get_model_arch() would return a class depends on model's name,
         # then init the model object by indicating the dataset and calling the class.
         # Finally transfer the model object to the target device.
-        self.model: DecoupledModel = MODELS[self.args.common.model](
-            dataset=self.args.common.dataset
-        )
+        if hasattr(self, 'use_bn'):
+            self.model: DecoupledModel = MODELS[self.args.common.model](
+                dataset=self.args.common.dataset,
+                use_bn=self.use_bn,
+            )
+        else:
+            self.model: DecoupledModel = MODELS[self.args.common.model](
+                dataset=self.args.common.dataset
+            )
         self.model.check_avaliability()
 
         _init_global_params, _init_global_params_name = trainable_params(
@@ -183,7 +191,7 @@ class FedAvgServer:
             logfile_path=OUT_DIR
             / self.algo
             / self.output_dir
-            / f"{self.args.common.dataset}_log.html",
+            / f"{self.args.common.dataset}.log",
         )
         self.test_results: dict[int, dict[str, dict[str, Metrics]]] = {}
         self.train_progress_bar = track(
@@ -218,6 +226,13 @@ class FedAvgServer:
         if use_fedavg_client_cls:
             self.init_trainer()
 
+        self.clients_comm_recv_bytes = [0] * self.client_num
+        self.clients_comm_send_bytes = [0] * self.client_num
+        # self.set_sparse = ['fc2.weight', 'fc3.weight']
+        self.set_sparse = None
+        self.set_layout='torch.sparse_csr'
+        
+
     def init_trainer(self, fl_client_cls=FedAvgClient, **extras):
         """Initiate the FL-bench trainier that responsible to client training.
         `extras` are the arguments of `fl_client_cls.__init__()` that not in
@@ -227,6 +242,7 @@ class FedAvgServer:
         Args:
             `fl_client_cls`: The class of client in FL method. Defaults to `FedAvgClient`.
         """
+        self.dataset = self.get_client_dataset()
         if self.args.mode == "serial" or self.args.parallel.num_workers < 2:
             self.trainer = FLbenchTrainer(
                 server=self,
@@ -238,7 +254,7 @@ class FedAvgServer:
                     optimizer_cls=self.get_client_optimizer(),
                     lr_scheduler_cls=self.get_client_lr_scheduler(),
                     args=self.args,
-                    dataset=self.get_client_dataset(),
+                    dataset=self.dataset,
                     data_indices=self.data_indices,
                     device=self.device,
                     return_diff=self.return_diff,
@@ -382,6 +398,7 @@ class FedAvgServer:
         avg_round_time = 0
         for E in self.train_progress_bar:
             self.current_epoch = E
+            self.logger.log(f"Training epoch: {E}")
             self.verbose = (self.current_epoch + 1) % self.args.common.verbose_gap == 0
 
             if self.verbose:
@@ -405,8 +422,24 @@ class FedAvgServer:
 
     def train_one_round(self):
         """The function of indicating specific things FL method need to do (at server side) in each communication round."""
-
+        selected_clients = sorted(self.selected_clients)
+        
+        public_model_byte = calculate_data_size(self.public_model_params, set_sparse=self.set_sparse,set_layout=self.set_layout)
+        
         clients_package = self.trainer.train()
+
+        for client_id in selected_clients:
+            self.clients_comm_recv_bytes[client_id] += public_model_byte
+            if self.return_diff:
+                byte = calculate_data_size(clients_package[client_id]['model_params_diff'], 
+                                        set_sparse=self.set_sparse, 
+                                        set_layout=self.set_layout)
+            else:
+                byte = calculate_data_size(clients_package[client_id]['regular_model_params'], 
+                                        set_sparse=self.set_sparse, 
+                                        set_layout=self.set_layout)
+            self.clients_comm_send_bytes[client_id] += byte
+
         self.aggregate(clients_package)
 
     def package(self, client_id: int):
@@ -563,6 +596,42 @@ class FedAvgServer:
 
     def log_info(self):
         """Accumulate client evaluation results at each round."""
+        send_byte = sum(self.clients_comm_send_bytes)
+        recv_byte = sum(self.clients_comm_recv_bytes)
+        send_GB = send_byte / 1073741824 # 1024*1024*1024
+        recv_GB = recv_byte / 1073741824
+        if self.args.common.visible == "tensorboard":
+            # self.tensorboard.add_scalar(
+            #     f"Communicate/Client Total Receive Bytes",
+            #     recv_byte, # 1024*1024
+            #     self.current_epoch,
+            #     new_style=True,
+            # )
+            # self.tensorboard.add_scalar(
+            #     f"Communicate/Client Total Send Bytes",
+            #     send_byte,
+            #     self.current_epoch,
+            #     new_style=True,
+            # )
+            self.tensorboard.add_scalar(
+                f"Communicate-Epoch/Client Total Receive Cost (GB)",
+                recv_GB, # 1024*1024
+                self.current_epoch,
+                new_style=True,
+            )
+            self.tensorboard.add_scalar(
+                f"Communicate-Epoch/Client Total Send Cost (GB)",
+                send_GB,
+                self.current_epoch,
+                new_style=True,
+            )
+            self.tensorboard.add_scalar(
+                f"Communicate-Epoch/Total Cost (GB)",
+                send_GB + recv_GB,
+                self.current_epoch,
+                new_style=True,
+            )
+
         for stage in ["before", "after"]:
             for split, flag in [
                 ("train", self.args.common.eval_train),
@@ -570,6 +639,7 @@ class FedAvgServer:
                 ("test", self.args.common.eval_test),
             ]:
                 if flag:
+
                     global_metrics = Metrics()
                     for i in self.selected_clients:
                         global_metrics.update(
@@ -599,6 +669,35 @@ class FedAvgServer:
                             self.current_epoch,
                             new_style=True,
                         )
+                        self.tensorboard.add_scalar(
+                            f"Loss-{self.monitor_window_name_suffix}/{split}set-{stage}LocalTraining",
+                            global_metrics.loss,
+                            self.current_epoch,
+                            new_style=True,
+                        )
+
+                        if split == "test":
+                            self.tensorboard.add_scalar(
+                                f"Communicate-{split}-Acc/{split}set-{stage} Client Receive Cost-Accuracy(GB)",
+                                global_metrics.accuracy,
+                                recv_GB,
+                                new_style=True,
+                            )
+                            self.tensorboard.add_scalar(
+                                f"Communicate-{split}-Acc/{split}set-{stage} Client Send Cost-Accuracy(GB)",
+                                global_metrics.accuracy, # 1024*1024
+                                send_GB,
+                                new_style=True,
+                            )
+                            self.tensorboard.add_scalar(
+                                f"Communicate-{split}-Acc/{split}set-{stage} Total Cost-Accuracy(GB)",
+                                global_metrics.accuracy, # 1024*1024
+                                send_GB + recv_GB,
+                                new_style=True,
+                            )
+        
+
+
 
     def show_max_metrics(self):
         """Show the maximum stats that FL method get."""

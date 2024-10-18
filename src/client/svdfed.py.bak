@@ -1,0 +1,121 @@
+from copy import deepcopy
+from typing import Any, Dict
+import torch
+
+from src.client.fedavg import FedAvgClient
+from src.utils.my_utils import cos_similar, weight_sub
+
+
+class SVDFedClient(FedAvgClient):
+    def __init__(self, **commons):
+        # 多出一个output_dir参数，将output_dir参数从commons中删除
+        self.output_dir = commons['output_dir']
+        del commons['output_dir']
+        super().__init__(**commons)
+        # basis: Ur = [u1, · · · , ur]
+        self.layer_basis:Dict[str, torch.Tensor] = {}
+        self.L = 3
+
+    @torch.no_grad()
+    def set_parameters(self, package: dict[str, Any]):
+        self.client_id = package["client_id"]
+        self.local_epoch = package["local_epoch"]
+        self.load_data_indices()
+
+        if package["optimizer_state"]:
+            self.optimizer.load_state_dict(package["optimizer_state"])
+        else:
+            self.optimizer.load_state_dict(self.init_optimizer_state)
+
+        if self.lr_scheduler is not None:
+            if package["lr_scheduler_state"]:
+                self.lr_scheduler.load_state_dict(package["lr_scheduler_state"])
+            else:
+                self.lr_scheduler.load_state_dict(self.init_lr_scheduler_state)
+
+        self.model.load_state_dict(package["personal_model_params"])
+ 
+        self.update_set = set()
+        # package['alapha']
+        for layer_name, alpha in package['layer_basis_with_state'].items():
+            state, basis = alpha
+            self.layer_basis[layer_name] = basis
+            if state == 'old':
+                # 保存旧的basis
+                pass
+            elif state == 'new':
+                # 保存新的basis
+                pass
+            elif state == 'update':
+                # 训练结束后上传完整梯度供server更新basis
+                self.update_set.add(layer_name)
+            else:
+                raise ValueError(f"Unknown state {state}")
+        
+        for layer_name, alpha in package['avg_alpha'].items():
+            grad = self.layer_basis[layer_name] @ alpha
+            params:torch.Tensor = self.model.state_dict()[layer_name]
+            # 将grad 变成params的形状
+            grad = grad.view_as(params)
+            params.data.sub_(grad)
+        self.old_params = deepcopy(self.model.state_dict())
+
+            
+    def train(self, server_package: dict[str, Any]):
+        self.set_parameters(server_package)
+        self.train_with_eval()
+        with torch.no_grad():
+            self.grad = weight_sub(self.old_params, self.model.state_dict())
+        print(f"Client {self.client_id} grad name: {list(self.grad.keys())}")
+        self.upload_params = {}
+        for layer_name, layer_param in self.grad.items():
+            # 若包含 num_batches_tracked 则跳过
+            if 'num_batches_tracked' in layer_name:
+                continue
+            layer_param: torch.Tensor
+            g = layer_param.flatten()
+            if layer_name not in self.layer_basis or layer_name in self.update_set:
+                self.upload_params[layer_name] = (True, g, 0)
+            else:
+                U = self.layer_basis[layer_name]
+                alpha = U.T @ g
+                # tmp = U @ alpha
+                # alpha = min(g.norm() / tmp.norm(), self.L)*alpha
+                g_approx = U @ alpha
+                error = g - g_approx
+                self.upload_params[layer_name] = (False, alpha, error.norm())
+                sim = cos_similar(g, g_approx)
+                print(f"Client {self.client_id} Layer {layer_name} sim: {sim}")
+        client_package = self.package()
+        return client_package
+
+    def package(self):
+        """Package data that client needs to transmit to the server.
+        You can override this function and add more parameters.
+
+        Returns:
+            A dict: {
+                `weight`: Client weight. Defaults to the size of client training set.
+                `regular_model_params`: Client model parameters that will join parameter aggregation.
+                `model_params_diff`: The parameter difference between the client trained and the global. `diff = global - trained`.
+                `eval_results`: Client model evaluation results.
+                `personal_model_params`: Client model parameters that absent to parameter aggregation.
+                `optimzier_state`: Client optimizer's state dict.
+                `lr_scheduler_state`: Client learning rate scheduler's state dict.
+            }
+        """        
+        client_package = dict(
+            weight=len(self.trainset),
+            eval_results=self.eval_results,
+            model_params_diff=deepcopy(self.upload_params),
+            personal_model_params=deepcopy(self.old_params),
+            # personal_model_params=deepcopy(self.model.state_dict()),
+            optimizer_state=deepcopy(self.optimizer.state_dict()),
+            lr_scheduler_state=(
+                {}
+                if self.lr_scheduler is None
+                else deepcopy(self.lr_scheduler.state_dict())
+            )
+        )
+        
+        return client_package
