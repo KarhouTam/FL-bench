@@ -1,11 +1,14 @@
-from typing import Any
 import random
-from torch.utils.data import DataLoader, Subset
-from src.client.fedavg import FedAvgClient
-from copy import deepcopy
-import torch
-import numpy as np
 from collections import OrderedDict
+from copy import deepcopy
+from typing import Any
+
+import numpy as np
+import torch
+from torch.utils.data import DataLoader, Subset
+
+from src.client.fedavg import FedAvgClient
+
 
 class FedALAClient(FedAvgClient):
     def __init__(self, **commons):
@@ -120,8 +123,6 @@ class FedALAClient(FedAvgClient):
 
             # train the weight until convergence
             if len(losses) > self.args.fedala.num_pre_loss and np.std(losses[-self.args.fedala.num_pre_loss:]) < self.args.fedala.threshold:
-                # print('Client:', self.cid, '\tStd:', np.std(losses[-self.num_pre_loss:]),
-                #     '\tALA epochs:', cnt)
                 break
 
         self.start_phase = False

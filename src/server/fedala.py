@@ -1,4 +1,5 @@
 from argparse import ArgumentParser, Namespace
+
 from omegaconf import DictConfig
 
 from src.client.fedala import FedALAClient
