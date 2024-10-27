@@ -24,7 +24,7 @@ Pillow = "^10.3.0"
 scipy = "^1.13.1"
 matplotlib = "^3.9.0"
 scikit-learn = "^1.5.2"
-faiss-cpu = "^1.7.4"
+faiss-cpu = "^1.8.0"
 pynvml = "^11.5.0"
 PyYAML = "^6.0.1"
 ray = { extras = ["default"], version = "2.36.1" }
