@@ -7,7 +7,7 @@ from src.utils.compressor_utils import CompressorCombin
 from src.utils.metrics import Metrics
 
 
-class FedTest5Client(FedAvgClient):
+class FedTest6Client(FedAvgClient):
     def __init__(self, **commons):
         super().__init__(**commons)
 
@@ -48,23 +48,19 @@ class FedTest5Client(FedAvgClient):
 
         # 用于broadcast的
         self.broadcast_compress_combin = package['broadcast_compress_combin']
-        last_global_model_params:dict = package["last_global_model_params"]
-        global_grad = package["global_grad"]
-        if global_grad['combin_alpha'] != {}:
-            print(f"Client {self.client_id} Compressing the global_grad...")
-            self.broadcast_compress_combin.update(global_grad['combin_update_dict'])
-            global_grad = self.broadcast_compress_combin.uncompress(global_grad['combin_alpha'], self.model.state_dict())
+        global_weight = package["global_weight"]
+        if global_weight['combin_alpha'] != {}:
+            print(f"Client {self.client_id} uncompressing the global_weight...")
+            self.broadcast_compress_combin.update(global_weight['combin_update_dict'])
+            global_weight = self.broadcast_compress_combin.uncompress(global_weight['combin_alpha'], self.model.state_dict())
             self.model.load_state_dict(package["personal_model_params"], strict=False)
-            self.model.load_state_dict(last_global_model_params, strict=False)
-
-            model_params = self.model.state_dict()
-            for key, value in global_grad.items():
-                model_params[key].data -= value.to(model_params[key].device)    
+            self.model.load_state_dict(global_weight, strict=False)
         else:
-            print(f"Client {self.client_id} No need to compress the global_grad...")
+            print(f"Client {self.client_id} No need to uncompress the global_weight...")
             self.model.load_state_dict(package["personal_model_params"], strict=False)
             self.model.load_state_dict(package["regular_model_params"], strict=False)
-            model_params = self.model.state_dict()
+        
+        model_params = self.model.state_dict()
         
         self.test_global_model = package["test_model"]
         self.test_global_model.load_state_dict(package["personal_model_params"], strict=False)
@@ -74,8 +70,6 @@ class FedTest5Client(FedAvgClient):
             (key, model_params[key].clone())
             for key in self.regular_params_name
         )
-
-        last_global_model_params.update(self.global_regular_model_params)
 
     # 用于upload的
     def pack_client_model(self, raw_model:dict[str, torch.Tensor] , global_model:dict[str, torch.Tensor]):

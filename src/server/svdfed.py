@@ -1,6 +1,5 @@
-from collections import OrderedDict
-from copy import deepcopy
-from typing import Any, List
+from argparse import ArgumentParser, Namespace
+from typing import List, Tuple
 
 import torch
 
@@ -10,19 +9,18 @@ from src.utils.tools import NestedNamespace
 from src.utils.my_utils import calculate_data_size
 from src.utils.compressor_utils import CompressorCombin
 
-setting_list = [
-    'base.conv1.weight', 'base.conv1.bias', 'base.bn1.weight', 'base.bn1.bias', 
-    'base.conv2.weight', 'base.conv2.bias', 'base.bn2.weight', 'base.bn2.bias', 
-    'base.conv3.weight', 'base.conv3.bias', 'base.bn3.weight', 'base.bn3.bias', 
-    'base.conv4.weight', 'base.conv4.bias', 'base.bn4.weight', 'base.bn4.bias', 
-    'base.conv5.weight', 'base.conv5.bias', 'base.bn5.weight', 'base.bn5.bias', 
-    'classifier.fc1.weight', 'classifier.fc1.bias', 'classifier.bn6.weight', 'classifier.bn6.bias', 
-    'classifier.fc2.weight', 'classifier.fc2.bias', 'classifier.bn7.weight', 'classifier.bn7.bias', 
-    'classifier.fc3.weight']
-
-setting_dict = {key: (10,) for key in setting_list}
-
 class SVDFedServer(FedAvgServer):
+    @staticmethod
+    def get_hyperparams(args_list=None) -> Namespace:
+        parser = ArgumentParser()
+        parser.add_argument("--setting_dict", type=dict)
+        parser.add_argument("--kp", type=float, default=1)
+        parser.add_argument("--ki", type=float, default=1)
+        parser.add_argument("--kd", type=float, default=1)
+        parser.add_argument("--gamma", type=float, default=18)
+        parser.add_argument("--fixed_adj_freq", type=int, default=0, help="Fixed adjust frequency, if 0, adjust dynamically")
+        return parser.parse_args(args=args_list)
+    
     def __init__(
         self,
         args: NestedNamespace,
@@ -32,8 +30,19 @@ class SVDFedServer(FedAvgServer):
         return_diff=True,
     ):
         super().__init__(args, algo, unique_model, use_fedavg_client_cls, return_diff)
-        
         self.init_trainer(SVDFedClient)
+
+        if args.svdfed.setting_dict is None:
+            setting_dict = {}
+        else:
+            setting_dict = args.svdfed.setting_dict.to_dict()
+        
+        self.fixed_adj_freq = args.svdfed.fixed_adj_freq
+
+        self.kp, self.ki, self.kd = args.svdfed.kp, args.svdfed.ki, args.svdfed.kd
+        self.gamma = args.svdfed.gamma
+
+        self.server_R = 6
         print("Setting_dict: ", setting_dict)
         self.clients_compress_combin = {key: CompressorCombin(setting_dict, "SVDCompressor") for key in range(self.client_num)}
         self.server_compress_combin = CompressorCombin(setting_dict, "SVDCompressor")
@@ -41,8 +50,12 @@ class SVDFedServer(FedAvgServer):
         # self.clients_combin_error = {key: deepcopy(_) for key in range(self.client_num)}
         
         self.combin_update_dict = {}
-        self.full_grad = True
+        self.request_full_grad_params_name = list(self.server_compress_combin.setting_dict.keys())
         
+        self.error_dict = {}
+        self.total_error_dict = {}
+        self.Z_thr = {}
+
     def package(self, client_id: int):
         """Package parameters that the client-side training needs.
         If you are implementing your own FL method and your method has different parameters to FedAvg's
@@ -72,10 +85,9 @@ class SVDFedServer(FedAvgServer):
             lr_scheduler_state=self.clients_lr_scheduler_state[client_id],
             return_diff=self.return_diff,
             compress_combin=self.clients_compress_combin[client_id],
-            # combin_error = self.clients_combin_error[client_id],
-
+            
             combin_update_dict = self.combin_update_dict,
-            full_grad = self.full_grad
+            request_full_grad_params_name = self.request_full_grad_params_name
         )
 
 
@@ -85,16 +97,8 @@ class SVDFedServer(FedAvgServer):
 
     def train_one_round(self):
         """The function of indicating specific things FL method need to do (at server side) in each communication round."""
-        def get_vector_by_list(vector_list: List[torch.Tensor]):
-            return torch.stack([vector.flatten() for vector in vector_list], dim=0)
-        
+
         self.logger.log(f"Round {self.current_epoch}")
-        selected_clients = sorted(self.selected_clients)
-        
-        if self.current_epoch % 5 == 0:
-            self.full_grad = True
-        else:
-            self.full_grad = False
 
         public_model_byte = calculate_data_size(self.public_model_params, set_sparse=self.set_sparse,set_layout=self.set_layout)
 
@@ -103,35 +107,64 @@ class SVDFedServer(FedAvgServer):
 
         clients_package = self.trainer.train()
         
-        if self.full_grad:
-            for client_id in selected_clients:
-                self.clients_comm_recv_bytes[client_id] += public_model_byte
-                byte = calculate_data_size(clients_package[client_id]['model_params_diff'], 
-                                    set_sparse=self.set_sparse, 
-                                    set_layout=self.set_layout)
-                self.clients_comm_send_bytes[client_id] += byte
+        for client_id, package in clients_package.items():
+            self.clients_comm_recv_bytes[client_id] += public_model_byte
+            byte = calculate_data_size(clients_package[client_id]['model_params_diff']["combin_alpha"], 
+                                set_sparse=self.set_sparse, 
+                                set_layout=self.set_layout)
+            self.clients_comm_send_bytes[client_id] += byte
+            
+            package['model_params_diff_bak'] = package['model_params_diff']
+            package["model_params_diff"] = self.unpack_client_model(package["model_params_diff"])
 
-            self.aggregate(clients_package)
+                    # clients_model_param_dict: {layer_name: [clent1_grad, client2_grad, ...]} in clients_package
+        
+        # 更新压缩器的基
+        def get_vector_by_list(vector_list: List[torch.Tensor]):
+            return torch.stack([vector.flatten() for vector in vector_list], dim=0)
+        
+        clients_model_param_dict = {
+            key: get_vector_by_list([package["model_params_diff_bak"]["combin_alpha"][key] for package in clients_package.values()]) 
+            for key in self.request_full_grad_params_name
+        }
+        self.combin_update_dict = self.server_compress_combin.update_basis_by_vector(clients_model_param_dict)
+        
+        # 更新全局模型
+        self.aggregate(clients_package)
 
-            self.logger.log(f"{clients_package[0]['model_params_diff'].keys()}")
+        # 更新请求全局梯度的参数名
+        print("Updating request full grad params name...")
+        if self.fixed_adj_freq == 0:
+            new_request_full_grad_params_name = []
+            for key in self.server_compress_combin.setting_dict.keys():
+                error_norms = [package["model_params_diff_bak"]["combin_error_norm"][key] for package in clients_package.values()]
+                avg_error_norm = sum(error_norms) / len(error_norms)
+                print(f"Layer {key} avg_error_norm: {avg_error_norm}")
+                # tensor_error = torch.tensor(error_norms)
+                if key not in self.error_dict:
+                    delta_error = 0
+                    self.error_dict[key] = avg_error_norm
+                    self.total_error_dict[key] = avg_error_norm
+                else:
+                    delta_error = avg_error_norm - self.error_dict[key]
+                    self.error_dict[key] = avg_error_norm
+                    self.total_error_dict[key] += avg_error_norm
+                z = self.kp * avg_error_norm + self.ki * self.total_error_dict[key] + self.kd * delta_error
+                self.logger.log((f"Layer {key} z: {z}, z_thr: {self.Z_thr.get(key, None)}"))
 
-            # clients_model_param_dict: {layer_name: [clent1_grad, client2_grad, ...]} in clients_package
-            clients_model_param_dict = {
-                key: get_vector_by_list([package["model_params_diff"][key] for package in clients_package.values()]) 
-                for key in setting_dict
-            }
-            self.combin_update_dict = self.server_compress_combin.update_basis_by_vector(clients_model_param_dict)   
-
+                if key not in self.Z_thr:
+                    # 更新基的第0轮，key不在Z_thr中，但是key在request_full_grad_params_name中，此时什么都不做，也不需要更新基
+                    # 更新基的第1轮，key依然不在Z_thr中，但第一轮时request_full_grad_params_name被清空，此时可以更新阈值
+                    if key not in self.request_full_grad_params_name:
+                        self.Z_thr[key] = z * self.gamma
+                elif z > self.Z_thr[key]:
+                    self.logger.log(f"Need update basis of {key}")
+                    new_request_full_grad_params_name.append(key)
+                    self.total_error_dict[key] = 0
+                    self.Z_thr.pop(key, None)
+            self.request_full_grad_params_name = new_request_full_grad_params_name
         else:
-            for client_id, package in clients_package.items():
-                self.clients_comm_recv_bytes[client_id] += public_model_byte
-                byte = calculate_data_size(clients_package[client_id]['model_params_diff']["combin_alpha"], 
-                                    set_sparse=self.set_sparse, 
-                                    set_layout=self.set_layout)
-                self.clients_comm_send_bytes[client_id] += byte
-                
-                package["model_params_diff"] = self.unpack_client_model(package["model_params_diff"])
-
-            self.aggregate(clients_package)
-            self.combin_update_dict = {}
-
+            self.request_full_grad_params_name = list(self.server_compress_combin.setting_dict.keys()) \
+                    if (self.current_epoch + 1) % self.fixed_adj_freq == 0 else []
+        
+        print("New request full grad params name: ", self.request_full_grad_params_name)

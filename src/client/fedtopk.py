@@ -1,43 +1,21 @@
 from copy import deepcopy
-from typing import Any
 import torch
-
+from src.utils.compressor_utils import TopkCompressor
 from src.client.fedavg import FedAvgClient
-from src.utils.compressor_utils import CompressorCombin
 
-class SVDFedClient(FedAvgClient):
+class FedTopkClient(FedAvgClient):
     def __init__(self, **commons):
         super().__init__(**commons)
-        self.compress_combin:CompressorCombin = None
+        self.compressor = TopkCompressor(
+            self.args.fedtopk.topk, 
+            self.args.fedtopk.sparse_format)
 
-    @torch.no_grad()
-    def set_parameters(self, package: dict[str, Any]):
-        self.compress_combin = package['compress_combin']
-        self.request_full_grad_params_name = package['request_full_grad_params_name']
-        self.compress_combin.update(package['combin_update_dict'])
-
-        return super().set_parameters(package)
-
-
-    def pack_client_model(self, raw_model:dict[str, torch.Tensor] , global_model:dict[str, torch.Tensor]):
-        grads = {}
+    def pack_client_model(self, raw_model:dict[str, torch.Tensor] , global_model):
+        packet_to_send = {}
         for key in raw_model.keys():
-            # quantized_model[key], scale[key] = (global_model[key] - raw_model[key]), 0
-            grads[key] = global_model[key] - raw_model[key]
+            packet_to_send[key], _ = self.compressor.compress(global_model[key] - raw_model[key])
+        return packet_to_send
 
-        compress_grad = {key: value for key, value in grads.items() if key not in self.request_full_grad_params_name}
-        combin_alpha, _, combin_error = self.compress_combin.compress(compress_grad, lambda : False)
-
-        for key in self.request_full_grad_params_name:
-            combin_alpha[key] = grads[key]
-            combin_error[key] = torch.zeros_like(grads[key])
-
-        # self.combine_error.update(combin_error)
-        return {"combin_alpha": combin_alpha, 
-                "combin_error_norm": {
-                    key: value.norm() for key, value in combin_error.items()
-                }}
-            
     def package(self):
         """Package data that client needs to transmit to the server.
         You can override this function and add more parameters.

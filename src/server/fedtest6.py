@@ -6,57 +6,57 @@ from typing import Any
 import torch
 
 from src.server.fedavg import FedAvgServer
-from src.client.fedtest5 import FedTest5Client
+from src.client.fedtest6 import FedTest6Client
 from src.utils.tools import NestedNamespace
-from src.utils.my_utils import calculate_data_size, save_model_param
+from src.utils.my_utils import calculate_data_size
 from src.utils.compressor_utils import CompressorCombin
 from src.utils.constants import OUT_DIR
 
 
-class FedTest5Server(FedAvgServer):
+class FedTest6Server(FedAvgServer):
     @staticmethod
     def get_hyperparams(args_list=None) -> Namespace:
         parser = ArgumentParser()
         parser.add_argument("--upload_setting_dict", type=dict)
         parser.add_argument("--broadcast_setting_dict", type=dict)
+        parser.add_argument("--u_type", type=str, default='float32')
         return parser.parse_args(args=args_list)
 
     def __init__(
         self,
         args: NestedNamespace,
-        algo: str = "FedTest5",
+        algo: str = "FedTest6",
         unique_model=True,
         use_fedavg_client_cls=False,
         return_diff=True,
     ):
         super().__init__(args, algo, unique_model, use_fedavg_client_cls, return_diff)
         self.logger.log("Begin to initialize FedTest5Server.")
-        self.init_trainer(FedTest5Client)
-        if args.fedtest5.upload_setting_dict is None:
+        self.init_trainer(FedTest6Client)
+        if args.fedtest6.upload_setting_dict is None:
             upload_setting_dict = {}
         else:
-            upload_setting_dict = args.fedtest5.upload_setting_dict.to_dict()
-        if args.fedtest5.broadcast_setting_dict is None:
+            upload_setting_dict = args.fedtest6.upload_setting_dict.to_dict()
+        if args.fedtest6.broadcast_setting_dict is None:
             broadcast_setting_dict = {}
         else:
-            broadcast_setting_dict = args.fedtest5.broadcast_setting_dict.to_dict()
+            broadcast_setting_dict = args.fedtest6.broadcast_setting_dict.to_dict()
+        u_dtype = args.fedtest6.u_type
         print("Upload Setting Dict: ", upload_setting_dict)
         print("Broadcast Setting Dict: ", broadcast_setting_dict)
         
         # 用于broadcast的
-        self.clients_broadcast_compress_combin = {key: CompressorCombin(broadcast_setting_dict, "QuickSlideSVDCompressor") for key in range(self.client_num)}
-        self.server_broadcast_compress_combin = CompressorCombin(broadcast_setting_dict, "QuickSlideSVDCompressor")
-        self.clients_last_global_model_params = {key: deepcopy(self.model.state_dict()) for key in range(self.client_num)}
+        self.clients_broadcast_compress_combin = {key: CompressorCombin(broadcast_setting_dict, "QuickSlideSVDCompressor", u_dtype=u_dtype) for key in range(self.client_num)}
+        self.server_broadcast_compress_combin = CompressorCombin(broadcast_setting_dict, "QuickSlideSVDCompressor", u_dtype=u_dtype)
         _ = {key: torch.zeros_like(value, device=self.device) for key, value in self.model.named_parameters()}
         self.server_combin_error = _
-        self.aggregated_grad = {}
-        self.global_grad = {'combin_alpha':{}, 'combin_update_dict':{}}
+        self.global_weight = {'combin_alpha':{}, 'combin_update_dict':{}}
 
         self.test_model = deepcopy(self.model)
 
         # 用于upload的
-        self.clients_upload_compress_combin = {key: CompressorCombin(upload_setting_dict, "QuickSlideSVDCompressor") for key in range(self.client_num)}
-        self.server_upload_compress_combin = {key: CompressorCombin(upload_setting_dict, "QuickSlideSVDCompressor") for key in range(self.client_num)}
+        self.clients_upload_compress_combin = {key: CompressorCombin(upload_setting_dict, "QuickSlideSVDCompressor", u_dtype=u_dtype) for key in range(self.client_num)}
+        self.server_upload_compress_combin = {key: CompressorCombin(upload_setting_dict, "QuickSlideSVDCompressor", u_dtype=u_dtype) for key in range(self.client_num)}
         self.clients_combin_error = {key: deepcopy(_) for key in range(self.client_num)}
         self.total_weight = None
 
@@ -93,8 +93,7 @@ class FedTest5Server(FedAvgServer):
             return_diff=self.return_diff,
 
             # 用于broadcast的
-            last_global_model_params=self.clients_last_global_model_params[client_id],
-            global_grad=self.global_grad,
+            global_weight=self.global_weight,
             broadcast_compress_combin=self.clients_broadcast_compress_combin[client_id],
             test_model = self.test_model,
 
@@ -109,9 +108,9 @@ class FedTest5Server(FedAvgServer):
         selected_clients = sorted(self.selected_clients)
 
         # 用于broadcast的
-        if self.global_grad['combin_alpha'] != {}:
-            recv_byte = calculate_data_size(self.global_grad['combin_alpha'], set_sparse=self.set_sparse, set_layout=self.set_layout)
-            for key, value in self.global_grad['combin_update_dict'].items():
+        if self.global_weight['combin_alpha'] != {}:
+            recv_byte = calculate_data_size(self.global_weight['combin_alpha'], set_sparse=self.set_sparse, set_layout=self.set_layout)
+            for key, value in self.global_weight['combin_update_dict'].items():
                 recv_byte += calculate_data_size(value, set_sparse=self.set_sparse, set_layout=self.set_layout)
         else:
             recv_byte = calculate_data_size(self.public_model_params, set_sparse=self.set_sparse, set_layout=self.set_layout)
@@ -151,10 +150,11 @@ class FedTest5Server(FedAvgServer):
         #     is_grad=True,
         #     path=OUT_DIR / self.algo / self.output_dir)
         # 用于broadcast的
-        combin_alpha, combin_update_dict, combin_error = self.server_broadcast_compress_combin.compress(self.aggregated_grad, can_update_basis_func=lambda: True)
+        combin_alpha, combin_update_dict, combin_error = \
+            self.server_broadcast_compress_combin.compress(self.public_model_params, can_update_basis_func=lambda: True)
         self.server_combin_error = combin_error
-        self.global_grad['combin_alpha'] = combin_alpha
-        self.global_grad['combin_update_dict'] = combin_update_dict
+        self.global_weight['combin_alpha'] = combin_alpha
+        self.global_weight['combin_update_dict'] = combin_update_dict
 
 
     # 用于upload的
@@ -187,10 +187,10 @@ class FedTest5Server(FedAvgServer):
                 ],
                 dim=-1,
             )
-            self.aggregated_grad[name] = torch.sum(
+            aggregated_grad = torch.sum(
                 diffs * weights, dim=-1, dtype=global_param.dtype
             ).to(self.device)
-            self.public_model_params[name].data -= self.aggregated_grad[name]
-            self.public_model_params[name].data += self.server_combin_error[name]
+            self.public_model_params[name].data -= self.server_combin_error[name]
+            self.public_model_params[name].data -= aggregated_grad
             error_norm = self.server_combin_error[name].norm()
             self.logger.log(f"Layer {name} error_norm: {error_norm}")

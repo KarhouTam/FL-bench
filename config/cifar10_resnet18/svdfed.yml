@@ -18,7 +18,7 @@ common:
   # [mnist, cifar10, cifar100, emnist, fmnist, femnist, medmnist, medmnistA, medmnistC, covid19, celeba, synthetic, svhn, tiny_imagenet, cinic10, domain]
   dataset: cifar10
   seed: 42
-  model: myalex
+  model: res18
   join_ratio: 1
   global_epoch: 100
   local_epoch: 5
@@ -39,7 +39,6 @@ common:
     nesterov: false # for SGD
     betas: [0.9, 0.999] # for [Adam, AdamW]
     amsgrad: false # for [Adam, AdamW]
-  desc: "fedtest"
   
 
   lr_scheduler:
@@ -59,34 +58,22 @@ common:
   save_metrics: true
   check_convergence: true
 
-# You can set specific arguments for FL methods also
-# FL-bench uses FL method arguments by args.<method>.<arg>
-# e.g.
-fedtest5:
-  upload_setting_dict:
-    classifier.fc1.weight: [64, 32, 512] # shape: [4096, 9216]
-    classifier.fc1.bias: [16, 8, 128]
-    classifier.bn6.weight: [16, 8, 128]
-    classifier.bn6.bias: [16, 8, 128] # shape: [4096]
+  desc: "resnet18"
 
-    classifier.fc2.weight: [64, 32, 512] # shape: [4096, 4096]
-    classifier.fc2.bias: [2, 2, 64]
-    classifier.bn7.weight' : [2, 2, 64]
-    classifier.bn7.bias' : [2, 2, 64] # shape: [4096]
+svdfed:
+  setting_dict:
+    base.layer3.0.conv1.weight: [3, 0.2]  # L, R
+    base.layer3.0.conv2.weight: [3, 0.2]  # L, R
 
-    classifier.fc3.weight: [4, 4, 512]   # shape: [10, 4096]
+    base.layer3.1.conv1.weight: [3, 0.2]  # L, R
+    base.layer3.1.conv2.weight: [3, 0.2]  # L, R
+    base.layer4.0.conv1.weight: [3, 0.2]  # L, R
+    base.layer4.0.conv2.weight: [3, 0.2]  # L, R
+    base.layer4.1.conv1.weight: [3, 0.2]  # L, R
+    base.layer4.1.conv2.weight: [3, 0.2]  # L, R
 
-  broadcast_setting_dict:
-    classifier.fc1.weight: [64, 32, 512] # shape: [4096, 9216]
-    classifier.fc1.bias: [16, 8, 128]
-    classifier.bn6.weight: [16, 8, 128]
-    classifier.bn6.bias: [16, 8, 128] # shape: [4096]
-
-    classifier.fc2.weight: [64, 32, 512] # shape: [4096, 4096]
-    classifier.fc2.bias: [2, 2, 64]
-    classifier.bn7.weight' : [2, 2, 64]
-    classifier.bn7.bias' : [2, 2, 64] # shape: [4096]
-
-    classifier.fc3.weight: [4, 4, 512]   # shape: [10, 4096]
-
-# NOTE: For those unmentioned arguments, the default values are set in `get_hyperparams[]` in `class <method>Server` in `src/server/<method>.py`
+  kp: 1
+  ki: 1
+  kd: 1
+  gamma: 10
+  fixed_adj_freq: 0

@@ -19,6 +19,8 @@ def cal_memory(param, set_layout=None):
     '''
     if isinstance(param, int):
         param = Tensor([param])
+    if isinstance(param, np.ndarray):
+        return param.nbytes
     assert isinstance(param, torch.Tensor), 'param must be a tensor but a ' + (f'dict {param.keys()}' if isinstance(param, dict) else f'{type(param)}')
     layout = str(param.layout)
 
