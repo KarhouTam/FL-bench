@@ -1,0 +1,20 @@
+name: Ask Question
+description: Ask a question for further understanding.
+labels: ['question']
+
+body:
+- type: markdown
+  attributes:
+    value: >
+      #### ☝ Please ensure that your question is about the repo.
+- type: textarea
+  attributes:
+    label: What is your question?
+  validations:
+    required: true
+- type: textarea
+  attributes:
+    label: Screenshots
+    value: If applicable, add screenshots to help describe your question.
+  validations:
+    required: true
