@@ -1,13 +1,13 @@
+# 服务端相似阈值广播模型参数
+
 from collections import OrderedDict
 from copy import deepcopy
-import time
-from typing import Any
 
 import torch
 from src.server.fedavg import FedAvgServer
 from src.client.fedtest1 import FedTest1Client
 from src.utils.tools import NestedNamespace
-from src.utils.my_utils import CKA, LayerFilter, calculate_data_size, cos_similar, save_model_param
+from src.utils.my_utils import CKA, calculate_data_size, cos_similar
 from src.utils.constants import OUT_DIR
 
 

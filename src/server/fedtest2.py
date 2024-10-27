@@ -1,3 +1,4 @@
+# 梯度压缩
 from collections import OrderedDict
 from copy import deepcopy
 from typing import Any
@@ -8,7 +9,7 @@ from src.server.fedavg import FedAvgServer
 from src.client.fedtest2 import FedTest2Client
 from src.utils.tools import NestedNamespace
 from src.utils.my_utils import calculate_data_size
-from src.utils.compressor_utils import CompressorCombin, SlideSVDCompressor
+from src.utils.compressor_utils import CompressorCombin
 
 setting_dict = {
     # 'base.conv1.weight' : (2, 2, 5),    # shape: [64, 3, 5, 5]

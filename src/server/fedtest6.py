@@ -1,3 +1,4 @@
+# 广播权重压缩 + 上传梯度压缩
 from argparse import ArgumentParser, Namespace
 from collections import OrderedDict
 from copy import deepcopy
