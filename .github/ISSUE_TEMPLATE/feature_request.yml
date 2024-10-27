@@ -15,8 +15,6 @@ body:
 - type: textarea
   attributes:
     label: Describe step by step what files and adjustments are you planning to include.
-  validations:
-    required: true
 - type: textarea
   attributes:
     label: Is there something else you want to add?

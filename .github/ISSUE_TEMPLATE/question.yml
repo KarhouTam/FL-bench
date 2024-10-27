@@ -16,5 +16,3 @@ body:
   attributes:
     label: Screenshots
     value: If applicable, add screenshots to help describe your question.
-  validations:
-    required: true
