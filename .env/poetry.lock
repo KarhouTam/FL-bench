@@ -2737,13 +2737,13 @@ reference = "mirrors"
 
 [[package]]
 name = "pynvml"
-version = "11.5.0"
-description = "Python Bindings for the NVIDIA Management Library"
+version = "11.5.3"
+description = "Python utilities for the NVIDIA Management Library"
 optional = false
 python-versions = ">=3.6"
 files = [
-    {file = "pynvml-11.5.0-py3-none-any.whl", hash = "sha256:5cce014ac01b098d08f06178f86c37be409b80b2e903a5a03ce15eed60f55e25"},
-    {file = "pynvml-11.5.0.tar.gz", hash = "sha256:d027b21b95b1088b9fc278117f9f61b7c67f8e33a787e9f83f735f0f71ac32d0"},
+    {file = "pynvml-11.5.3-py3-none-any.whl", hash = "sha256:a5fba3ab14febda50d19dbda012ef62ae0aed45b7ccc07af0bc5be79223e450c"},
+    {file = "pynvml-11.5.3.tar.gz", hash = "sha256:183d223ae487e5f00402d8da06c68c978ef8a9295793ee75559839c6ade7b229"},
 ]
 
 [package.source]
@@ -4022,4 +4022,4 @@ reference = "mirrors"
 [metadata]
 lock-version = "2.0"
 python-versions = ">=3.10, <=3.12"
-content-hash = "4a1773e40502f3566badb2923ff7ec111c3c855f316507ebe39777e8a8ed9033"
+content-hash = "c1533127eefcdc3e669a1e07b6832701fdb3717abccde741c676f5f283c92080"
