@@ -13,13 +13,13 @@ from src.client.fedavg import FedAvgClient
 class FedALAClient(FedAvgClient):
     def __init__(self, **commons):
         super().__init__(**commons)
-        self.weights = None # Learnable local aggregation weights.
+        self.weights = None  # Learnable local aggregation weights.
         self.start_phase = True
         self.sampled_trainset = Subset(self.dataset, indices=[])
         self.sampled_trainloader = DataLoader(
             self.sampled_trainset, self.args.common.batch_size
         )
-    
+
     def load_data_indices(self):
         train_data_indices = deepcopy(self.data_indices[self.client_id]["train"])
         random.shuffle(train_data_indices)
@@ -51,7 +51,7 @@ class FedALAClient(FedAvgClient):
         global_model.load_state_dict(package["regular_model_params"], strict=False)
         params_g = list(global_model.parameters())
         params = list(self.model.parameters())
-        
+
         # deactivate ALA at the 1st communication iteration
         if torch.sum(params_g[0] - params[0]) == 0:
             self.model.load_state_dict(package["regular_model_params"], strict=False)
@@ -65,64 +65,78 @@ class FedALAClient(FedAvgClient):
                     (key, model_params[key].clone().cpu())
                     for key in self.regular_params_name
                 )
-        
+
         # preserve all the updates in the lower layers
-        for param, param_g in zip(params[:-self.args.fedala.layer_idx], params_g[:-self.args.fedala.layer_idx]):
+        for param, param_g in zip(
+            params[: -self.args.fedala.layer_idx],
+            params_g[: -self.args.fedala.layer_idx],
+        ):
             param.data = param_g.data.clone()
-            
+
         # temp local model only for weight learning
         model_t = deepcopy(self.model)
         params_t = list(model_t.parameters())
 
         # only consider higher layers
-        params_p = params[-self.args.fedala.layer_idx:]
-        params_gp = params_g[-self.args.fedala.layer_idx:]
-        params_tp = params_t[-self.args.fedala.layer_idx:]
+        params_p = params[-self.args.fedala.layer_idx :]
+        params_gp = params_g[-self.args.fedala.layer_idx :]
+        params_tp = params_t[-self.args.fedala.layer_idx :]
 
         # frozen the lower layers to reduce computational cost in Pytorch
-        for param in params_t[:-self.args.fedala.layer_idx]:
+        for param in params_t[: -self.args.fedala.layer_idx]:
             param.requires_grad = False
-        
-        # used to obtain the gradient of higher layers
-        # no need to use optimizer.step(), so lr=0
-        optimizer = torch.optim.SGD(params_tp, lr=0)
 
         # initialize the weight to all ones in the beginning
         if self.weights == None:
-            self.weights = [torch.ones_like(param.data).to(self.device) for param in params_p]
+            self.weights = [
+                torch.ones_like(param.data).to(self.device) for param in params_p
+            ]
 
         # initialize the higher layers in the temp local model
-        for param_t, param, param_g, weight in zip(params_tp, params_p, params_gp, self.weights):
+        for param_t, param, param_g, weight in zip(
+            params_tp, params_p, params_gp, self.weights
+        ):
             param_t.data = param + (param_g - param) * weight
-        
+
         # weight learning
         losses = []  # record losses
-        cnt = 0  # weight training iteration counter
         while True:
             for x, y in self.sampled_trainloader:
                 x, y = x.to(self.device), y.to(self.device)
-                optimizer.zero_grad()
+                model_t.zero_grad()
                 logits = model_t(x)
                 loss_value = self.criterion(logits, y)
                 loss_value.backward()
 
                 # update weight in this batch
-                for param_t, param, param_g, weight in zip(params_tp, params_p, params_gp, self.weights):
-                    weight.data = torch.clamp(weight - self.args.fedala.eta * (param_t.grad * (param_g - param)), 0, 1)
+                for param_t, param, param_g, weight in zip(
+                    params_tp, params_p, params_gp, self.weights
+                ):
+                    weight.data = torch.clamp(
+                        weight
+                        - self.args.fedala.eta * (param_t.grad * (param_g - param)),
+                        0,
+                        1,
+                    )
 
                 # update temp local model in this batch
-                for param_t, param, param_g, weight in zip(params_tp, params_p, params_gp, self.weights):
+                for param_t, param, param_g, weight in zip(
+                    params_tp, params_p, params_gp, self.weights
+                ):
                     param_t.data = param + (param_g - param) * weight
 
             losses.append(loss_value.item())
-            cnt += 1
 
             # only train one epoch in the subsequent iterations
             if not self.start_phase:
                 break
 
             # train the weight until convergence
-            if len(losses) > self.args.fedala.num_pre_loss and np.std(losses[-self.args.fedala.num_pre_loss:]) < self.args.fedala.threshold:
+            if (
+                len(losses) > self.args.fedala.num_pre_loss
+                and np.std(losses[-self.args.fedala.num_pre_loss :])
+                < self.args.fedala.threshold
+            ):
                 break
 
         self.start_phase = False
