@@ -11,7 +11,7 @@ updates:
       interval: "weekly"
     ignore:
       - dependency-name: "numpy"
-    open-pull-requests-limit: 4
+    open-pull-requests-limit: 1
     target-branch: "dev"
 
   - package-ecosystem: "github-actions" # See documentation for possible values
