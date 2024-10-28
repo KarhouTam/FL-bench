@@ -14,5 +14,6 @@ body:
     required: true
 - type: textarea
   attributes:
-    label: Screenshots
-    value: If applicable, add screenshots to help describe your question.
+    label: Additional Context
+    placeholder: > 
+      If applicable, add more contexts (e.g., screenshots) to help describe your question.

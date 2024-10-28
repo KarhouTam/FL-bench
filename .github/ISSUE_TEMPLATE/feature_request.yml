@@ -9,12 +9,18 @@ body:
       #### If you want to propose a new feature, please check the PRs if someone already works on this feature.
 - type: textarea
   attributes:
-    label: Describe the type of feature and its functionality.
+    label: Feature Description
+    placeholder: >
+      Describe the type of feature and its functionality.
   validations:
     required: true
 - type: textarea
   attributes:
-    label: Describe step by step what files and adjustments are you planning to include.
+    label: To Reproduce
+    placeholder: >
+      label: Describe step by step what files and adjustments are you planning to include.
 - type: textarea
   attributes:
-    label: Is there something else you want to add?
+    label: Additional context
+    placeholder: >
+      Add any other context about the problem here.
