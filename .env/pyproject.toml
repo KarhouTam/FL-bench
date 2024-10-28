@@ -25,7 +25,7 @@ scipy = "^1.14.1"
 matplotlib = "^3.9.0"
 scikit-learn = "^1.5.2"
 faiss-cpu = "^1.8.0"
-pynvml = "^11.5.0"
+pynvml = "^11.5.3"
 PyYAML = "^6.0.1"
 ray = { extras = ["default"], version = "2.36.1" }
 tensorboard = "^2.17.1"
