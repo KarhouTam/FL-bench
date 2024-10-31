@@ -31,28 +31,30 @@ def dirichlet(
     indices_4_labels = {i: np.where(targets == i)[0] for i in label_set}
 
     while min_size < least_samples:
-        partition["data_indices"][:client_num] = [[] for _ in range(client_num)]
+        # Initialize data indices for each client
+        partition["data_indices"] = [[] for _ in range(client_num)]
 
-        for k in label_set:
-            np.random.shuffle(indices_4_labels[k])
-            distrib = np.random.dirichlet(np.repeat(alpha, client_num))
-            distrib = np.array(
-                [
-                    p * (len(idx_j) < len(targets) / client_num)
-                    for p, idx_j in zip(distrib, partition["data_indices"])
-                ]
-            )
-            distrib = distrib / distrib.sum()
-            distrib = (np.cumsum(distrib) * len(indices_4_labels[k])).astype(int)[:-1]
-            partition["data_indices"][:client_num] = [
-                np.concatenate((idx_j, idx.tolist())).astype(np.int64)
-                for idx_j, idx in zip(
-                    partition["data_indices"], np.split(indices_4_labels[k], distrib)
-                )
-            ]
-            min_size = min(
-                [len(idx_j) for idx_j in partition["data_indices"][:client_num]]
-            )
+        # Iterate over each label in the label set
+        for label in label_set:
+            # Shuffle the indices associated with the current label
+            np.random.shuffle(indices_4_labels[label])
+            
+            # Generate a Dirichlet distribution for splitting data among clients
+            distribution = np.random.dirichlet(np.repeat(alpha, client_num))
+            
+            # Calculate split indices based on the generated distribution
+            cumulative_indices = np.cumsum(distribution) * len(indices_4_labels[label])
+            split_indices_position = cumulative_indices.astype(int)[:-1]
+            
+            # Split the indices for the current label
+            split_indices = np.split(indices_4_labels[label], split_indices_position)
+            
+            # Assign split indices to each client
+            for client_id in range(client_num):
+                partition["data_indices"][client_id].extend(split_indices[client_id])
+
+        # Update the minimum size of the data across all clients
+        min_size = min(len(idx) for idx in partition["data_indices"])
 
     for i in range(client_num):
         stats[i]["x"] = len(targets[partition["data_indices"][i]])
