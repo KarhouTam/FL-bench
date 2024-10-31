@@ -1,6 +1,6 @@
 import random
 from collections import Counter
-from typing import Dict
+from typing import Any, Dict, List, Set
 
 import numpy as np
 
@@ -8,65 +8,93 @@ import numpy as np
 def randomly_assign_classes(
     targets: np.ndarray,
     target_indices: np.ndarray,
-    label_set: set,
+    label_set: Set[int],
     client_num: int,
     class_num: int,
-    partition: dict,
-    stats: dict,
+    partition: Dict[str, List[np.ndarray]],
+    stats: Dict[int, Dict[str, Any]],
 ):
-    """Partition data to make each client has almost `client_num` class of
-    data.
+    """Partition data to ensure each client has a nearly equal distribution of
+    classes.
 
     Args:
-        targets (np.ndarray): Data label array.
-        target_indices (np.ndarray): Indices of targets. If you haven't set `--iid`, then it will be np.arange(len(targets))
-        Otherwise, it will be the absolute indices of the full targets.
-        label_set (set): Label set.
-        client_num (int): Number of clients.
-        class_num (int): Class num.
-        partition (Dict): Output data indices dict.
-        stats (Dict): Output dict that recording clients data distribution.
+        targets (np.ndarray): Array of data labels.
+        target_indices (np.ndarray): Indices of targets. If not set to `--iid`, it will be np.arange(len(targets)).
+                                      Otherwise, it contains the absolute indices of the full targets.
+        label_set (Set[int]): Set of unique labels from the dataset.
+        client_num (int): Total number of clients.
+        class_num (int): Number of classes to assign to each client.
+        partition (Dict[str, List[np.ndarray]]): Output data indices for each client.
+        stats (Dict[int, Dict[str, Any]]): Dictionary to record clients' data distribution.
     """
 
-    class_indices = {i: sorted(np.where(targets == i)[0].tolist()) for i in label_set}
+    # Create a mapping from each label to its indices in the targets
+    class_indices = {
+        label: sorted(np.where(targets == label)[0].tolist()) for label in label_set
+    }
+
+    # Initialize structures to track assigned labels and selected times for each label
     assigned_labels = []
-    selected_times = {i: 0 for i in label_set}
-    label_sequence = sorted(label_set)
-    for i in range(client_num):
-        sampled_labels = random.sample(label_sequence, class_num)
+    label_selection_counts = {label: 0 for label in label_set}
+    sorted_labels = sorted(label_set)
+
+    # Randomly assign classes to each client
+    for client_id in range(client_num):
+        # Sample class labels for the current client
+        sampled_labels = random.sample(sorted_labels, class_num)
         assigned_labels.append(sampled_labels)
-        for j in sampled_labels:
-            selected_times[j] += 1
 
-    labels_count = Counter(targets)
+        # Update selection counts for the sampled labels
+        for label in sampled_labels:
+            label_selection_counts[label] += 1
 
-    batch_sizes = {i: 0 for i in label_set}
-    for i in label_set:
-        if selected_times[i] == 0:
-            batch_sizes[i] = 0
-        else:
-            batch_sizes[i] = int(labels_count[i] / selected_times[i])
+    # Count occurrences of each label in targets
+    label_counts = Counter(targets)
 
-    for i in range(client_num):
-        for cls in assigned_labels[i]:
-            if len(class_indices[cls]) < 2 * batch_sizes[cls]:
-                batch_size = len(class_indices[cls])
+    # Calculate batch sizes for the classes based on selection counts
+    batch_sizes = {
+        label: (
+            0
+            if label_selection_counts[label] == 0
+            else int(label_counts[label] / label_selection_counts[label])
+        )
+        for label in label_set
+    }
+
+    # Assign data indices to each client based on sampled labels and batch sizes
+    for client_id in range(client_num):
+        for label in assigned_labels[client_id]:
+            # Determine batch size for the current label
+            if len(class_indices[label]) < 2 * batch_sizes[label]:
+                batch_size = len(class_indices[label])
             else:
-                batch_size = batch_sizes[cls]
-            selected_idxs = random.sample(class_indices[cls], batch_size)
-            partition["data_indices"][i] = np.concatenate(
-                [partition["data_indices"][i], selected_idxs]
-            ).astype(np.int64)
-            class_indices[cls] = list(set(class_indices[cls]) - set(selected_idxs))
+                batch_size = batch_sizes[label]
 
-    for i in range(client_num):
-        stats[i] = {"x": None, "y": None}
-        stats[i]["x"] = len(partition["data_indices"][i])
-        stats[i]["y"] = dict(Counter(targets[partition["data_indices"][i]].tolist()))
-        partition["data_indices"][i] = target_indices[partition["data_indices"][i]]
+            # Randomly select indices for the current label
+            selected_indices = random.sample(class_indices[label], batch_size)
 
-    num_samples = np.array(list(map(lambda stat_i: stat_i["x"], stats.values())))
+            # Update the partition for the current client
+            partition["data_indices"][client_id].extend(selected_indices)
+
+            # Remove selected indices from the available class indices
+            class_indices[label] = list(
+                set(class_indices[label]) - set(selected_indices)
+            )
+
+    # Gather statistics and prepare the output for each client
+    for client_id in range(client_num):
+        client_data_indices = partition["data_indices"][client_id]
+        stats[client_id] = {
+            "x": len(client_data_indices),
+            "y": dict(Counter(targets[client_data_indices].tolist())),
+        }
+
+        # Update the data indices to use the original target indices
+        partition["data_indices"][client_id] = target_indices[client_data_indices]
+
+    # Calculate the number of samples for each client and update statistics
+    sample_counts = np.array([stat["x"] for stat in stats.values()])
     stats["samples_per_client"] = {
-        "std": num_samples.mean().item(),
-        "stddev": num_samples.std().item(),
+        "mean": sample_counts.mean().item(),
+        "stddev": sample_counts.std().item(),
     }

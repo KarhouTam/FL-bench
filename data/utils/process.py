@@ -52,7 +52,7 @@ def prune_args(args: Namespace) -> dict:
         args_dict["split"] = preprocess_args["t"]
         args_dict["sample_seed"] = preprocess_args["smplseed"]
         args_dict["split_seed"] = preprocess_args["spltseed"]
-        args_dict["least_samples"] = preprocess_args["k"]
+        args_dict["min_samples_per_client"] = preprocess_args["k"]
         args_dict["test_ratio"] = 1.0 - preprocess_args["tf"]
         args_dict["val_ratio"] = 0.0
         args_dict["monitor_window_name_suffix"] = "{}-{}clients-k{}-{}".fotmat(
@@ -70,7 +70,7 @@ def prune_args(args: Namespace) -> dict:
         # Dirchlet
         if args.alpha > 0:
             args_dict["alpha"] = args.alpha
-            args_dict["least_samples"] = args.least_samples
+            args_dict["min_samples_per_client"] = args.min_samples_per_client
             args_dict["monitor_window_name_suffix"] += f"-Dir({args.alpha})"
         # randomly assign classes
         elif args.classes > 0:
