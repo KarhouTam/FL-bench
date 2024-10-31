@@ -86,13 +86,13 @@ class FedAvgServer:
                 FLBENCH_ROOT / "data" / self.args.dataset.name / "partition.pkl"
             )
             with open(partition_path, "rb") as f:
-                partition = pickle.load(f)
+                self.data_partition = pickle.load(f)
         except:
             raise FileNotFoundError(f"Please partition {self.args.dataset.name} first.")
-        self.train_clients: List[int] = partition["separation"]["train"]
-        self.test_clients: List[int] = partition["separation"]["test"]
-        self.val_clients: List[int] = partition["separation"]["val"]
-        self.client_num: int = partition["separation"]["total"]
+        self.train_clients: List[int] = self.data_partition["separation"]["train"]
+        self.test_clients: List[int] = self.data_partition["separation"]["test"]
+        self.val_clients: List[int] = self.data_partition["separation"]["val"]
+        self.client_num: int = self.data_partition["separation"]["total"]
 
         # init model(s) parameters
         self.model: DecoupledModel = MODELS[self.args.model.name](
@@ -291,32 +291,6 @@ class FedAvgServer:
                     **{key: ray.put(value) for key, value in extras.items()},
                 ),
             )
-
-    def get_clients_data_indices(self) -> List[Dict[str, List[int]]]:
-        """Gets a list of client data indices.
-
-        Load and return the client-side data index from the partition file for the specified dataset.
-
-        Raises:
-            FileNotFoundError: If the partition file does not exist.
-
-        Returns:
-        List[Dict[str, List[int]]]: A list of client-side data indexes, where each element is a dictionary,
-        Contains the keys "train", "val", and "test" for a list of data indexes for each partition.
-        """
-        try:
-            partition_path = (
-                FLBENCH_ROOT / "data" / self.args.dataset.name / "partition.pkl"
-            )
-            with open(partition_path, "rb") as f:
-                partition = pickle.load(f)
-        except:
-            raise FileNotFoundError(f"Please partition {self.args.dataset.name} first.")
-
-        # [0: {"train": [...], "val": [...], "test": [...]}, ...]
-        data_indices: List[Dict[str, List[int]]] = partition["data_indices"]
-
-        return data_indices
 
     def get_dataset(self) -> BaseDataset:
         """Load the specified dataset according to the configuration.
