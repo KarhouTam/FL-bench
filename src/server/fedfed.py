@@ -117,7 +117,7 @@ class FedFedServer(FedAvgServer):
                 self.client_VAE_optimizer_states[client_id] = package[
                     "VAE_optimizer_state"
                 ]
-            super().aggregate(client_packages)
+            super().aggregate_client_updates(client_packages)
 
             # aggregate client VAEs
             weights = torch.tensor(

@@ -57,7 +57,7 @@ class FedRoDServer(FedAvgServer):
         return server_package
 
     @torch.no_grad()
-    def aggregate(self, client_packages: dict[int, dict[str, Any]]):
+    def aggregate_client_updates(self, client_packages: dict[int, dict[str, Any]]):
         for client_id in client_packages.keys():
             self.first_time_selected[client_id] = False
         client_weights = [package["weight"] for package in client_packages.values()]

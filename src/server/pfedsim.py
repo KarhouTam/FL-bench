@@ -81,7 +81,7 @@ class pFedSimServer(FedAvgServer):
                         }
                     )
             self.update_weight_matrix()
-            self.log_info()
+            self.log_clients_metrics()
             avg_round_time = (avg_round_time * self.current_epoch + (end - begin)) / (
                 self.current_epoch + 1
             )

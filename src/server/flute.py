@@ -38,7 +38,7 @@ class FLUTEServer(FedAvgServer):
 
     def train_one_round(self):
         clients_package = self.trainer.train()
-        self.aggregate(clients_package)
+        self.aggregate_client_updates(clients_package)
         self.update_neural_collapse(clients_package)
 
     def update_neural_collapse(self, client_packages: dict[int, dict[str, Any]]):

@@ -50,7 +50,7 @@ class FedDynServer(FedAvgServer):
         server_package["nabla"] = self.nabla[client_id]
         return server_package
 
-    def aggregate(self, client_packages: OrderedDict[int, dict[str, Any]]):
+    def aggregate_client_updates(self, client_packages: OrderedDict[int, dict[str, Any]]):
         params_list = [
             list(package["regular_model_params"].values())
             for package in client_packages.values()

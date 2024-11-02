@@ -37,7 +37,7 @@ class DittoServer(FedAvgServer):
             self.clients_personalized_model_params[client_id] = client_packages[
                 client_id
             ]["personalized_model_params"]
-        self.aggregate(client_packages)
+        self.aggregate_client_updates(client_packages)
 
     def package(self, client_id: int):
         server_package = super().package(client_id)

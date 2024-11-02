@@ -430,7 +430,7 @@ class FedAvgServer:
             ):
                 self.test()
 
-            self.log_info()
+            self.log_clients_metrics()
 
         self.logger.log(
             f"{self.algorithm_name}'s average time taken by each global epoch: "
@@ -442,7 +442,7 @@ class FedAvgServer:
         server side) in each communication round."""
 
         client_packages = self.trainer.train()
-        self.aggregate(client_packages)
+        self.aggregate_client_updates(client_packages)
 
     def package(self, client_id: int):
         """Package parameters that the client-side training needs. If you are
@@ -596,7 +596,9 @@ class FedAvgServer:
         )
 
     @torch.no_grad()
-    def aggregate(self, client_packages: OrderedDict[int, Dict[str, Any]]):
+    def aggregate_client_updates(
+        self, client_packages: OrderedDict[int, Dict[str, Any]]
+    ):
         """Aggregate clients model parameters and produce global model
         parameters.
 
@@ -638,7 +640,7 @@ class FedAvgServer:
                 global_param.data = aggregated
         self.model.load_state_dict(self.public_model_params, strict=False)
 
-    def show_convergence(self):
+    def show_convergence_metrics(self):
         """Collect the number of epoches that FL method reach specific
         accuracies while training."""
         colors = {
@@ -674,7 +676,7 @@ class FedAvgServer:
                                 break
                         acc_range = acc_range[:min_acc_idx]
 
-    def log_info(self):
+    def log_clients_metrics(self):
         """Accumulate client evaluation results at each round."""
         for split, eval_flag, test_flag in [
             ("train", self.args.common.eval_train, self.args.common.test_train),
@@ -830,7 +832,7 @@ class FedAvgServer:
                 "So the saving is skipped."
             )
 
-    def save_training_curves_figure(self):
+    def save_training_curves_plot(self):
         """
         Save the training curves of FL-bench experiment.
         """
@@ -889,7 +891,7 @@ class FedAvgServer:
                         )
         df.to_csv(self.output_dir / f"metrics.csv", index=True, index_label="epoch")
 
-    def run(self):
+    def run_experiment(self):
         """
         The entrypoint of FL-bench experiment.
         """
@@ -977,14 +979,14 @@ class FedAvgServer:
                     global_step=epoch,
                 )
 
-        self.show_convergence()
+        self.show_convergence_metrics()
         self.show_max_metrics()
 
         self.logger.close()
 
         # plot the training curves
         if self.args.common.save_fig:
-            self.save_training_curves_figure()
+            self.save_training_curves_plot()
 
         # save each round's metrics stats
         if self.args.common.save_metrics:

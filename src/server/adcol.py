@@ -94,7 +94,7 @@ class ADCOLServer(FedAvgServer):
         self.feature_dataloader = None
         for cid in self.selected_clients:
             self.features[cid] = client_packages[cid]["features_list"]
-        self.aggregate(client_packages)
+        self.aggregate_client_updates(client_packages)
         self.train_and_test_discriminator()
 
     def package(self, client_id: int):
