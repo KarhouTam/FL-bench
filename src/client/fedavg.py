@@ -112,9 +112,10 @@ class FedAvgClient:
             if len(subset) > 0 and flag:
                 eval_msg.append(
                     f"client [{self.client_id}]\t"
-                    f"[{color}]({split}set)\t"
-                    f"loss: {eval_results['before'][split].loss:.4f} -> {eval_results['after'][split].loss:.4f}\t"
-                    f"accuracy: {eval_results['before'][split].accuracy:.2f}% -> {eval_results['after'][split].accuracy:.2f}%"
+                    f"[{color}]({split}set)[/{color}]\t"
+                    f"[red]loss: {eval_results['before'][split].loss:.4f} -> "
+                    f"{eval_results['after'][split].loss:.4f}\t[/red]"
+                    f"[blue]accuracy: {eval_results['before'][split].accuracy:.2f}% -> {eval_results['after'][split].accuracy:.2f}%[/blue]"
                 )
 
         eval_results["message"] = eval_msg
