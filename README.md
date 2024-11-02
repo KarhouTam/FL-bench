@@ -199,7 +199,7 @@ FL-bench supports `visdom` and `tensorboard`.
 # your_config.yaml
 common:
   ...
-  visible: tensorboard # options: [null, visdom, tensorboard]
+  monitor: tensorboard # options: [null, visdom, tensorboard]
 ```
 > \[!NOTE\]
 > You needs to launch `visdom` / `tensorboard` server by yourself.
