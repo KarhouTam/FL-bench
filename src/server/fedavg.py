@@ -5,8 +5,8 @@ import os
 import pickle
 import random
 import shutil
-import traceback
 import time
+import traceback
 import warnings
 from collections import OrderedDict
 from copy import deepcopy
@@ -19,7 +19,6 @@ import torch
 from hydra.core.hydra_config import HydraConfig
 from omegaconf import DictConfig, OmegaConf
 from rich.console import Console
-from rich.json import JSON
 from rich.pretty import pprint as rich_pprint
 from rich.progress import track
 from torchvision import transforms
