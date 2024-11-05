@@ -20,6 +20,7 @@ from hydra.core.hydra_config import HydraConfig
 from omegaconf import DictConfig, OmegaConf
 from rich.console import Console
 from rich.json import JSON
+from rich.pretty import pprint as rich_pprint
 from rich.progress import track
 from torchvision import transforms
 
@@ -688,13 +689,21 @@ class FedAvgServer:
         """
         self.logger.log("=" * 20, self.algorithm_name, "=" * 20)
         self.logger.log("Experiment Arguments:")
-        self.logger.log(JSON(json.dumps(OmegaConf.to_object(self.args))))
+        rich_pprint(
+            OmegaConf.to_object(self.args), console=self.logger.stdout, expand_all=True
+        )
+        if self.args.common.save_log:
+            rich_pprint(
+                OmegaConf.to_object(self.args),
+                console=self.logger.logfile_logger,
+                expand_all=True,
+            )
         if self.args.common.monitor == "tensorboard":
             self.tensorboard.add_text(
                 f"ExperimentalArguments-{self.monitor_window_name_suffix}",
-                f"<pre>{self.args}</pre>",
+                f"{json.dumps(OmegaConf.to_object(self.args), indent=4)}",
             )
-
+ 
         begin = time.time()
         try:
             self.train()
