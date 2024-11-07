@@ -371,11 +371,13 @@ You can find all details in [`FedAvgClient`](src/client/fedavg.py) and [`FedAvgS
 ```bibtex
 @software{Tan_FL-bench,
   author = {Tan, Jiahao and Wang, Xinpeng},
-  license = {MIT},
+  license = {GPL-3.0},
   title = {{FL-bench: A federated learning benchmark for solving image classification tasks}},
   url = {https://github.com/KarhouTam/FL-bench}
 }
+```
 
+```bibtex
 @misc{tan2023pfedsim,
   title={pFedSim: Similarity-Aware Model Aggregation Towards Personalized Federated Learning}, 
   author={Jiahao Tan and Yipeng Zhou and Gang Liu and Jessie Hui Wang and Shui Yu},
