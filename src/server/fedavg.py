@@ -5,8 +5,8 @@ import os
 import pickle
 import random
 import shutil
-import traceback
 import time
+import traceback
 import warnings
 from collections import OrderedDict
 from copy import deepcopy
@@ -19,7 +19,7 @@ import torch
 from hydra.core.hydra_config import HydraConfig
 from omegaconf import DictConfig, OmegaConf
 from rich.console import Console
-from rich.json import JSON
+from rich.pretty import pprint as rich_pprint
 from rich.progress import track
 from torchvision import transforms
 
@@ -199,16 +199,16 @@ class FedAvgServer:
             console=stdout,
         )
 
-        if self.args.common.visible is not None:
+        if self.args.common.monitor is not None:
             self.monitor_window_name_suffix = (
                 self.args.dataset.monitor_window_name_suffix
             )
 
-        if self.args.common.visible == "visdom":
+        if self.args.common.monitor == "visdom":
             from visdom import Visdom
 
             self.viz = Visdom()
-        elif self.args.common.visible == "tensorboard":
+        elif self.args.common.monitor == "tensorboard":
             from torch.utils.tensorboard import SummaryWriter
 
             self.tensorboard = SummaryWriter(log_dir=self.output_dir)
@@ -613,7 +613,7 @@ class FedAvgServer:
 
                     self.global_metrics[stage][split].append(global_metrics)
 
-                    if self.args.common.visible == "visdom":
+                    if self.args.common.monitor == "visdom":
                         self.viz.line(
                             [global_metrics.accuracy],
                             [self.current_epoch],
@@ -627,7 +627,7 @@ class FedAvgServer:
                                 legend=[self.algorithm_name],
                             ),
                         )
-                    elif self.args.common.visible == "tensorboard":
+                    elif self.args.common.monitor == "tensorboard":
                         self.tensorboard.add_scalar(
                             f"Accuracy-{self.monitor_window_name_suffix}/{split}set-{stage}LocalTraining",
                             global_metrics.accuracy,
@@ -688,13 +688,21 @@ class FedAvgServer:
         """
         self.logger.log("=" * 20, self.algorithm_name, "=" * 20)
         self.logger.log("Experiment Arguments:")
-        self.logger.log(JSON(json.dumps(OmegaConf.to_object(self.args))))
-        if self.args.common.visible == "tensorboard":
+        rich_pprint(
+            OmegaConf.to_object(self.args), console=self.logger.stdout, expand_all=True
+        )
+        if self.args.common.save_log:
+            rich_pprint(
+                OmegaConf.to_object(self.args),
+                console=self.logger.logfile_logger,
+                expand_all=True,
+            )
+        if self.args.common.monitor == "tensorboard":
             self.tensorboard.add_text(
                 f"ExperimentalArguments-{self.monitor_window_name_suffix}",
-                f"<pre>{self.args}</pre>",
+                f"{json.dumps(OmegaConf.to_object(self.args), indent=4)}",
             )
-
+ 
         begin = time.time()
         try:
             self.train()
@@ -745,7 +753,7 @@ class FedAvgServer:
         }
 
         self.logger.log(json.dumps(all_test_results, indent=4))
-        if self.args.common.visible == "tensorboard":
+        if self.args.common.monitor == "tensorboard":
             for epoch, results in all_test_results.items():
                 self.tensorboard.add_text(
                     f"Results-{self.monitor_window_name_suffix}",
