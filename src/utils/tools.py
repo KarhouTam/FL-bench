@@ -88,7 +88,7 @@ def vectorize(
 
 
 @torch.no_grad()
-def evalutate_model(
+def evaluate_model(
     model: torch.nn.Module,
     dataloader: DataLoader,
     criterion=torch.nn.CrossEntropyLoss(reduction="sum"),

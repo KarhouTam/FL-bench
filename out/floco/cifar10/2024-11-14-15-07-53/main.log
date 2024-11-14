@@ -1,0 +1,91 @@
+==================== Floco ====================                                                                                                                                                                       
+Experiment Arguments:                                                                                                                                                                                                 
+{
+│   'method': 'floco',
+│   'dataset': {
+│   │   'name': 'cifar10',
+│   │   'client_num': 100,
+│   │   'test_ratio': 0.2,
+│   │   'val_ratio': 0.0,
+│   │   'seed': 42,
+│   │   'split': 'sample',
+│   │   'IID_ratio': 0.0,
+│   │   'monitor_window_name_suffix': 'cifar10-100clients-0%IID-Dir(1.0)-seed42',
+│   │   'alpha': 1.0,
+│   │   'least_samples': 300
+│   },
+│   'model': {
+│   │   'name': 'lenet5',
+│   │   'use_torchvision_pretrained_weights': True,
+│   │   'external_model_weights_path': None
+│   },
+│   'optimizer': {
+│   │   'lr': 0.01,
+│   │   'dampening': 0,
+│   │   'weight_decay': 0,
+│   │   'momentum': 0,
+│   │   'nesterov': False,
+│   │   'name': 'sgd'
+│   },
+│   'mode': 'serial',
+│   'parallel': {
+│   │   'ray_cluster_addr': None,
+│   │   'num_cpus': None,
+│   │   'num_gpus': None,
+│   │   'num_workers': 2
+│   },
+│   'common': {
+│   │   'seed': 42,
+│   │   'join_ratio': 0.1,
+│   │   'global_epoch': 100,
+│   │   'local_epoch': 5,
+│   │   'finetune_epoch': 0,
+│   │   'batch_size': 32,
+│   │   'test_interval': 100,
+│   │   'straggler_ratio': 0,
+│   │   'straggler_min_local_epoch': 0,
+│   │   'buffers': 'global',
+│   │   'eval_test': True,
+│   │   'eval_val': False,
+│   │   'eval_train': False,
+│   │   'verbose_gap': 10,
+│   │   'monitor': None,
+│   │   'use_cuda': True,
+│   │   'save_log': True,
+│   │   'save_model': False,
+│   │   'save_fig': True,
+│   │   'save_metrics': True,
+│   │   'delete_useless_run': True
+│   },
+│   'floco': {
+│   │   'num_endpoints': 3,
+│   │   'tau': 100,
+│   │   'rho': 0.1,
+│   │   'lamda': 1.0,
+│   │   'pers_epoch': 1,
+│   │   'z_0': 0.0001,
+│   │   'z_1': 1,
+│   │   'finetune_region': 'sc',
+│   │   'evaluate_region': 'sc',
+│   │   'return_diff': False
+│   }
+}
+Traceback (most recent call last):                                                                                                                                                                                    
+  File "/Users/dg/Projects/FL-bench/src/server/fedavg.py", line 708, in run                                                                                                                                           
+    self.train()                                                                                                                                                                                                      
+  File "/Users/dg/Projects/FL-bench/src/server/fedavg.py", line 422, in train                                                                                                                                         
+    self.train_one_round()                                                                                                                                                                                            
+  File "/Users/dg/Projects/FL-bench/src/server/floco.py", line 152, in train_one_round                                                                                                                                
+    clients_packages = self.trainer.train()                                                                                                                                                                           
+                       ^^^^^^^^^^^^^^^^^^^^                                                                                                                                                                           
+  File "/Users/dg/Projects/FL-bench/src/utils/trainer.py", line 44, in _serial_train                                                                                                                                  
+    client_package = self.worker.train(server_package)                                                                                                                                                                
+                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^                                                                                                                                                                
+  File "/Users/dg/Projects/FL-bench/src/client/fedavg.py", line 152, in train                                                                                                                                         
+    self.set_parameters(server_package)                                                                                                                                                                               
+  File "/Users/dg/Projects/FL-bench/src/client/floco.py", line 31, in set_parameters                                                                                                                                  
+    self.sample_from = package["sample_from"]                                                                                                                                                                         
+                       ~~~~~~~^^^^^^^^^^^^^^^                                                                                                                                                                         
+KeyError: 'sample_from'                                                                                                                                                                                               
+                                                                                                                                                                                                                      
+Exception occurred: 'sample_from'                                                                                                                                                                                     
