@@ -10,6 +10,7 @@ class FlocoClient(FedAvgClient):
         self.pers_model = deepcopy(self.model).to(self.device)
         self.optimizer.add_param_group({"params": self.pers_model.parameters()})
         self.init_optimizer_state = deepcopy(self.optimizer.state_dict())
+        self.floco_plus = if self.args.floco.pers_epoch > 0 else False
 
     def set_parameters(self, package: dict[str, Any]):
         super().set_parameters(package)
@@ -41,24 +42,27 @@ class FlocoClient(FedAvgClient):
                 self.optimizer.zero_grad()
                 loss.backward()
                 self.optimizer.step()
-        # Train personalized solution simplex (subregion)
-        for _ in range(self.args.floco.pers_epoch):
-            for x, y in self.trainloader:
-                x, y = x.to(self.device), y.to(self.device)
-                logit = self.pers_model(x, self.sample_from, self.subregion_parameters)
-                loss = self.criterion(logit, y)
-                self.optimizer.zero_grad()
-                loss.backward()
-                for pers_param, global_param in zip(
-                    self.pers_model.parameters(), self.global_params
-                ):
-                    if pers_param.requires_grad:
-                        try:
-                            pers_param.grad.data += self.args.floco.lamda * (
-                                pers_param.data - global_param.data
-                                )
-                        except:
-                            pass
-                self.optimizer.step()
             if self.lr_scheduler is not None:
                 self.lr_scheduler.step()
+        if self.floco_plus:
+            # Train personalized solution simplex (subregion)
+            for _ in range(self.args.floco.pers_epoch):
+                for x, y in self.trainloader:
+                    x, y = x.to(self.device), y.to(self.device)
+                    logit = self.pers_model(x, self.sample_from, *self.subregion_parameters)
+                    loss = self.criterion(logit, y)
+                    self.optimizer.zero_grad()
+                    loss.backward()
+                    for pers_param, global_param in zip(
+                        self.pers_model.parameters(), self.global_params
+                    ):
+                        if pers_param.requires_grad:
+                            try:
+                                pers_param.grad.data += self.args.floco.lamda * (
+                                    pers_param.data - global_param.data
+                                    )
+                            except:
+                                pass
+                    self.optimizer.step()
+                if self.lr_scheduler is not None:
+                    self.lr_scheduler.step()
