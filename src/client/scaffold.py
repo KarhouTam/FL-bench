@@ -23,7 +23,7 @@ class SCAFFOLDClient(FedAvgClient):
 
     def train(self, server_package: dict[str, Any]):
         self.set_parameters(server_package)
-        self.train_locally()
+        self.train_with_eval()
 
         with torch.no_grad():
             self.y_delta = []

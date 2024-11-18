@@ -2,7 +2,6 @@ import os
 import random
 from argparse import Namespace
 from collections import OrderedDict
-from copy import deepcopy
 from pathlib import Path
 from typing import Callable, Iterator, Sequence, Union
 
@@ -11,7 +10,7 @@ import pynvml
 import torch
 from omegaconf import DictConfig
 from rich.console import Console
-from torch.utils.data import DataLoader
+from torch.utils.data import DataLoader, Subset
 
 from src.utils.constants import DEFAULTS
 from src.utils.metrics import Metrics
@@ -259,7 +258,7 @@ def initialize_data_loaders(
     dataset: torch.utils.data.Dataset,
     data_indices: list[dict[str, list[int]]],
     batch_size: int=32,
-) -> tuple[DataLoader, DataLoader, DataLoader, torch.utils.data.Subset, torch.utils.data.Subset, torch.utils.data.Subset]:
+) -> tuple[DataLoader, DataLoader, DataLoader, Subset, Subset, Subset]:
     """
     Initializes and returns data loaders for training, validation, and testing.
 

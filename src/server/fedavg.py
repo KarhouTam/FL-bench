@@ -216,18 +216,18 @@ class FedAvgServer:
         # init trainer
         self.trainer: FLbenchTrainer = None
         self.dataset = self.get_dataset()
-        data_indices = self.get_clients_data_indices()
+        self.client_data_indices = self.get_clients_data_indices()
         if use_fedavg_client_cls:
-            self.init_trainer(dataset=self.dataset, client_indices=data_indices)
+            self.init_trainer()
 
         # create setup for centralized evaluation
         self.trainloader, self.testloader, self.valloader, self.trainset, self.testset, self.valset = initialize_data_loaders(
-            self.dataset, data_indices, self.args.common.batch_size
+            self.dataset, self.client_data_indices, self.args.common.batch_size
         )
         
 
 
-    def init_trainer(self, dataset, client_indices, fl_client_cls=FedAvgClient, **extras):
+    def init_trainer(self, fl_client_cls=FedAvgClient, **extras):
         """Initiate the FL-bench trainier that responsible to client training.
         `extras` are the arguments of `fl_client_cls.__init__()` that not in
         `[model, args, optimizer_cls, lr_scheduler_cls, dataset, data_indices,
@@ -247,8 +247,8 @@ class FedAvgServer:
                     optimizer_cls=self.get_client_optimizer_cls(),
                     lr_scheduler_cls=self.get_client_lr_scheduler_cls(),
                     args=self.args,
-                    dataset=dataset,
-                    data_indices=client_indices,
+                    dataset=self.dataset,
+                    data_indices=self.client_data_indices,
                     device=self.device,
                     return_diff=self.return_diff,
                     **extras,
@@ -258,8 +258,8 @@ class FedAvgServer:
             model_ref = ray.put(self.model.cpu())
             optimzier_cls_ref = ray.put(self.get_client_optimizer_cls())
             lr_scheduler_cls_ref = ray.put(self.get_client_lr_scheduler_cls())
-            dataset_ref = ray.put(dataset)
-            data_indices_ref = ray.put(client_indices)
+            dataset_ref = ray.put(self.dataset)
+            data_indices_ref = ray.put(self.client_data_indices)
             args_ref = ray.put(self.args)
             device_ref = ray.put(None)  # in parallel mode, workers decide their device
             return_diff_ref = ray.put(self.return_diff)
@@ -452,7 +452,7 @@ class FedAvgServer:
         """The function of indicating specific things FL method need to do (at
         server side) in each communication round."""
 
-        client_packages = self.trainer.train(evaluate_clients=(self.args.common.test_interval > 0))
+        client_packages = self.trainer.train()
         self.aggregate(client_packages)
 
     def package(self, client_id: int):
@@ -520,15 +520,8 @@ class FedAvgServer:
         """The function for testing FL method's output (a single global model
         or personalized client models)."""
         self.testing = True
-        if self.args.common.buffers == "local":
-            metrics = self.evaluate()
-            self.test_results[self.current_epoch + 1]["server"] = {"after" : metrics}
-        else:
-            # compute global model's metrics from clients metrics
-            if self.val_clients == self.train_clients == self.test_clients:
-                pass
-        
         metrics = self.evaluate()
+        
         if self.current_epoch + 1 not in self.test_results:
             self.test_results[self.current_epoch + 1] = {"server" : {"after" : metrics}}
         else:
@@ -724,7 +717,7 @@ class FedAvgServer:
 
             # log server accuracy
             if flag and self.current_epoch+1 in self.test_results:
-                if self.args.common.visible == "visdom":
+                if self.args.common.monitor == "visdom":
                     self.viz.line(
                         [self.test_results[self.current_epoch+1]["server"]["after"][split].accuracy],
                         [self.current_epoch + 1],
@@ -738,7 +731,7 @@ class FedAvgServer:
                             legend=[self.algorithm_name],
                         ),
                     )
-                elif self.args.common.visible == "tensorboard":
+                elif self.args.common.monitor == "tensorboard":
                     self.tensorboard.add_scalar(
                         f"Accuracy-{self.monitor_window_name_suffix}/{split}set-CentralizedEvaluation",
                         self.test_results[self.current_epoch+1]["server"]["after"][split].accuracy,
