@@ -75,7 +75,7 @@ DEFAULTS = {
         "eval_val": False,
         "eval_train": False,
         "verbose_gap": 10,
-        "visible": None,
+        "monitor": None,
         "use_cuda": True,
         "save_log": True,
         "save_model": False,

@@ -11,9 +11,11 @@ updates:
       interval: "weekly"
     ignore:
       - dependency-name: "numpy"
-    open-pull-requests-limit: 2
-    
+    open-pull-requests-limit: 1
+    target-branch: "dev"
+
   - package-ecosystem: "github-actions" # See documentation for possible values
     directory: "/" # Location of package manifests
     schedule:
       interval: "weekly"
+    target-branch: "dev"
