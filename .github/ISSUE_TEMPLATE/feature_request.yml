@@ -1,0 +1,26 @@
+name: Feature Request
+description: Suggest a new algorithm, framework function, ...
+labels: ['enhancement']
+
+body:
+- type: markdown
+  attributes:
+    value: >
+      #### If you want to propose a new feature, please check the PRs if someone already works on this feature.
+- type: textarea
+  attributes:
+    label: Feature Description
+    placeholder: >
+      Describe the type of feature and its functionality.
+  validations:
+    required: true
+- type: textarea
+  attributes:
+    label: To Reproduce
+    placeholder: >
+      label: Describe step by step what files and adjustments are you planning to include.
+- type: textarea
+  attributes:
+    label: Additional context
+    placeholder: >
+      Add any other context about the problem here.

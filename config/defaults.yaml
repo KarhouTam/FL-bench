@@ -105,7 +105,7 @@ common:
   eval_train: false
 
   verbose_gap: 10 # Interval round of displaying clients training performance on terminal.
-  visible: null # [null, visdom, tensorboard]
+  monitor: null # [null, visdom, tensorboard]
   use_cuda: true # Whether to use cuda for training.
 
   save_log: true # Whether to save log files in out/<method>/<start_time>.
