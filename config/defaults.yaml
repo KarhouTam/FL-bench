@@ -16,7 +16,7 @@ model:
 
   # Whether to use torchvision integrated model weights.
   # Has no effect if model is lenet5, 2nn or fedavgcnn
-  use_torchvision_pretrained_weights: true
+  use_torchvision_pretrained_weights: false
 
   # The model parameters `.pt` file relative path to the directory of FL-bench.
   # This feature is enabled only when `unique_model=False`,
@@ -54,7 +54,7 @@ optimizer:
   betas: [0.9, 0.999] # for [Adam, AdamW]
   amsgrad: false # for [Adam, AdamW]
 
-mode: serial # [serial, parallel]
+mode: parallel # [serial, parallel]
 # It's fine to keep these configs. if mode is 'serial', these configs will be ignored.
 parallel:
   # The IP address of the selected ray cluster.
@@ -67,16 +67,16 @@ parallel:
   # The amount of computational resources you allocate for your Ray cluster.
   # Default as null for all.
   num_cpus: null
-  num_gpus: null
+  num_gpus: 1
 
   # Should be set larger than 1, or training mode fallback to `serial`
   # Set a larger `num_workers` can further boost efficiency,
   # but also let each worker have less computational resources.
-  num_workers: 2
+  num_workers: 10
 
 common:
   seed: 42 # Random seed of the run.
-  join_ratio: 0.1 # Ratio for (client each round) / (client num in total).
+  join_ratio: 1.0 # Ratio for (client each round) / (client num in total).
   global_epoch: 100 # Number of global epochs, also called communication round.
   local_epoch: 5 # Number if epochs of client local training.
   finetune_epoch: 0 # Number of epochs of clients fine-tunning their models before test.
@@ -100,12 +100,18 @@ common:
 
   # Set eval_<...> as true for performing evaluation on <...>sets held by
   # this round's joined clients before and after local training.
-  eval_test: true
+  eval_test: false
   eval_val: false
-  eval_train: false
+  eval_train: true
+
+  # Set test_<...> as true for performing testing on <...>sets on
+  # all clients or the server.
+  test_test: true
+  test_val: false
+  test_train: false
 
   verbose_gap: 10 # Interval round of displaying clients training performance on terminal.
-  monitor: null # [null, visdom, tensorboard]
+  monitor: tensorboard # [null, visdom, tensorboard]
   use_cuda: true # Whether to use cuda for training.
 
   save_log: true # Whether to save log files in out/<method>/<start_time>.

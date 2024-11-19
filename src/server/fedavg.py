@@ -550,7 +550,7 @@ class FedAvgServer:
         test_metrics = Metrics()
         criterion = torch.nn.CrossEntropyLoss(reduction="sum")
 
-        if len(self.testset) > 0 and self.args.common.eval_test:
+        if len(self.testset) > 0 and self.args.common.test_test:
             test_metrics = evaluate_model(
                 model=target_model,
                 dataloader=self.testloader,
@@ -559,7 +559,7 @@ class FedAvgServer:
                 model_in_eval_mode=model_in_eval_mode
             )
 
-        if len(self.valset) > 0 and self.args.common.eval_val:
+        if len(self.valset) > 0 and self.args.common.test_val:
             val_metrics = evaluate_model(
                 model=target_model,
                 dataloader=self.valloader,
@@ -568,7 +568,7 @@ class FedAvgServer:
                 model_in_eval_mode=model_in_eval_mode
             )
 
-        if len(self.trainset) > 0 and self.args.common.eval_train:
+        if len(self.trainset) > 0 and self.args.common.test_train:
             train_metrics = evaluate_model(
                 model=target_model,
                 dataloader=self.trainloader,
@@ -678,13 +678,13 @@ class FedAvgServer:
 
     def log_info(self):
         """Accumulate client evaluation results at each round."""
-        for split, flag in [
-                ("train", self.args.common.eval_train),
-                ("val", self.args.common.eval_val),
-                ("test", self.args.common.eval_test),
+        for split, eval_flag, test_flag in [
+                ("train", self.args.common.eval_train, self.args.common.test_train),
+                ("val", self.args.common.eval_val, self.args.common.test_val),
+                ("test", self.args.common.eval_test, self.args.common.test_test),
             ]:
             for stage in ["before", "after"]:
-                if flag and any(self.current_epoch in self.client_metrics[i] for i in self.selected_clients):
+                if eval_flag and any(self.current_epoch in self.client_metrics[i] for i in self.selected_clients):
                     global_metrics = Metrics()
                     for i in self.selected_clients:
                         global_metrics.update(
@@ -716,7 +716,7 @@ class FedAvgServer:
                         )
 
             # log server accuracy
-            if flag and self.current_epoch+1 in self.test_results:
+            if test_flag and self.current_epoch+1 in self.test_results and "server" in self.test_results[self.current_epoch+1]:
                 if self.args.common.monitor == "visdom":
                     self.viz.line(
                         [self.test_results[self.current_epoch+1]["server"]["after"][split].accuracy],
