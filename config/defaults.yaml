@@ -16,7 +16,7 @@ model:
 
   # Whether to use torchvision integrated model weights.
   # Has no effect if model is lenet5, 2nn or fedavgcnn
-  use_torchvision_pretrained_weights: false
+  use_torchvision_pretrained_weights: true
 
   # The model parameters `.pt` file relative path to the directory of FL-bench.
   # This feature is enabled only when `unique_model=False`,
@@ -67,12 +67,12 @@ parallel:
   # The amount of computational resources you allocate for your Ray cluster.
   # Default as null for all.
   num_cpus: null
-  num_gpus: 1
+  num_gpus: null
 
   # Should be set larger than 1, or training mode fallback to `serial`
   # Set a larger `num_workers` can further boost efficiency,
   # but also let each worker have less computational resources.
-  num_workers: 10
+  num_workers: 2
 
 common:
   seed: 42 # Random seed of the run.
@@ -102,7 +102,7 @@ common:
   # this round's joined clients before and after local training.
   eval_test: true
   eval_val: false
-  eval_train: true
+  eval_train: false
 
   # Set test_<...> as true for performing testing on <...>sets on
   # all clients or the server.
