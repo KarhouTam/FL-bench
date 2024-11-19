@@ -54,7 +54,7 @@ optimizer:
   betas: [0.9, 0.999] # for [Adam, AdamW]
   amsgrad: false # for [Adam, AdamW]
 
-mode: parallel # [serial, parallel]
+mode: serial # [serial, parallel]
 # It's fine to keep these configs. if mode is 'serial', these configs will be ignored.
 parallel:
   # The IP address of the selected ray cluster.
@@ -76,7 +76,7 @@ parallel:
 
 common:
   seed: 42 # Random seed of the run.
-  join_ratio: 1.0 # Ratio for (client each round) / (client num in total).
+  join_ratio: 0.1 # Ratio for (client each round) / (client num in total).
   global_epoch: 100 # Number of global epochs, also called communication round.
   local_epoch: 5 # Number if epochs of client local training.
   finetune_epoch: 0 # Number of epochs of clients fine-tunning their models before test.
@@ -100,7 +100,7 @@ common:
 
   # Set eval_<...> as true for performing evaluation on <...>sets held by
   # this round's joined clients before and after local training.
-  eval_test: false
+  eval_test: true
   eval_val: false
   eval_train: true
 
@@ -111,7 +111,7 @@ common:
   test_train: false
 
   verbose_gap: 10 # Interval round of displaying clients training performance on terminal.
-  monitor: tensorboard # [null, visdom, tensorboard]
+  monitor: null # [null, visdom, tensorboard]
   use_cuda: true # Whether to use cuda for training.
 
   save_log: true # Whether to save log files in out/<method>/<start_time>.
