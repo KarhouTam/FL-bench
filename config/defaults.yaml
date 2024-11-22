@@ -82,7 +82,7 @@ common:
   finetune_epoch: 0 # Number of epochs of clients fine-tunning their models before test.
   batch_size: 32 # Data batch size for client local training.
   test_interval: 100 # Interval round of performing test on all test clients.
-  test_server_interval: 1 # Interval round of performing test on centralized server model.
+  test_server_interval: -1 # Interval round of performing test on centralized server model.
   reset_optimizer_on_global_epoch: true # Whether to reset optimizer on each global epoch.
   
 
@@ -106,7 +106,7 @@ common:
 
   # Set test_<...> as true for performing testing on <...>sets on
   # all clients or the server.
-  test_test: true
+  test_test: false
   test_val: false
   test_train: false
 

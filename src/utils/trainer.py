@@ -44,14 +44,13 @@ class FLbenchTrainer:
             client_package = self.worker.train(server_package)
             client_packages[client_id] = client_package
 
-            if self.server.verbose and client_package["eval_results"]:
+            if self.server.verbose:
                 self.server.logger.log(
                     *client_package["eval_results"]["message"], sep="\n"
                 )
-            if client_package["eval_results"]:
-                self.server.client_metrics[client_id][self.server.current_epoch] = (
-                    client_package["eval_results"]
-                )
+            self.server.client_metrics[client_id][self.server.current_epoch] = (
+                client_package["eval_results"]
+            )
             self.server.clients_personal_model_params[client_id].update(
                 client_package["personal_model_params"]
             )
@@ -88,15 +87,14 @@ class FLbenchTrainer:
                     idle_workers.append(worker_id)
                     client_packages[client_id] = client_package
 
-                    if self.server.verbose and client_package["eval_results"]:
+                    if self.server.verbose:
                         self.server.logger.log(
                             *client_package["eval_results"]["message"], sep="\n"
                         )
 
-                    if client_package["eval_results"]:
-                        self.server.client_metrics[client_id][self.server.current_epoch] = (
-                            client_package["eval_results"]
-                        )
+                    self.server.client_metrics[client_id][self.server.current_epoch] = (
+                        client_package["eval_results"]
+                    )
                     self.server.clients_personal_model_params[client_id].update(
                         client_package["personal_model_params"]
                     )

@@ -219,12 +219,11 @@ class FedAvgClient:
                 self.lr_scheduler.step()
 
     @torch.no_grad()
-    def evaluate(self, model: torch.nn.Module = None, test_mode: bool = False ) -> dict[str, Metrics]:
+    def evaluate(self, model: torch.nn.Module = None) -> dict[str, Metrics]:
         """Evaluating client model.
 
         Args:
             model: Used model. Defaults to None, which will fallback to `self.model`.
-            test_mode: Whether to use test_<split> config for specifying testing splits.
 
         Returns:
             A evalution results dict: {
@@ -241,7 +240,7 @@ class FedAvgClient:
         test_metrics = Metrics()
         criterion = torch.nn.CrossEntropyLoss(reduction="sum")
 
-        if len(self.testset) > 0 and ((not test_mode and self.args.common.eval_test) or (test_mode and self.args.common.test_test)):
+        if len(self.testset) > 0 and ((not self.testing and self.args.common.eval_test) or (self.testing and self.args.common.test_test)):
 
             test_metrics = evaluate_model(
                 model=target_model,
@@ -250,7 +249,7 @@ class FedAvgClient:
                 device=self.device,
             )
 
-        if len(self.valset) > 0 and ((not test_mode and self.args.common.eval_val) or ( test_mode and self.args.common.eval_val)):
+        if len(self.valset) > 0 and ((not self.testing and self.args.common.eval_val) or ( self.testing and self.args.common.eval_val)):
             val_metrics = evaluate_model(
                 model=target_model,
                 dataloader=self.valloader,
@@ -258,7 +257,7 @@ class FedAvgClient:
                 device=self.device,
             )
 
-        if len(self.trainset) > 0 and ((not test_mode and self.args.common.eval_train) or ( test_mode and self.args.common.eval_train)):
+        if len(self.trainset) > 0 and ((not self.testing and self.args.common.eval_train) or ( self.testing and self.args.common.eval_train)):
             train_metrics = evaluate_model(
                 model=target_model,
                 dataloader=self.trainloader,
@@ -291,11 +290,11 @@ class FedAvgClient:
             "after": {"train": Metrics(), "val": Metrics(), "test": Metrics()},
         }
 
-        results["before"] = self.evaluate(test_mode=True)
+        results["before"] = self.evaluate()
         if self.args.common.finetune_epoch > 0:
             frz_params_dict = deepcopy(self.model.state_dict())
             self.finetune()
-            results["after"] = self.evaluate(test_mode=True)
+            results["after"] = self.evaluate()
             self.model.load_state_dict(frz_params_dict)
 
         self.testing = False
