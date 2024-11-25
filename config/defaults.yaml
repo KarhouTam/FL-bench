@@ -84,6 +84,7 @@ common:
   test_interval: 100 # Interval round of performing test on all test clients.
   test_server_interval: -1 # Interval round of performing test on centralized server model.
   reset_optimizer_on_global_epoch: true # Whether to reset optimizer on each global epoch.
+  test_server_in_train_mode: false # Whether to evaluate the server model in train mode or eval mode. Evaluating in train mode allows to get better batchnorm statistics, but is dependent on the order of the data.
   
 
   # The ratio of stragglers (set in [0, 1]).

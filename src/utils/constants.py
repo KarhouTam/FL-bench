@@ -65,6 +65,7 @@ DEFAULTS = {
         "local_epoch": 5,
         "finetune_epoch": 0,
         "reset_optimizer_on_global_epoch": True,
+        "test_server_in_train_mode": False,
         "batch_size": 32,
         "test_interval": 100,
         "test_server_interval": -1,

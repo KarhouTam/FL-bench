@@ -92,7 +92,7 @@ def evaluate_model(
     dataloader: DataLoader,
     criterion=torch.nn.CrossEntropyLoss(reduction="sum"),
     device=torch.device("cpu"),
-    model_in_eval_mode: bool = True,
+    model_in_train_mode: bool = False,
 ) -> Metrics:
     """For evaluating the `model` over `dataloader` and return metrics.
 
@@ -106,10 +106,10 @@ def evaluate_model(
     Returns:
         Metrics: The metrics objective.
     """
-    if model_in_eval_mode:
-        model.eval()
-    else:
+    if model_in_train_mode:
         model.train()
+    else:
+        model.eval()
     model.to(device)
     metrics = Metrics()
     for x, y in dataloader:

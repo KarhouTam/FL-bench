@@ -520,7 +520,7 @@ class FedAvgServer:
         """The function for testing FL method's output (a single global model
         or personalized client models)."""
         self.testing = True
-        metrics = self.evaluate()
+        metrics = self.evaluate(model_in_train_mode=self.args.common.test_server_in_train_mode)
         
         if self.current_epoch + 1 not in self.test_results:
             self.test_results[self.current_epoch + 1] = {"server" : {"after" : metrics}}
@@ -530,7 +530,7 @@ class FedAvgServer:
         self.testing = False
     
     @torch.no_grad()
-    def evaluate(self, model: torch.nn.Module = None, model_in_eval_mode: bool = True) -> dict[str, Metrics]:
+    def evaluate(self, model: torch.nn.Module = None, model_in_train_mode: bool = True) -> dict[str, Metrics]:
         """Evaluating server model.
 
         Args:
@@ -556,7 +556,7 @@ class FedAvgServer:
                 dataloader=self.testloader,
                 criterion=criterion,
                 device=self.device,
-                model_in_eval_mode=model_in_eval_mode
+                model_in_train_mode=model_in_train_mode
             )
 
         if len(self.valset) > 0 and self.args.common.test_val:
@@ -565,7 +565,7 @@ class FedAvgServer:
                 dataloader=self.valloader,
                 criterion=criterion,
                 device=self.device,
-                model_in_eval_mode=model_in_eval_mode
+                model_in_train_mode=model_in_train_mode
             )
 
         if len(self.trainset) > 0 and self.args.common.test_train:
@@ -574,7 +574,7 @@ class FedAvgServer:
                 dataloader=self.trainloader,
                 criterion=criterion,
                 device=self.device,
-                model_in_eval_mode=model_in_eval_mode
+                model_in_train_mode=model_in_train_mode
             )
         return {"train": train_metrics, "val": val_metrics, "test": test_metrics}
 
