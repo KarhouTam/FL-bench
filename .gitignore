@@ -1,0 +1,24 @@
+# caches
+__pycache__
+.ruff_cache
+
+# configs
+config/*
+!config/defaults.yaml
+
+# IDE configurations
+.idea
+.vscode
+
+# logs
+out
+multirun
+
+# datasets
+data/
+!data/utils/
+!data/README.md
+!data/tune_ratios_manually.ipynb
+!data/domain/preprocess.py
+!data/femnist/preprocess/
+
