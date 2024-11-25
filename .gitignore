@@ -164,7 +164,15 @@ cython_debug/
 # Ignore log output
 out/
 multirun/
-data/
-!data/utils/
-!data/README.md
-!data/tune_ratios_manually.ipynb
+data/cifar10
+data/mnist
+data/synthetic
+data/emnist
+data/femnist
+data/cinic10
+data/cifar100
+data/tiny_imagenet
+data/domain
+data/medmnistA
+!data/domain/preprocess.py
+!data/femnist/preprocess/
