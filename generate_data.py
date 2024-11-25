@@ -368,8 +368,8 @@ if __name__ == "__main__":
     parser.add_argument("-ls", "--least_samples", type=int, default=40)
 
     # Flower partitioner
-    parser.add_argument("--flower_partitioner_class", type=str, default="")
-    parser.add_argument("--flower_partitioner_kwargs", type=str, default="{}")
+    parser.add_argument("-fpc", "--flower_partitioner_class", type=str, default="")
+    parser.add_argument("-fpk", "--flower_partitioner_kwargs", type=str, default="{}")
 
     # For synthetic data only
     parser.add_argument("--gamma", type=float, default=0.5)
