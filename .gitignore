@@ -15,10 +15,32 @@ out
 multirun
 
 # datasets
-data/
-!data/utils/
-!data/README.md
-!data/tune_ratios_manually.ipynb
-!data/domain/preprocess.py
-!data/femnist/preprocess/
+data/cifar10
+data/cifar100
+data/mnist
+data/emnist
+data/fmnist
+data/femnist/data
+data/femnist/meta
+data/medmnistS
+data/medmnistC
+data/medmnistA
+data/covid19
+data/celeba/data
+data/femnist/meta
+data/synthetic
+data/svhn
+data/usps
+data/tiny_imagenet
+data/cinic10
+data/domain/raw
 
+# data files
+*.npy
+*.pkl
+
+# output files
+*.csv
+*.json
+*.png
+*.pt
