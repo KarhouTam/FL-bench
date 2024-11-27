@@ -108,7 +108,7 @@ def semantic_partition(
     del embeddings
 
     # PCA transformation
-    if 0 < pca_components < embeddings_scaled.shape[1]:
+    if pca_components is None or 0 < pca_components < embeddings_scaled.shape[1]:
         logger.log("PCA transforming...")
         pca = PCA(n_components=pca_components, random_state=seed)
 
@@ -173,7 +173,7 @@ def semantic_partition(
                 trils_1=label_cluster_trils[latest_matched_label],
                 means_2=label_cluster_means[label_to_match],
                 trils_2=label_cluster_trils[label_to_match],
-                batch_size=32,
+                batch_size=10,
                 device=device,
             )
             .cpu()
