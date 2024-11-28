@@ -78,6 +78,7 @@ jobs:
         with:
           context: .
           file: .env/Dockerfile
+          platforms: linux/amd64,linux/arm64
           push: true
           tags: |
             ${{ env.GITHUB_REGISTRY }}/${{ env.IMAGE_LOWERCASE_OWNER }}/${{ env.IMAGE_LOWERCASE_NAME }}:${{ env.IMAGE_TAG }}
