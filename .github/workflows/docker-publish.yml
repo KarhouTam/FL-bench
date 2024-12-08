@@ -7,12 +7,6 @@ on:
     paths:
       - ".env/**"
       - ".github/workflows/docker-publish.yml"
-  pull_request:
-    branches:
-      - master
-    paths:
-      - ".env/**"
-      - ".github/workflows/docker-publish.yml"
 
 env:
   IMAGE_LOWERCASE_NAME: fl-bench
