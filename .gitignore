@@ -15,6 +15,7 @@ out
 multirun
 
 # datasets
+
 data/cifar10
 data/cifar100
 data/mnist
@@ -27,7 +28,7 @@ data/medmnistC
 data/medmnistA
 data/covid19
 data/celeba/data
-data/femnist/meta
+data/celeba/meta
 data/synthetic
 data/svhn
 data/usps
