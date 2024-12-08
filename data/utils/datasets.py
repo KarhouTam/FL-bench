@@ -34,8 +34,8 @@ class BaseDataset(Dataset):
         self.train_target_transform = train_target_transform
         self.test_data_transform = test_data_transform
         self.test_target_transform = test_target_transform
-        self.data_transform: Optional[transforms.Compose] = None
-        self.target_transform: Optional[transforms.Compose] = None
+        self.data_transform = self.train_data_transform
+        self.target_transform = self.train_target_transform
 
         # rescale data to fit in [0, 1.0] if needed
         self._rescale_data()

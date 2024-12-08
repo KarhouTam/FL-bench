@@ -60,14 +60,27 @@ class DecoupledModel(nn.Module):
     def forward(self, x: Tensor) -> Tensor:
         return self.classifier(self.base(x))
 
-    def get_last_features(self, data: Tensor, detach=True) -> Tensor:
+    def get_last_features(self, x: Tensor, detach=True) -> Tensor:
         if len(self.dropout) > 0:
             for dropout in self.dropout:
                 dropout.eval()
 
         func = (lambda x: x.detach().clone()) if detach else (lambda x: x)
-        out = self.base(data)
-
+        try:
+            out = self.base(x)
+        except RuntimeError as err:
+            if x.shape[1] == 1:
+                x = x.broadcast_to(x.shape[0], 3, *x.shape[2:])
+                try:
+                    out = self.base(x)
+                except RuntimeError as err:
+                    raise RuntimeError(
+                        f"Seems {self.__class__.__name__} does not support this dataset. Data resizing may help."
+                    ) from err
+            else:
+                raise RuntimeError(
+                    f"Seems {self.__class__.__name__} does not support this dataset."
+                ) from err
         if len(self.dropout) > 0:
             for dropout in self.dropout:
                 dropout.train()
@@ -81,7 +94,21 @@ class DecoupledModel(nn.Module):
                 dropout.eval()
 
         self.need_all_features_flag = True
-        _ = self.base(x)
+        try:
+            _ = self.base(x)
+        except RuntimeError as err:
+            if x.shape[1] == 1:
+                x = x.broadcast_to(x.shape[0], 3, *x.shape[2:])
+                try:
+                    _ = self.base(x)
+                except RuntimeError as err:
+                    raise RuntimeError(
+                        f"Seems {self.__class__.__name__} does not support this dataset. Data resizing may help."
+                    ) from err
+            else:
+                raise RuntimeError(
+                    f"Seems {self.__class__.__name__} does not support this dataset."
+                ) from err
         self.need_all_features_flag = False
 
         if len(self.all_features) > 0:
