@@ -5,7 +5,7 @@ from typing import Any
 import torch
 
 from src.client.fedavg import FedAvgClient
-from src.utils.tools import evalutate_model, vectorize
+from src.utils.tools import evaluate_model, vectorize
 
 
 class FedFomoClient(FedAvgClient):
@@ -53,7 +53,7 @@ class FedFomoClient(FedAvgClient):
         )
         vectorized_self_params = vectorize(self.eval_model)
 
-        LOSS = evalutate_model(
+        LOSS = evaluate_model(
             model=self.eval_model,
             dataloader=self.valloader,
             criterion=self.criterion,
@@ -67,7 +67,7 @@ class FedFomoClient(FedAvgClient):
             package["model_params_from_selected_clients"].items()
         ):
             self.eval_model.load_state_dict(params_i, strict=False)
-            loss = evalutate_model(
+            loss = evaluate_model(
                 model=self.eval_model,
                 dataloader=self.valloader,
                 criterion=self.criterion,

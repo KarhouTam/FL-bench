@@ -48,7 +48,6 @@ class FLbenchTrainer:
                 self.server.logger.log(
                     *client_package["eval_results"]["message"], sep="\n"
                 )
-
             self.server.client_metrics[client_id][self.server.current_epoch] = (
                 client_package["eval_results"]
             )
