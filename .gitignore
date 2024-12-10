@@ -15,6 +15,7 @@ out
 multirun
 
 # datasets
+
 data/cifar10
 data/cifar100
 data/mnist
