@@ -292,7 +292,6 @@ class FedAvgServer:
                 ),
             )
 
-
     def get_clients_data_indices(self) -> list[dict[str, list[int]]]:
         """Gets a list of client data indices.
 
@@ -711,11 +710,7 @@ class FedAvgServer:
                 self.args.common.test.client.train,
                 self.args.common.test.server.train,
             ),
-            (
-                "val",
-                self.args.common.test.client.val,
-                self.args.common.test.server.val,
-            ),
+            ("val", self.args.common.test.client.val, self.args.common.test.server.val),
             (
                 "test",
                 self.args.common.test.client.test,
