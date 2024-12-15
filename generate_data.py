@@ -112,7 +112,7 @@ def main(args):
                     label_set=valid_label_set,
                     client_num=client_num,
                     alpha=args.alpha,
-                    least_samples=args.least_samples,
+                    min_samples_per_client=args.min_samples_per_client,
                     partition=partition,
                     stats=stats,
                 )
@@ -354,7 +354,7 @@ if __name__ == "__main__":
 
     # Dirichlet
     parser.add_argument("-a", "--alpha", type=float, default=0)
-    parser.add_argument("-ls", "--least_samples", type=int, default=40)
+    parser.add_argument("-ms", "--min_samples_per_client", type=int, default=10)
 
     # For synthetic data only
     parser.add_argument("--gamma", type=float, default=0.5)

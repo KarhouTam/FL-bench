@@ -44,7 +44,7 @@ class pFedMeServer(FedAvgServer):
         return server_package
 
     @torch.no_grad()
-    def aggregate(self, client_packages: dict[int, dict[str, Any]]):
+    def aggregate_client_updates(self, client_packages: dict[int, dict[str, Any]]):
         client_weights = [package["weight"] for package in client_packages.values()]
         clients_local_model_params = [
             package["local_model_params"] for package in client_packages.values()

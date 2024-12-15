@@ -75,7 +75,7 @@ class FedGenServer(FedAvgServer):
     def train_one_round(self):
         client_packages = self.trainer.train()
         self.train_generator(client_packages)
-        self.aggregate(client_packages)
+        self.aggregate_client_updates(client_packages)
 
     def train_generator(self, client_packages: dict[int, dict[str, Any]]):
         self.generator.train()

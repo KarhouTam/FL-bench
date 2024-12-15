@@ -11,7 +11,7 @@ import warnings
 from collections import OrderedDict
 from copy import deepcopy
 from pathlib import Path
-from typing import Any, Union
+from typing import Any, Dict, List, Union
 
 import numpy as np
 import ray
@@ -86,13 +86,13 @@ class FedAvgServer:
                 FLBENCH_ROOT / "data" / self.args.dataset.name / "partition.pkl"
             )
             with open(partition_path, "rb") as f:
-                partition = pickle.load(f)
+                self.data_partition = pickle.load(f)
         except:
             raise FileNotFoundError(f"Please partition {self.args.dataset.name} first.")
-        self.train_clients: list[int] = partition["separation"]["train"]
-        self.test_clients: list[int] = partition["separation"]["test"]
-        self.val_clients: list[int] = partition["separation"]["val"]
-        self.client_num: int = partition["separation"]["total"]
+        self.train_clients: List[int] = self.data_partition["separation"]["train"]
+        self.test_clients: List[int] = self.data_partition["separation"]["test"]
+        self.val_clients: List[int] = self.data_partition["separation"]["val"]
+        self.client_num: int = self.data_partition["separation"]["total"]
 
         # init model(s) parameters
         self.model: DecoupledModel = MODELS[self.args.model.name](
@@ -139,7 +139,7 @@ class FedAvgServer:
 
         self.client_lr_scheduler_states = {i: {} for i in range(self.client_num)}
 
-        self.client_local_epoches: list[int] = [
+        self.client_local_epoches: List[int] = [
             self.args.common.local_epoch
         ] * self.client_num
 
@@ -172,7 +172,7 @@ class FedAvgServer:
             )
             for _ in range(self.args.common.global_epoch)
         ]
-        self.selected_clients: list[int] = []
+        self.selected_clients: List[int] = []
         self.current_epoch = 0
 
         # For controlling behaviors of some specific methods while testing (not used by all methods)
@@ -198,7 +198,7 @@ class FedAvgServer:
             enable_log=self.args.common.save_log,
             logfile_path=self.output_dir / "main.log",
         )
-        self.test_results: dict[int, dict[str, dict[str, Metrics]]] = {}
+        self.test_results: Dict[int, Dict[str, Dict[str, Metrics]]] = {}
         self.train_progress_bar = track(
             range(self.args.common.global_epoch),
             "[bold green]Training...",
@@ -446,17 +446,17 @@ class FedAvgServer:
             )
 
             if (
-                self.args.common.test_server_interval > 0
-                and (E + 1) % self.args.common.test_server_interval == 0
+                self.args.common.test.server.interval > 0
+                and (E + 1) % self.args.common.test.server.interval == 0
             ):
-                self.test_server()
+                self.test_global_model()
             if (
-                self.args.common.test_interval > 0
-                and (E + 1) % self.args.common.test_interval == 0
+                self.args.common.test.client.interval > 0
+                and (E + 1) % self.args.common.test.client.interval == 0
             ):
-                self.test()
+                self.test_client_models()
 
-            self.log_info()
+            self.log_clients_metrics()
 
         self.logger.log(
             f"{self.algorithm_name}'s average time taken by each global epoch: "
@@ -468,7 +468,7 @@ class FedAvgServer:
         server side) in each communication round."""
 
         client_packages = self.trainer.train()
-        self.aggregate(client_packages)
+        self.aggregate_client_updates(client_packages)
 
     def package(self, client_id: int):
         """Package parameters that the client-side training needs. If you are
@@ -501,7 +501,7 @@ class FedAvgServer:
             return_diff=self.return_diff,
         )
 
-    def test(self):
+    def test_client_models(self):
         """The function for testing FL method's output (a single global model
         or personalized client models)."""
         self.testing = True
@@ -531,12 +531,12 @@ class FedAvgServer:
 
         self.testing = False
 
-    def test_server(self):
+    def test_global_model(self):
         """The function for testing FL method's output (a single global model
         or personalized client models)."""
         self.testing = True
         metrics = self.evaluate(
-            model_in_train_mode=self.args.common.test_server_in_train_mode
+            model_in_train_mode=self.args.common.test.server.model_in_train_mode
         )
 
         if self.current_epoch + 1 not in self.test_results:
@@ -574,7 +574,7 @@ class FedAvgServer:
         test_metrics = Metrics()
         criterion = torch.nn.CrossEntropyLoss(reduction="sum")
 
-        if len(self.testset) > 0 and self.args.common.test_test:
+        if len(self.testset) > 0 and self.args.common.test.server.test:
             test_metrics = evaluate_model(
                 model=target_model,
                 dataloader=self.testloader,
@@ -583,7 +583,7 @@ class FedAvgServer:
                 model_in_train_mode=model_in_train_mode,
             )
 
-        if len(self.valset) > 0 and self.args.common.test_val:
+        if len(self.valset) > 0 and self.args.common.test.server.val:
             val_metrics = evaluate_model(
                 model=target_model,
                 dataloader=self.valloader,
@@ -592,7 +592,7 @@ class FedAvgServer:
                 model_in_train_mode=model_in_train_mode,
             )
 
-        if len(self.trainset) > 0 and self.args.common.test_train:
+        if len(self.trainset) > 0 and self.args.common.test.server.train:
             train_metrics = evaluate_model(
                 model=target_model,
                 dataloader=self.trainloader,
@@ -622,7 +622,9 @@ class FedAvgServer:
         )
 
     @torch.no_grad()
-    def aggregate(self, client_packages: OrderedDict[int, dict[str, Any]]):
+    def aggregate_client_updates(
+        self, client_packages: OrderedDict[int, Dict[str, Any]]
+    ):
         """Aggregate clients model parameters and produce global model
         parameters.
 
@@ -664,7 +666,7 @@ class FedAvgServer:
                 global_param.data = aggregated
         self.model.load_state_dict(self.public_model_params, strict=False)
 
-    def show_convergence(self):
+    def show_convergence_metrics(self):
         """Collect the number of epoches that FL method reach specific
         accuracies while training."""
         colors = {
@@ -700,12 +702,20 @@ class FedAvgServer:
                                 break
                         acc_range = acc_range[:min_acc_idx]
 
-    def log_info(self):
+    def log_clients_metrics(self):
         """Accumulate client evaluation results at each round."""
         for split, eval_flag, test_flag in [
-            ("train", self.args.common.eval_train, self.args.common.test_train),
-            ("val", self.args.common.eval_val, self.args.common.test_val),
-            ("test", self.args.common.eval_test, self.args.common.test_test),
+            (
+                "train",
+                self.args.common.test.client.train,
+                self.args.common.test.server.train,
+            ),
+            ("val", self.args.common.test.client.val, self.args.common.test.server.val),
+            (
+                "test",
+                self.args.common.test.client.test,
+                self.args.common.test.server.test,
+            ),
         ]:
             for stage in ["before", "after"]:
                 if eval_flag and any(
@@ -801,17 +811,18 @@ class FedAvgServer:
                         for split, flag in [
                             (
                                 "train",
-                                self.args.common.eval_train
-                                or self.args.common.test_train,
+                                self.args.common.test.client.train
+                                or self.args.common.test.server.train,
                             ),
                             (
                                 "val",
-                                self.args.common.eval_val or self.args.common.test_val,
+                                self.args.common.test.client.val
+                                or self.args.common.test.server.val,
                             ),
                             (
                                 "test",
-                                self.args.common.eval_test
-                                or self.args.common.test_test,
+                                self.args.common.test.client.test
+                                or self.args.common.test.server.test,
                             ),
                         ]:
                             if flag:
@@ -842,15 +853,77 @@ class FedAvgServer:
             _print(["all_clients"])
         else:
             _print(["val_clients", "test_clients"])
-        if self.args.common.test_server_interval > 0:
+        if self.args.common.test.server.interval > 0:
             _print(["centralized"])
 
-    def run(self):
-        """The entrypoint of FL-bench experiment.
+    def save_model_weights(self):
+        model_name = f"{self.args.dataset.name}_{self.args.common.global_epoch}_{self.args.model}.pt"
+        if not self.unique_model:
+            torch.save(self.public_model_params, self.output_dir / model_name)
+        else:
+            warnings.warn(
+                f"{self.algorithm_name}'s unique_model = True, "
+                "which does not support saving model parameters. "
+                "So the saving is skipped."
+            )
 
-        Raises:
-            RuntimeError: When FL-bench trainer is not set properly.
-        """
+    def save_training_curves_plot(self):
+        """Save the training curves of FL-bench experiment."""
+        import matplotlib
+        from matplotlib import pyplot as plt
+
+        matplotlib.use("Agg")
+        linestyle = {
+            "before": {"train": "dotted", "val": "dashed", "test": "solid"},
+            "after": {"train": "dotted", "val": "dashed", "test": "solid"},
+        }
+        for stage in ["before", "after"]:
+            for split in ["train", "val", "test"]:
+                if len(self.global_metrics[stage][split]) > 0:
+                    plt.plot(
+                        [
+                            metrics.accuracy
+                            for metrics in self.global_metrics[stage][split]
+                        ],
+                        label=f"{split}set ({stage}LocalTraining)",
+                        ls=linestyle[stage][split],
+                    )
+
+        plt.title(f"{self.algorithm_name}_{self.args.dataset.name}")
+        plt.ylim(0, 100)
+        plt.xlabel("Communication Rounds")
+        plt.ylabel("Accuracy")
+        plt.legend()
+        plt.savefig(self.output_dir / f"metrics.png", bbox_inches="tight")
+
+    def save_metrics_stats(self):
+        """Save the metrics stats of FL-bench experiment."""
+        import pandas as pd
+
+        df = pd.DataFrame()
+        for stage in ["before", "after"]:
+            for split in ["train", "val", "test"]:
+                if len(self.global_metrics[stage][split]) > 0:
+                    for metric in [
+                        "accuracy",
+                        # "micro_precision",
+                        # "macro_precision",
+                        # "micro_recall",
+                        # "macro_recall",
+                    ]:
+                        stats = [
+                            getattr(metrics, metric)
+                            for metrics in self.global_metrics[stage][split]
+                        ]
+                        df.insert(
+                            loc=df.shape[1],
+                            column=f"{metric}_{split}_{stage}",
+                            value=np.array(stats).T,
+                        )
+        df.to_csv(self.output_dir / f"metrics.csv", index=True, index_label="epoch")
+
+    def run_experiment(self):
+        """The entrypoint of FL-bench experiment."""
         self.logger.log("=" * 20, self.algorithm_name, "=" * 20)
         self.logger.log("Experiment Arguments:")
         rich_pprint(
@@ -895,25 +968,34 @@ class FedAvgServer:
         )
         self.logger.log("=" * 20, self.algorithm_name, "Experiment Results:", "=" * 20)
         self.logger.log(
-            "Format: [green](before local fine-tuning) -> [blue](after local fine-tuning)\n",
-            "So if finetune_epoch = 0, x.xx% -> 0.00% is normal.",
+            "[green]Display format: (before local fine-tuning) -> (after local fine-tuning)\n",
+            "So if finetune_epoch = 0, x.xx% -> 0.00% is normal.\n",
+            "Centralized testing ONLY happens after model aggregation, so the stats between '->' are the same.",
         )
         all_test_results = {
             epoch: {
                 group: {
                     split: {
-                        "loss": f"{metrics['before'][split].loss:.4f} -> {metrics['after'][split].loss:.4f}",
-                        "accuracy": f"{metrics['before'][split].accuracy:.2f}% -> {metrics['after'][split].accuracy:.2f}%",
+                        "loss": f"[red]{metrics['before'][split].loss:.4f} -> "
+                        f"{metrics['after'][split].loss:.4f}[/red]",
+                        "accuracy": f"[blue]{metrics['before'][split].accuracy:.2f}% -> "
+                        f"{metrics['after'][split].accuracy:.2f}%[/blue]",
                     }
                     for split, flag in [
                         (
                             "train",
-                            self.args.common.eval_train or self.args.common.test_train,
+                            self.args.common.test.client.train
+                            or self.args.common.test.server.train,
                         ),
-                        ("val", self.args.common.eval_val or self.args.common.test_val),
+                        (
+                            "val",
+                            self.args.common.test.client.val
+                            or self.args.common.test.server.val,
+                        ),
                         (
                             "test",
-                            self.args.common.eval_test or self.args.common.test_test,
+                            self.args.common.test.client.test
+                            or self.args.common.test.server.test,
                         ),
                     ]
                     if flag
@@ -932,73 +1014,19 @@ class FedAvgServer:
                     global_step=epoch,
                 )
 
-        self.show_convergence()
+        self.show_convergence_metrics()
         self.show_max_metrics()
 
         self.logger.close()
 
         # plot the training curves
         if self.args.common.save_fig:
-            import matplotlib
-            from matplotlib import pyplot as plt
-
-            matplotlib.use("Agg")
-            linestyle = {
-                "before": {"train": "dotted", "val": "dashed", "test": "solid"},
-                "after": {"train": "dotted", "val": "dashed", "test": "solid"},
-            }
-            for stage in ["before", "after"]:
-                for split in ["train", "val", "test"]:
-                    if len(self.global_metrics[stage][split]) > 0:
-                        plt.plot(
-                            [
-                                metrics.accuracy
-                                for metrics in self.global_metrics[stage][split]
-                            ],
-                            label=f"{split}set ({stage}LocalTraining)",
-                            ls=linestyle[stage][split],
-                        )
-
-            plt.title(f"{self.algorithm_name}_{self.args.dataset.name}")
-            plt.ylim(0, 100)
-            plt.xlabel("Communication Rounds")
-            plt.ylabel("Accuracy")
-            plt.legend()
-            plt.savefig(self.output_dir / f"metrics.png", bbox_inches="tight")
+            self.save_training_curves_plot()
 
         # save each round's metrics stats
         if self.args.common.save_metrics:
-            import pandas as pd
-
-            df = pd.DataFrame()
-            for stage in ["before", "after"]:
-                for split in ["train", "val", "test"]:
-                    if len(self.global_metrics[stage][split]) > 0:
-                        for metric in [
-                            "accuracy",
-                            # "micro_precision",
-                            # "macro_precision",
-                            # "micro_recall",
-                            # "macro_recall",
-                        ]:
-                            stats = [
-                                getattr(metrics, metric)
-                                for metrics in self.global_metrics[stage][split]
-                            ]
-                            df.insert(
-                                loc=df.shape[1],
-                                column=f"{metric}_{split}_{stage}",
-                                value=np.array(stats).T,
-                            )
-            df.to_csv(self.output_dir / f"metrics.csv", index=True, index_label="epoch")
+            self.save_metrics_stats()
 
         # save trained model(s) parameters
         if self.args.common.save_model:
-            model_name = f"{self.args.dataset.name}_{self.args.common.global_epoch}_{self.args.model}.pt"
-            if not self.unique_model:
-                torch.save(self.public_model_params, self.output_dir / model_name)
-            else:
-                warnings.warn(
-                    f"{self.algorithm_name}'s unique_model = True, which does not support saving model parameters. "
-                    "So the saving is skipped."
-                )
+            self.save_model_weights()

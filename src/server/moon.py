@@ -42,4 +42,4 @@ class MOONServer(FedAvgServer):
             self.clients_prev_model_params[client_id].update(
                 package["personal_model_params"]
             )
-        self.aggregate(client_packages)
+        self.aggregate_client_updates(client_packages)

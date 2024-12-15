@@ -32,10 +32,10 @@ class CCVRServer(FedAvgServer):
         )
         self.init_trainer(CCVRClient)
 
-    def test(self):
+    def test_client_models(self):
         frz_global_params_dict = deepcopy(self.public_model_params)
         self.calibrate_classifier()
-        super().test()
+        super().test_client_models()
         self.public_model_params = frz_global_params_dict
 
     def compute_classes_mean_cov(self):

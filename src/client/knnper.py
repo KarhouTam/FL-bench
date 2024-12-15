@@ -58,9 +58,9 @@ class kNNPerClient(FedAvgClient):
                 loss = criterion(logits, targets).item()
                 return Metrics(loss, pred, targets)
 
-            if len(self.testset) > 0 and self.args.common.eval_test:
+            if len(self.testset) > 0 and self.args.common.test.client.test:
                 test_metrics = _knnper_eval(self.testloader)
-            if len(self.valset) > 0 and self.args.common.eval_val:
+            if len(self.valset) > 0 and self.args.common.test.client.val:
                 val_metrics = _knnper_eval(self.valloader)
 
             self.dataset.enable_train_transform = True
