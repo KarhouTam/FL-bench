@@ -968,9 +968,9 @@ class FedAvgServer:
         )
         self.logger.log("=" * 20, self.algorithm_name, "Experiment Results:", "=" * 20)
         self.logger.log(
-            "[green]Display format: (before local fine-tuning) -> "
-            "(after local fine-tuning)\n",
-            "So if finetune_epoch = 0, x.xx% -> 0.00% is normal.",
+            "[green]Display format: (before local fine-tuning) -> (after local fine-tuning)\n",
+            "So if finetune_epoch = 0, x.xx% -> 0.00% is normal.\n",
+            "Centralized testing ONLY happens after model aggregation, so the stats between '->' are the same.",
         )
         all_test_results = {
             epoch: {
