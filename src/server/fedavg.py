@@ -908,12 +908,12 @@ class FedAvgServer:
                     for split, flag in [
                         (
                             "train",
-                            self.args.common.eval_train or self.args.common.test_test,
+                            self.args.common.eval_train or self.args.common.test_train,
                         ),
                         ("val", self.args.common.eval_val or self.args.common.test_val),
                         (
                             "test",
-                            self.args.common.eval_test or self.args.common.test_train,
+                            self.args.common.eval_test or self.args.common.test_test,
                         ),
                     ]
                     if flag
