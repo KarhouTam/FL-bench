@@ -124,8 +124,11 @@ class FedAvgClient:
         self.client_id = package["client_id"]
         self.local_epoch = package["local_epoch"]
         self.load_data_indices()
-        
-        if package["optimizer_state"] and not self.args.common.reset_optimizer_on_global_epoch:
+
+        if (
+            package["optimizer_state"]
+            and not self.args.common.reset_optimizer_on_global_epoch
+        ):
             self.optimizer.load_state_dict(package["optimizer_state"])
         else:
             self.optimizer.load_state_dict(self.init_optimizer_state)
@@ -240,8 +243,7 @@ class FedAvgClient:
         test_metrics = Metrics()
         criterion = torch.nn.CrossEntropyLoss(reduction="sum")
 
-        if len(self.testset) > 0 and ((not self.testing and self.args.common.eval_test) or (self.testing and self.args.common.test_test)):
-
+        if len(self.testset) > 0 and self.args.common.eval_test:
             test_metrics = evaluate_model(
                 model=target_model,
                 dataloader=self.testloader,
@@ -249,7 +251,7 @@ class FedAvgClient:
                 device=self.device,
             )
 
-        if len(self.valset) > 0 and ((not self.testing and self.args.common.eval_val) or ( self.testing and self.args.common.eval_val)):
+        if len(self.valset) > 0 and self.args.common.eval_val:
             val_metrics = evaluate_model(
                 model=target_model,
                 dataloader=self.valloader,
@@ -257,7 +259,7 @@ class FedAvgClient:
                 device=self.device,
             )
 
-        if len(self.trainset) > 0 and ((not self.testing and self.args.common.eval_train) or ( self.testing and self.args.common.eval_train)):
+        if len(self.trainset) > 0 and self.args.common.eval_train:
             train_metrics = evaluate_model(
                 model=target_model,
                 dataloader=self.trainloader,

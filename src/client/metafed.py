@@ -35,9 +35,7 @@ class MetaFedClient(FedAvgClient):
     def warmup(self, server_package: dict[str, Any]):
         self.set_parameters(server_package)
         self.fit()
-        metrics = evaluate_model(
-            self.model, self.special_valloader, device=self.device
-        )
+        metrics = evaluate_model(self.model, self.special_valloader, device=self.device)
         return dict(
             client_model_params=OrderedDict(
                 (key, param.detach().cpu().clone())
@@ -103,9 +101,7 @@ class MetaFedClient(FedAvgClient):
         self.set_parameters(server_package)
         self.train_with_eval()
         client_package = self.package()
-        metrics = evaluate_model(
-            self.model, self.special_valloader, device=self.device
-        )
+        metrics = evaluate_model(self.model, self.special_valloader, device=self.device)
         client_package["client_flag"] = metrics.accuracy > self.args.metafed.threshold_1
         return client_package
 

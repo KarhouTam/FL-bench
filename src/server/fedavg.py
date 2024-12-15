@@ -35,7 +35,13 @@ from src.utils.constants import (
 )
 from src.utils.metrics import Metrics
 from src.utils.models import MODELS, DecoupledModel
-from src.utils.tools import Logger, evaluate_model, fix_random_seed, get_optimal_cuda_device, initialize_data_loaders
+from src.utils.tools import (
+    Logger,
+    evaluate_model,
+    fix_random_seed,
+    get_optimal_cuda_device,
+    initialize_data_loaders,
+)
 from src.utils.trainer import FLbenchTrainer
 
 
@@ -221,11 +227,16 @@ class FedAvgServer:
             self.init_trainer()
 
         # create setup for centralized evaluation
-        self.trainloader, self.testloader, self.valloader, self.trainset, self.testset, self.valset = initialize_data_loaders(
+        (
+            self.trainloader,
+            self.testloader,
+            self.valloader,
+            self.trainset,
+            self.testset,
+            self.valset,
+        ) = initialize_data_loaders(
             self.dataset, self.client_data_indices, self.args.common.batch_size
         )
-        
-
 
     def init_trainer(self, fl_client_cls=FedAvgClient, **extras):
         """Initiate the FL-bench trainier that responsible to client training.
@@ -434,14 +445,18 @@ class FedAvgServer:
                 self.current_epoch + 1
             )
 
-            if self.args.common.test_interval > 0 and (E + 1) % self.args.common.test_interval == 0:
-                self.test()
-            if self.args.common.test_server_interval > 0 and (E + 1) % self.args.common.test_server_interval == 0:
+            if (
+                self.args.common.test_server_interval > 0
+                and (E + 1) % self.args.common.test_server_interval == 0
+            ):
                 self.test_server()
+            if (
+                self.args.common.test_interval > 0
+                and (E + 1) % self.args.common.test_interval == 0
+            ):
+                self.test()
 
-            
             self.log_info()
-
 
         self.logger.log(
             f"{self.algorithm_name}'s average time taken by each global epoch: "
@@ -520,17 +535,26 @@ class FedAvgServer:
         """The function for testing FL method's output (a single global model
         or personalized client models)."""
         self.testing = True
-        metrics = self.evaluate(model_in_train_mode=self.args.common.test_server_in_train_mode)
-        
+        metrics = self.evaluate(
+            model_in_train_mode=self.args.common.test_server_in_train_mode
+        )
+
         if self.current_epoch + 1 not in self.test_results:
-            self.test_results[self.current_epoch + 1] = {"server" : {"after" : metrics}}
+            self.test_results[self.current_epoch + 1] = {
+                "centralized": {"before": metrics, "after": metrics}
+            }
         else:
-            self.test_results[self.current_epoch + 1]["server"] = {"after" : metrics}
+            self.test_results[self.current_epoch + 1]["centralized"] = {
+                "before": metrics,
+                "after": metrics,
+            }
 
         self.testing = False
-    
+
     @torch.no_grad()
-    def evaluate(self, model: torch.nn.Module = None, model_in_train_mode: bool = True) -> dict[str, Metrics]:
+    def evaluate(
+        self, model: torch.nn.Module = None, model_in_train_mode: bool = True
+    ) -> dict[str, Metrics]:
         """Evaluating server model.
 
         Args:
@@ -556,7 +580,7 @@ class FedAvgServer:
                 dataloader=self.testloader,
                 criterion=criterion,
                 device=self.device,
-                model_in_train_mode=model_in_train_mode
+                model_in_train_mode=model_in_train_mode,
             )
 
         if len(self.valset) > 0 and self.args.common.test_val:
@@ -565,7 +589,7 @@ class FedAvgServer:
                 dataloader=self.valloader,
                 criterion=criterion,
                 device=self.device,
-                model_in_train_mode=model_in_train_mode
+                model_in_train_mode=model_in_train_mode,
             )
 
         if len(self.trainset) > 0 and self.args.common.test_train:
@@ -574,7 +598,7 @@ class FedAvgServer:
                 dataloader=self.trainloader,
                 criterion=criterion,
                 device=self.device,
-                model_in_train_mode=model_in_train_mode
+                model_in_train_mode=model_in_train_mode,
             )
         return {"train": train_metrics, "val": val_metrics, "test": test_metrics}
 
@@ -679,12 +703,15 @@ class FedAvgServer:
     def log_info(self):
         """Accumulate client evaluation results at each round."""
         for split, eval_flag, test_flag in [
-                ("train", self.args.common.eval_train, self.args.common.test_train),
-                ("val", self.args.common.eval_val, self.args.common.test_val),
-                ("test", self.args.common.eval_test, self.args.common.test_test),
-            ]:
+            ("train", self.args.common.eval_train, self.args.common.test_train),
+            ("val", self.args.common.eval_val, self.args.common.test_val),
+            ("test", self.args.common.eval_test, self.args.common.test_test),
+        ]:
             for stage in ["before", "after"]:
-                if eval_flag and any(self.current_epoch in self.client_metrics[i] for i in self.selected_clients):
+                if eval_flag and any(
+                    self.current_epoch in self.client_metrics[i]
+                    for i in self.selected_clients
+                ):
                     global_metrics = Metrics()
                     for i in self.selected_clients:
                         global_metrics.update(
@@ -716,10 +743,18 @@ class FedAvgServer:
                         )
 
             # log server accuracy
-            if test_flag and self.current_epoch+1 in self.test_results and "server" in self.test_results[self.current_epoch+1]:
+            if (
+                test_flag
+                and self.current_epoch + 1 in self.test_results
+                and "centralized" in self.test_results[self.current_epoch + 1]
+            ):
                 if self.args.common.monitor == "visdom":
                     self.viz.line(
-                        [self.test_results[self.current_epoch+1]["server"]["after"][split].accuracy],
+                        [
+                            self.test_results[self.current_epoch + 1]["centralized"][
+                                "after"
+                            ][split].accuracy
+                        ],
                         [self.current_epoch + 1],
                         win=f"Accuracy-{self.monitor_window_name_suffix}/{split}set-CentralizedEvaluation",
                         update="append",
@@ -734,7 +769,9 @@ class FedAvgServer:
                 elif self.args.common.monitor == "tensorboard":
                     self.tensorboard.add_scalar(
                         f"Accuracy-{self.monitor_window_name_suffix}/{split}set-CentralizedEvaluation",
-                        self.test_results[self.current_epoch+1]["server"]["after"][split].accuracy,
+                        self.test_results[self.current_epoch + 1]["centralized"][
+                            "after"
+                        ][split].accuracy,
                         self.current_epoch + 1,
                         new_style=True,
                     )
@@ -751,38 +788,62 @@ class FedAvgServer:
             "test": "cyan",
         }
 
-        groups = ["val_clients", "test_clients"]
-        if self.train_clients == self.val_clients == self.test_clients:
-            groups = ["all_clients"]
+        def _print(groups):
+            for group in groups:
+                epoches = [
+                    E
+                    for E, results in self.test_results.items()
+                    if group in results.keys()
+                ]
+                if len(epoches) > 0:
+                    self.logger.log(f"{group}:")
+                    for stage in ["before", "after"]:
+                        for split, flag in [
+                            (
+                                "train",
+                                self.args.common.eval_train
+                                or self.args.common.test_train,
+                            ),
+                            (
+                                "val",
+                                self.args.common.eval_val or self.args.common.test_val,
+                            ),
+                            (
+                                "test",
+                                self.args.common.eval_test
+                                or self.args.common.test_test,
+                            ),
+                        ]:
+                            if flag:
+                                metrics_list = list(
+                                    map(
+                                        lambda E: (
+                                            E,
+                                            self.test_results[E][group][stage][split],
+                                        ),
+                                        epoches,
+                                    )
+                                )
+                                if len(metrics_list) > 0:
+                                    epoch, max_acc = max(
+                                        [
+                                            (epoch, metrics.accuracy)
+                                            for epoch, metrics in metrics_list
+                                        ],
+                                        key=lambda tup: tup[1],
+                                    )
+                                    self.logger.log(
+                                        f"[{colors[split]}]({split})[/{colors[split]}] "
+                                        f"[{colors[stage]}]{stage}[/{colors[stage]}] "
+                                        f"fine-tuning: {max_acc:.2f}% at epoch {epoch}"
+                                    )
 
-        for group in groups:
-            self.logger.log(f"{group}:")
-            for stage in ["before", "after"]:
-                for split, flag in [
-                    ("train", self.args.common.eval_train),
-                    ("val", self.args.common.eval_val),
-                    ("test", self.args.common.eval_test),
-                ]:
-                    if flag:
-                        metrics_list = list(
-                            map(
-                                lambda tup: (tup[0], tup[1][group][stage][split]),
-                                self.test_results.items(),
-                            )
-                        )
-                        if len(metrics_list) > 0:
-                            epoch, max_acc = max(
-                                [
-                                    (epoch, metrics.accuracy)
-                                    for epoch, metrics in metrics_list
-                                ],
-                                key=lambda tup: tup[1],
-                            )
-                            self.logger.log(
-                                f"[{colors[split]}]({split})[/{colors[split]}] "
-                                f"[{colors[stage]}]{stage}[/{colors[stage]}] "
-                                f"fine-tuning: {max_acc:.2f}% at epoch {epoch}"
-                            )
+        if self.train_clients == self.val_clients == self.test_clients:
+            _print(["all_clients"])
+        else:
+            _print(["val_clients", "test_clients"])
+        if self.args.common.test_server_interval > 0:
+            _print(["centralized"])
 
     def run(self):
         """The entrypoint of FL-bench experiment.
@@ -806,7 +867,7 @@ class FedAvgServer:
                 f"ExperimentalArguments-{self.monitor_window_name_suffix}",
                 f"{json.dumps(OmegaConf.to_object(self.args), indent=4)}",
             )
- 
+
         begin = time.time()
         try:
             self.train()
@@ -845,9 +906,15 @@ class FedAvgServer:
                         "accuracy": f"{metrics['before'][split].accuracy:.2f}% -> {metrics['after'][split].accuracy:.2f}%",
                     }
                     for split, flag in [
-                        ("train", self.args.common.eval_train),
-                        ("val", self.args.common.eval_val),
-                        ("test", self.args.common.eval_test),
+                        (
+                            "train",
+                            self.args.common.eval_train or self.args.common.test_test,
+                        ),
+                        ("val", self.args.common.eval_val or self.args.common.test_val),
+                        (
+                            "test",
+                            self.args.common.eval_test or self.args.common.test_train,
+                        ),
                     ]
                     if flag
                 }

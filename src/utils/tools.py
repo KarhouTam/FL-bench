@@ -257,10 +257,10 @@ class Logger:
 def initialize_data_loaders(
     dataset: torch.utils.data.Dataset,
     data_indices: list[dict[str, list[int]]],
-    batch_size: int=32,
+    batch_size: int = 32,
 ) -> tuple[DataLoader, DataLoader, DataLoader, Subset, Subset, Subset]:
-    """
-    Initializes and returns data loaders for training, validation, and testing.
+    """Initializes and returns data loaders for training, validation, and
+    testing.
 
     Args:
         dataset (torch.utils.data.Dataset): The dataset to be used for loading data.
