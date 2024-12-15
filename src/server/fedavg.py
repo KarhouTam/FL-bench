@@ -973,18 +973,18 @@ class FedAvgServer:
         )
         self.logger.log("=" * 20, self.algorithm_name, "Experiment Results:", "=" * 20)
         self.logger.log(
-            "Display format: [green](before local fine-tuning) -> "
-            "[blue](after local fine-tuning)\n",
+            "[green]Display format: (before local fine-tuning) -> "
+            "(after local fine-tuning)\n",
             "So if finetune_epoch = 0, x.xx% -> 0.00% is normal.",
         )
         all_test_results = {
             epoch: {
                 group: {
                     split: {
-                        "loss": f"{metrics['before'][split].loss:.4f} -> "
-                        f"{metrics['after'][split].loss:.4f}",
-                        "accuracy": f"{metrics['before'][split].accuracy:.2f}% -> "
-                        f"{metrics['after'][split].accuracy:.2f}%",
+                        "loss": f"[red]{metrics['before'][split].loss:.4f} -> "
+                        f"{metrics['after'][split].loss:.4f}[/red]",
+                        "accuracy": f"[blue]{metrics['before'][split].accuracy:.2f}% -> "
+                        f"{metrics['after'][split].accuracy:.2f}%[/blue]",
                     }
                     for split, flag in [
                         (
