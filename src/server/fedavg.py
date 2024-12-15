@@ -11,7 +11,7 @@ import warnings
 from collections import OrderedDict
 from copy import deepcopy
 from pathlib import Path
-from typing import Any, Union, List, Dict
+from typing import Any, Dict, List, Union
 
 import numpy as np
 import ray
@@ -292,6 +292,33 @@ class FedAvgServer:
                 ),
             )
 
+
+    def get_clients_data_indices(self) -> list[dict[str, list[int]]]:
+        """Gets a list of client data indices.
+
+        Load and return the client-side data index from the partition file for the specified dataset.
+
+        Raises:
+            FileNotFoundError: If the partition file does not exist.
+
+        Returns:
+        list[dict[str, list[int]]]: A list of client-side data indexes, where each element is a dictionary,
+        Contains the keys "train", "val", and "test" for a list of data indexes for each partition.
+        """
+        try:
+            partition_path = (
+                FLBENCH_ROOT / "data" / self.args.dataset.name / "partition.pkl"
+            )
+            with open(partition_path, "rb") as f:
+                partition = pickle.load(f)
+        except:
+            raise FileNotFoundError(f"Please partition {self.args.dataset.name} first.")
+
+        # [0: {"train": [...], "val": [...], "test": [...]}, ...]
+        data_indices: list[dict[str, list[int]]] = partition["data_indices"]
+
+        return data_indices
+
     def get_dataset(self) -> BaseDataset:
         """Load the specified dataset according to the configuration.
 
@@ -420,13 +447,13 @@ class FedAvgServer:
             )
 
             if (
-                self.args.common.test_server_interval > 0
-                and (E + 1) % self.args.common.test_server_interval == 0
+                self.args.common.test.server.interval > 0
+                and (E + 1) % self.args.common.test.server.interval == 0
             ):
                 self.test_server()
             if (
-                self.args.common.test_interval > 0
-                and (E + 1) % self.args.common.test_interval == 0
+                self.args.common.test.client.interval > 0
+                and (E + 1) % self.args.common.test.client.interval == 0
             ):
                 self.test()
 
@@ -510,7 +537,7 @@ class FedAvgServer:
         or personalized client models)."""
         self.testing = True
         metrics = self.evaluate(
-            model_in_train_mode=self.args.common.test_server_in_train_mode
+            model_in_train_mode=self.args.common.test.server.model_in_train_mode
         )
 
         if self.current_epoch + 1 not in self.test_results:
@@ -548,7 +575,7 @@ class FedAvgServer:
         test_metrics = Metrics()
         criterion = torch.nn.CrossEntropyLoss(reduction="sum")
 
-        if len(self.testset) > 0 and self.args.common.test_test:
+        if len(self.testset) > 0 and self.args.common.test.server.test:
             test_metrics = evaluate_model(
                 model=target_model,
                 dataloader=self.testloader,
@@ -557,7 +584,7 @@ class FedAvgServer:
                 model_in_train_mode=model_in_train_mode,
             )
 
-        if len(self.valset) > 0 and self.args.common.test_val:
+        if len(self.valset) > 0 and self.args.common.test.server.val:
             val_metrics = evaluate_model(
                 model=target_model,
                 dataloader=self.valloader,
@@ -566,7 +593,7 @@ class FedAvgServer:
                 model_in_train_mode=model_in_train_mode,
             )
 
-        if len(self.trainset) > 0 and self.args.common.test_train:
+        if len(self.trainset) > 0 and self.args.common.test.server.train:
             train_metrics = evaluate_model(
                 model=target_model,
                 dataloader=self.trainloader,
@@ -679,9 +706,21 @@ class FedAvgServer:
     def log_clients_metrics(self):
         """Accumulate client evaluation results at each round."""
         for split, eval_flag, test_flag in [
-            ("train", self.args.common.eval_train, self.args.common.test_train),
-            ("val", self.args.common.eval_val, self.args.common.test_val),
-            ("test", self.args.common.eval_test, self.args.common.test_test),
+            (
+                "train",
+                self.args.common.test.client.train,
+                self.args.common.test.server.train,
+            ),
+            (
+                "val",
+                self.args.common.test.client.val,
+                self.args.common.test.server.val,
+            ),
+            (
+                "test",
+                self.args.common.test.client.test,
+                self.args.common.test.server.test,
+            ),
         ]:
             for stage in ["before", "after"]:
                 if eval_flag and any(
@@ -777,17 +816,18 @@ class FedAvgServer:
                         for split, flag in [
                             (
                                 "train",
-                                self.args.common.eval_train
-                                or self.args.common.test_train,
+                                self.args.common.test.client.train
+                                or self.args.common.test.server.train,
                             ),
                             (
                                 "val",
-                                self.args.common.eval_val or self.args.common.test_val,
+                                self.args.common.test.client.val
+                                or self.args.common.test.server.val,
                             ),
                             (
                                 "test",
-                                self.args.common.eval_test
-                                or self.args.common.test_test,
+                                self.args.common.test.client.test
+                                or self.args.common.test.server.test,
                             ),
                         ]:
                             if flag:
@@ -818,7 +858,7 @@ class FedAvgServer:
             _print(["all_clients"])
         else:
             _print(["val_clients", "test_clients"])
-        if self.args.common.test_server_interval > 0:
+        if self.args.common.test.server.interval > 0:
             _print(["centralized"])
 
     def save_model_weights(self):
@@ -833,9 +873,7 @@ class FedAvgServer:
             )
 
     def save_training_curves_plot(self):
-        """
-        Save the training curves of FL-bench experiment.
-        """
+        """Save the training curves of FL-bench experiment."""
         import matplotlib
         from matplotlib import pyplot as plt
 
@@ -864,9 +902,7 @@ class FedAvgServer:
         plt.savefig(self.output_dir / f"metrics.png", bbox_inches="tight")
 
     def save_metrics_stats(self):
-        """
-        Save the metrics stats of FL-bench experiment.
-        """
+        """Save the metrics stats of FL-bench experiment."""
         import pandas as pd
 
         df = pd.DataFrame()
@@ -892,9 +928,7 @@ class FedAvgServer:
         df.to_csv(self.output_dir / f"metrics.csv", index=True, index_label="epoch")
 
     def run_experiment(self):
-        """
-        The entrypoint of FL-bench experiment.
-        """
+        """The entrypoint of FL-bench experiment."""
         self.logger.log("=" * 20, self.algorithm_name, "=" * 20)
         self.logger.log("Experiment Arguments:")
         rich_pprint(
@@ -955,12 +989,18 @@ class FedAvgServer:
                     for split, flag in [
                         (
                             "train",
-                            self.args.common.eval_train or self.args.common.test_test,
+                            self.args.common.test.client.train
+                            or self.args.common.test.server.train,
                         ),
-                        ("val", self.args.common.eval_val or self.args.common.test_val),
+                        (
+                            "val",
+                            self.args.common.test.client.val
+                            or self.args.common.test.server.val,
+                        ),
                         (
                             "test",
-                            self.args.common.eval_test or self.args.common.test_train,
+                            self.args.common.test.client.test
+                            or self.args.common.test.server.test,
                         ),
                     ]
                     if flag

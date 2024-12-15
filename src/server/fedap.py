@@ -141,7 +141,7 @@ class FedAPServer(FedAvgServer):
                 self.current_epoch + 1
             )
 
-            if (E + 1) % self.args.common.test_interval == 0:
+            if (E + 1) % self.args.common.test.client.interval == 0:
                 self.test()
 
         self.logger.log(

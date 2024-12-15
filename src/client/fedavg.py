@@ -105,9 +105,9 @@ class FedAvgClient:
 
         eval_msg = []
         for split, color, flag, subset in [
-            ["train", "yellow", self.args.common.eval_train, self.trainset],
-            ["val", "green", self.args.common.eval_val, self.valset],
-            ["test", "cyan", self.args.common.eval_test, self.testset],
+            ["train", "yellow", self.args.common.test.client.train, self.trainset],
+            ["val", "green", self.args.common.test.client.val, self.valset],
+            ["test", "cyan", self.args.common.test.client.test, self.testset],
         ]:
             if len(subset) > 0 and flag:
                 eval_msg.append(
@@ -244,7 +244,11 @@ class FedAvgClient:
         test_metrics = Metrics()
         criterion = torch.nn.CrossEntropyLoss(reduction="sum")
 
-        if len(self.testset) > 0 and self.args.common.eval_test:
+        if (
+            len(self.testset) > 0
+            and (self.testing or self.args.common.client_side_evaluation)
+            and self.args.common.test.client.test
+        ):
             test_metrics = evaluate_model(
                 model=target_model,
                 dataloader=self.testloader,
@@ -252,7 +256,11 @@ class FedAvgClient:
                 device=self.device,
             )
 
-        if len(self.valset) > 0 and self.args.common.eval_val:
+        if (
+            len(self.valset) > 0
+            and (self.testing or self.args.common.client_side_evaluation)
+            and self.args.common.test.client.val
+        ):
             val_metrics = evaluate_model(
                 model=target_model,
                 dataloader=self.valloader,
@@ -260,7 +268,11 @@ class FedAvgClient:
                 device=self.device,
             )
 
-        if len(self.trainset) > 0 and self.args.common.eval_train:
+        if (
+            len(self.trainset) > 0
+            and (self.testing or self.args.common.client_side_evaluation)
+            and self.args.common.test.client.train
+        ):
             train_metrics = evaluate_model(
                 model=target_model,
                 dataloader=self.trainloader,

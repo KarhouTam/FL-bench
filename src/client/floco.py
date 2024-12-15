@@ -53,7 +53,7 @@ class FlocoClient(FedAvgClient):
                 local_epoch=self.args.floco.pers_epoch,
                 reg_model_params=self.global_params,
                 lamda=self.args.floco.lamda,
-                **common_params
+                **common_params,
             )
 
     @torch.no_grad()

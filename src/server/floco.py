@@ -1,5 +1,5 @@
-from collections import OrderedDict
 from argparse import ArgumentParser
+from collections import OrderedDict
 from copy import deepcopy
 
 import numpy as np
@@ -15,7 +15,6 @@ from src.utils.tools import Namespace
 
 
 class FlocoServer(FedAvgServer):
-
     @staticmethod
     def get_hyperparams(args_list=None) -> Namespace:
         parser = ArgumentParser()
