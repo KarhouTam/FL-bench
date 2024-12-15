@@ -18,8 +18,8 @@ class FlocoServer(FedAvgServer):
     @staticmethod
     def get_hyperparams(args_list=None) -> Namespace:
         parser = ArgumentParser()
-        parser.add_argument("--endpoints", type=int, default=1)
-        parser.add_argument("--tau", type=int, default=100)
+        parser.add_argument("--endpoints", type=int, default=10)
+        parser.add_argument("--tau", type=int, default=10)
         parser.add_argument("--rho", type=float, default=0.1)
 
         # Floco+ (only used if pers_epoch > 0)
@@ -74,23 +74,15 @@ class FlocoServer(FedAvgServer):
                 self.clients_personalized_model_params[client_id] = client_packages[
                     client_id
                 ]["personalized_model_params"]
-        self.aggregate(client_packages)
+        self.aggregate_client_updates(client_packages)
 
     def package(self, client_id: int):
         server_package = super().package(client_id)
-        if self.projected_clients is None:
-            server_package["sample_from"] = (
-                "simplex_center" if self.testing else "simplex_uniform"
-            )
-            server_package["subregion_parameters"] = None
-        else:
-            server_package["sample_from"] = (
-                "subregion_center" if self.testing else "subregion_uniform"
-            )
-            server_package["subregion_parameters"] = (
-                self.projected_clients[client_id],
-                self.args.floco.rho,
-            )
+        server_package["subregion_parameters"] = (
+            None
+            if self.projected_clients is None
+            else (self.projected_clients[client_id], self.args.floco.rho)
+        )
         if self.args.floco.pers_epoch > 0:  # Floco+
             server_package["personalized_model_params"] = (
                 self.clients_personalized_model_params[client_id]
@@ -114,20 +106,22 @@ class SimplexModel(DecoupledModel):
             bias=True,
             seed=self.args.common.seed,
         )
-        self.sample_from = "simplex_center"
         self.subregion_parameters = None
 
     def forward(self, x):
         endpoints = self.args.floco.endpoints
-        if self.sample_from == "simplex_center":
-            self.classifier.alphas = tuple([1 / endpoints for _ in range(endpoints)])
-        elif self.sample_from == "simplex_uniform":
-            sample = np.random.exponential(scale=1.0, size=endpoints)
-            self.classifier.alphas = sample / sample.sum()
-        elif self.sample_from == "subregion_center":
-            self.classifier.alphas = self.subregion_parameters[0]
-        elif self.sample_from == "subregion_uniform":
-            self.classifier.alphas = _sample_L1_ball(*self.subregion_parameters)
+        if self.subregion_parameters is None:  # before projection
+            if self.training:  # sample uniformly from simplex for training
+                sample = np.random.exponential(scale=1.0, size=endpoints)
+                self.classifier.alphas = sample / sample.sum()
+            else:  # use simplex center for testing
+                simplex_center = tuple([1 / endpoints for _ in range(endpoints)])
+                self.classifier.alphas = simplex_center
+        else:  # after projection
+            if self.training:  # sample uniformly from subregion for training
+                self.classifier.alphas = _sample_L1_ball(*self.subregion_parameters)
+            else:  # use subregion center for testing
+                self.classifier.alphas = self.subregion_parameters[0]
         return super().forward(x)
 
 
