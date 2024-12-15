@@ -450,12 +450,12 @@ class FedAvgServer:
                 self.args.common.test.server.interval > 0
                 and (E + 1) % self.args.common.test.server.interval == 0
             ):
-                self.test_server()
+                self.test_global_model()
             if (
                 self.args.common.test.client.interval > 0
                 and (E + 1) % self.args.common.test.client.interval == 0
             ):
-                self.test()
+                self.test_client_models()
 
             self.log_clients_metrics()
 
@@ -502,7 +502,7 @@ class FedAvgServer:
             return_diff=self.return_diff,
         )
 
-    def test(self):
+    def test_client_models(self):
         """The function for testing FL method's output (a single global model
         or personalized client models)."""
         self.testing = True
@@ -532,7 +532,7 @@ class FedAvgServer:
 
         self.testing = False
 
-    def test_server(self):
+    def test_global_model(self):
         """The function for testing FL method's output (a single global model
         or personalized client models)."""
         self.testing = True

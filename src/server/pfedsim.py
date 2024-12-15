@@ -87,7 +87,7 @@ class pFedSimServer(FedAvgServer):
             )
 
             if (E + 1) % self.args.common.test.client.interval == 0:
-                self.test()
+                self.test_client_models()
 
         self.logger.log(
             f"{self.algorithm_name}'s average time taken by each global epoch: "
