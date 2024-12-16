@@ -128,7 +128,7 @@ common:
 
   save_log: true # Whether to save log files in out/<method>/<start_time>.
   save_model: false # Whether to save model weights (*.pt) in out/<method>/<start_time>.
-  save_fig: true # Whether to save learning curve firgure (*.png) in out/<method>/<start_time>.
+  save_learning_curve_plot: true # Whether to save learning curve figure (*.png) in out/<method>/<start_time>.
   save_metrics: true # Whether to save metrics (*.csv) in out/<method>/<start_time>.
 
   # Whether to delete output files after user press `Ctrl + C`,

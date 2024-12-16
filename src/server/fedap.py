@@ -136,7 +136,7 @@ class FedAPServer(FedAvgServer):
             begin = time.time()
             self.trainer.train()
             end = time.time()
-            self.log_clients_metrics()
+            self.display_metrics()
             avg_round_time = (avg_round_time * (self.current_epoch) + (end - begin)) / (
                 self.current_epoch + 1
             )

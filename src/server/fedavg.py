@@ -180,13 +180,13 @@ class FedAvgServer:
 
         if not os.path.isdir(self.output_dir) and (
             self.args.common.save_log
-            or self.args.common.save_fig
+            or self.args.common.save_learning_curve_plot
             or self.args.common.save_metrics
         ):
             os.makedirs(self.output_dir, exist_ok=True)
 
         self.client_metrics = {i: {} for i in self.train_clients}
-        self.global_metrics = {
+        self.aggregated_client_metrics = {
             "before": {"train": [], "val": [], "test": []},
             "after": {"train": [], "val": [], "test": []},
         }
@@ -456,7 +456,7 @@ class FedAvgServer:
             ):
                 self.test_client_models()
 
-            self.log_clients_metrics()
+            self.display_metrics()
 
         self.logger.log(
             f"{self.algorithm_name}'s average time taken by each global epoch: "
@@ -666,45 +666,15 @@ class FedAvgServer:
                 global_param.data = aggregated
         self.model.load_state_dict(self.public_model_params, strict=False)
 
-    def show_convergence_metrics(self):
-        """Collect the number of epoches that FL method reach specific
-        accuracies while training."""
-        colors = {
-            "before": "blue",
-            "after": "red",
-            "train": "yellow",
-            "val": "green",
-            "test": "cyan",
-        }
-        self.logger.log(
-            "=" * 10, self.algorithm_name, "Convergence on train clients", "=" * 10
-        )
-        for stage in ["before", "after"]:
-            for split in ["train", "val", "test"]:
-                if len(self.global_metrics[stage][split]) > 0:
-                    self.logger.log(
-                        f"[{colors[split]}]{split}[/{colors[split]}] "
-                        f"[{colors[stage]}]({stage} local training):"
-                    )
-                    acc_range = [90.0, 80.0, 70.0, 60.0, 50.0, 40.0, 30.0, 20.0, 10.0]
-                    min_acc_idx = 10
-                    max_acc = 0
-                    accuracies = [
-                        metrics.accuracy
-                        for metrics in self.global_metrics[stage][split]
-                    ]
-                    for E, acc in enumerate(accuracies):
-                        for i, target in enumerate(acc_range):
-                            if acc >= target and acc > max_acc:
-                                self.logger.log(f"{target}%({acc:.2f}%) at epoch: {E}")
-                                max_acc = acc
-                                min_acc_idx = i
-                                break
-                        acc_range = acc_range[:min_acc_idx]
+    def display_metrics(self):
+        """
+        Display aggregated client and server evaluation metrics at each round.
 
-    def log_clients_metrics(self):
-        """Accumulate client evaluation results at each round."""
-        for split, eval_flag, test_flag in [
+        This method aggregates metrics from selected clients for both 'before'
+        and 'after' stages of training for 'train', 'val', and 'test' splits.
+        It also logs the server's centralized evaluation results if available.
+        """
+        for split, client_side_test_flag, server_side_test_flag in [
             (
                 "train",
                 self.args.common.test.client.train,
@@ -718,21 +688,18 @@ class FedAvgServer:
             ),
         ]:
             for stage in ["before", "after"]:
-                if eval_flag and any(
-                    self.current_epoch in self.client_metrics[i]
-                    for i in self.selected_clients
-                ):
-                    global_metrics = Metrics()
+                if client_side_test_flag:
+                    aggregated = Metrics()
                     for i in self.selected_clients:
-                        global_metrics.update(
+                        aggregated.update(
                             self.client_metrics[i][self.current_epoch][stage][split]
                         )
 
-                    self.global_metrics[stage][split].append(global_metrics)
+                    self.aggregated_client_metrics[stage][split].append(aggregated)
 
                     if self.args.common.monitor == "visdom":
                         self.viz.line(
-                            [global_metrics.accuracy],
+                            [aggregated.accuracy],
                             [self.current_epoch],
                             win=f"Accuracy-{self.monitor_window_name_suffix}/{split}set-{stage}LocalTraining",
                             update="append",
@@ -747,14 +714,14 @@ class FedAvgServer:
                     elif self.args.common.monitor == "tensorboard":
                         self.tensorboard.add_scalar(
                             f"Accuracy-{self.monitor_window_name_suffix}/{split}set-{stage}LocalTraining",
-                            global_metrics.accuracy,
+                            aggregated.accuracy,
                             self.current_epoch,
                             new_style=True,
                         )
 
-            # log server accuracy
+            # log server side evaluation results
             if (
-                test_flag
+                server_side_test_flag
                 and self.current_epoch + 1 in self.test_results
                 and "centralized" in self.test_results[self.current_epoch + 1]
             ):
@@ -867,8 +834,8 @@ class FedAvgServer:
                 "So the saving is skipped."
             )
 
-    def save_training_curves_plot(self):
-        """Save the training curves of FL-bench experiment."""
+    def save_learning_curve_plot(self):
+        """Save the learning curves of FL-bench experiment."""
         import matplotlib
         from matplotlib import pyplot as plt
 
@@ -879,11 +846,11 @@ class FedAvgServer:
         }
         for stage in ["before", "after"]:
             for split in ["train", "val", "test"]:
-                if len(self.global_metrics[stage][split]) > 0:
+                if len(self.aggregated_client_metrics[stage][split]) > 0:
                     plt.plot(
                         [
                             metrics.accuracy
-                            for metrics in self.global_metrics[stage][split]
+                            for metrics in self.aggregated_client_metrics[stage][split]
                         ],
                         label=f"{split}set ({stage}LocalTraining)",
                         ls=linestyle[stage][split],
@@ -903,7 +870,7 @@ class FedAvgServer:
         df = pd.DataFrame()
         for stage in ["before", "after"]:
             for split in ["train", "val", "test"]:
-                if len(self.global_metrics[stage][split]) > 0:
+                if len(self.aggregated_client_metrics[stage][split]) > 0:
                     for metric in [
                         "accuracy",
                         # "micro_precision",
@@ -913,7 +880,7 @@ class FedAvgServer:
                     ]:
                         stats = [
                             getattr(metrics, metric)
-                            for metrics in self.global_metrics[stage][split]
+                            for metrics in self.aggregated_client_metrics[stage][split]
                         ]
                         df.insert(
                             loc=df.shape[1],
@@ -1014,14 +981,13 @@ class FedAvgServer:
                     global_step=epoch,
                 )
 
-        self.show_convergence_metrics()
         self.show_max_metrics()
 
         self.logger.close()
 
         # plot the training curves
-        if self.args.common.save_fig:
-            self.save_training_curves_plot()
+        if self.args.common.save_learning_curve_plot:
+            self.save_learning_curve_plot()
 
         # save each round's metrics stats
         if self.args.common.save_metrics:

@@ -3,14 +3,14 @@ import random
 from argparse import Namespace
 from collections import OrderedDict
 from pathlib import Path
-from typing import Callable, Iterator, Sequence, Union
+from typing import Callable, Dict, Iterator, List, Sequence, Tuple, Union
 
 import numpy as np
 import pynvml
 import torch
 from omegaconf import DictConfig
 from rich.console import Console
-from torch.utils.data import DataLoader, Subset
+from torch.utils.data import DataLoader, Dataset, Subset
 
 from src.utils.constants import DEFAULTS
 from src.utils.metrics import Metrics
@@ -255,26 +255,28 @@ class Logger:
 
 
 def initialize_data_loaders(
-    dataset: torch.utils.data.Dataset,
-    data_indices: list[dict[str, list[int]]],
+    dataset: Dataset,
+    data_indices: List[Dict[str, List[int]]],
     batch_size: int = 32,
-) -> tuple[DataLoader, DataLoader, DataLoader, Subset, Subset, Subset]:
-    """Initializes and returns data loaders for training, validation, and
-    testing.
+    **dataloader_kwargs,
+) -> Tuple[DataLoader, DataLoader, DataLoader, Subset, Subset, Subset]:
+    """Initialize data loaders for training, validation, and testing.
 
     Args:
-        dataset (torch.utils.data.Dataset): The dataset to be used for loading data.
-        data_indices (list[dict[str, list[int]]]): A list of dictionaries containing indices for train, validation, and test data.
-        batch_size (int, optional): The batch size for the data loaders. Defaults to 32.
+        dataset: The dataset to be used for creating subsets.
+        data_indices: A list of dictionaries, where each dictionary contains
+            the indices for 'train', 'val', and 'test' splits for a client.
+        batch_size: The batch size for the data loaders. Defaults to 32.
+        **dataloader_kwargs: Additional keyword arguments for the data loaders.
 
     Returns:
-        tuple: A tuple containing the following elements:
-            - trainloader (torch.utils.data.DataLoader): The data loader for training data.
-            - valloader (torch.utils.data.DataLoader): The data loader for validation data.
-            - testloader (torch.utils.data.DataLoader): The data loader for testing data.
-            - trainset (torch.utils.data.Subset): The subset of the dataset containing training data.
-            - valset (torch.utils.data.Subset): The subset of the dataset containing validation data.
-            - testset (torch.utils.data.Subset): The subset of the dataset containing testing data.
+        A tuple containing:
+        - trainloader: DataLoader for the training set.
+        - testloader: DataLoader for the test set.
+        - valloader: DataLoader for the validation set.
+        - trainset: Subset of the dataset for training.
+        - testset: Subset of the dataset for testing.
+        - valset: Subset of the dataset for validation.
     """
     val_indices = np.concatenate(
         [client_i_indices["val"] for client_i_indices in data_indices]
@@ -285,23 +287,19 @@ def initialize_data_loaders(
     train_indices = np.concatenate(
         [client_i_indices["train"] for client_i_indices in data_indices]
     )
-    valset = torch.utils.data.Subset(dataset, val_indices)
-    testset = torch.utils.data.Subset(dataset, test_indices)
-    trainset = torch.utils.data.Subset(dataset, train_indices)
-    valloader = torch.utils.data.DataLoader(
-        valset,
-        batch_size=batch_size,
-        shuffle=False,
+
+    valset = Subset(dataset, val_indices)
+    testset = Subset(dataset, test_indices)
+    trainset = Subset(dataset, train_indices)
+
+    valloader = DataLoader(
+        valset, batch_size=batch_size, shuffle=False, **dataloader_kwargs
     )
-    testloader = torch.utils.data.DataLoader(
-        testset,
-        batch_size=batch_size,
-        shuffle=False,
+    testloader = DataLoader(
+        testset, batch_size=batch_size, shuffle=False, **dataloader_kwargs
     )
-    trainloader = torch.utils.data.DataLoader(
-        trainset,
-        batch_size=batch_size,
-        shuffle=False,
+    trainloader = DataLoader(
+        trainset, batch_size=batch_size, shuffle=True, **dataloader_kwargs
     )
 
     return trainloader, testloader, valloader, trainset, testset, valset

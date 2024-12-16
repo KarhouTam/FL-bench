@@ -85,7 +85,7 @@ DEFAULTS = {
         "use_cuda": True,
         "save_log": True,
         "save_model": False,
-        "save_fig": True,
+        "save_learning_curve_plot": True,
         "save_metrics": True,
         "delete_useless_run": True,
     },

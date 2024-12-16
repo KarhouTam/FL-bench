@@ -104,7 +104,7 @@ class MetaFedServer(FedAvgServer):
                 client_package = self.trainer.train()
                 self.client_flags[client_id] = client_package[client_id]["client_flag"]
             end = time.time()
-            self.log_clients_metrics()
+            self.display_metrics()
             avg_round_time = (avg_round_time * self.current_epoch + (end - begin)) / (
                 self.current_epoch + 1
             )
@@ -131,5 +131,5 @@ class MetaFedServer(FedAvgServer):
             self.client_metrics[client_id][self.current_epoch] = client_package[
                 client_id
             ]["eval_results"]
-        self.log_clients_metrics()
+        self.display_metrics()
         self.test_client_models()
