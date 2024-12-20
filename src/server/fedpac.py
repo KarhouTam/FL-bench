@@ -63,9 +63,11 @@ class FedPACServer(FedAvgServer):
                     prototypes * weights, dim=-1
                 ).cpu()
 
-    def aggregate(self, client_packages: OrderedDict[int, dict[str, Any]]):
+    def aggregate_client_updates(
+        self, client_packages: OrderedDict[int, dict[str, Any]]
+    ):
         # aggregate all parameters (include classifier's)
-        super().aggregate(client_packages)
+        super().aggregate_client_updates(client_packages)
 
         # aggregate new global prototypes
         self.aggregate_prototypes(client_packages)

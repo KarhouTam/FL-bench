@@ -49,4 +49,4 @@ class APFLServer(FedAvgServer):
                 "local_model_params"
             ]
             self.client_alphas[client_id] = client_packages[client_id]["alpha"]
-        self.aggregate(client_packages)
+        self.aggregate_client_updates(client_packages)

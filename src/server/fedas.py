@@ -36,7 +36,7 @@ class FedASServer(FedAvgServer):
         client_packages = self.trainer.train()
         for client_id, package in client_packages.items():
             self.client_prev_model_states[client_id] = package["prev_model_state"]
-        self.aggregate(client_packages)
+        self.aggregate_client_updates(client_packages)
 
     def package(self, client_id: int):
         server_package = super().package(client_id)

@@ -81,13 +81,13 @@ class pFedSimServer(FedAvgServer):
                         }
                     )
             self.update_weight_matrix()
-            self.log_info()
+            self.display_metrics()
             avg_round_time = (avg_round_time * self.current_epoch + (end - begin)) / (
                 self.current_epoch + 1
             )
 
-            if (E + 1) % self.args.common.test_interval == 0:
-                self.test()
+            if (E + 1) % self.args.common.test.client.interval == 0:
+                self.test_client_models()
 
         self.logger.log(
             f"{self.algorithm_name}'s average time taken by each global epoch: "

@@ -80,7 +80,7 @@ class FedAPServer(FedAvgServer):
 
             if self.args.fedap.version == "f":
                 client_packages = self.trainer.train()
-                self.aggregate(client_packages)
+                self.aggregate_client_updates(client_packages)
             else:
                 # FedAP and d-FedAP needs one-by-one training this phase
                 selected_clients_this_round = self.selected_clients
@@ -136,13 +136,13 @@ class FedAPServer(FedAvgServer):
             begin = time.time()
             self.trainer.train()
             end = time.time()
-            self.log_info()
+            self.display_metrics()
             avg_round_time = (avg_round_time * (self.current_epoch) + (end - begin)) / (
                 self.current_epoch + 1
             )
 
-            if (E + 1) % self.args.common.test_interval == 0:
-                self.test()
+            if (E + 1) % self.args.common.test.client.interval == 0:
+                self.test_client_models()
 
         self.logger.log(
             f"{self.algorithm_name}'s average time taken by each global epoch: {int(avg_round_time // 60)} m {(avg_round_time % 60):.2f} s."

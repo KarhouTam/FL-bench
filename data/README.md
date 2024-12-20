@@ -58,7 +58,7 @@ python generate_data.py -d cifar10 --iid 0.5 --alpha 0.1 -cn 20
 Refers to [Measuring the Effects of Non-Identical Data Distribution for Federated Visual Classification (*FedAvgM*)](https://arxiv.org/abs/1909.06335). Dataset would be splitted according to $Dir(\alpha)$. Smaller $\alpha$ means stronger label heterogeneity.
   
 - `--alpha, -a`: The parameter for controlling intensity of label heterogeneity.
-- `--least_samples, -ls`: The parameter for defining the minimum number of samples each client would be distributed. *A small `--least_samples` along with small `--alpha` or big `--client_num` might considerablely prolong the partition.*
+- `--min_samples_per_client, -ms`: The parameter for defining the minimum number of samples each client would be distributed. *A small `--min_samples_per_client` along with small `--alpha` or big `--client_num` might considerablely prolong the partition.*
 
 ```shell
 python generate_data.py -d cifar10 -a 0.1 -cn 20
@@ -108,6 +108,17 @@ Refers to [What Do We Mean by Generalization in Federated Learning?](https://arx
 python generate_data.py -d cifar10 -sm 1 -cn 20
 ```
 <img src="../.github/images/distributions/semantic.png" alt="Image" width="350"/>
+
+## Flower Partitioner 🌼
+
+This benchmark also supports external partitioners provided by [flwr_datasets](https://flower.ai/docs/datasets/), enabling the comparison with built-in partitioning schemes and additional schemese that exist in flwr_datasets. To use flwr partitioners, you need to specify the class path of the partitioner you want to use and all its parameters in a seperate dictionary. 
+> \[!NOTE\]
+> To use flwr's partitioners, internally a mock dataset is created that has a column called `label`. If the partitioning scheme depends on label information, please insert `label` as the label column.
+
+This is how you would use the `DirichletPartitioner` from flwr: 
+```shell
+ python generate_data.py -d cifar10 -cn 10 -fpc "flwr_datasets.partitioner.DirichletPartitioner" -fpk '{"alpha": 100.0, "partition_by": "label"}'
+```
 
 # Usage 🚀
 
