@@ -117,7 +117,9 @@ This benchmark also supports external partitioners provided by [flwr_datasets](h
 
 This is how you would use the `DirichletPartitioner` from flwr: 
 ```shell
- python generate_data.py -d cifar10 -cn 10 -fpc "flwr_datasets.partitioner.DirichletPartitioner" -fpk '{"alpha": 100.0, "partition_by": "label"}'
+python generate_data.py -d cifar10 -cn 10 \
+-fpc DirichletPartitioner \
+-fpk '{"alpha": 100.0, "partition_by": "label"}'
 ```
 
 # Usage 🚀
