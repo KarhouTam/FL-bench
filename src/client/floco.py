@@ -16,9 +16,7 @@ class FlocoClient(FedAvgClient):
 
     def set_parameters(self, package: dict[str, Any]):
         super().set_parameters(package)
-        if package["subregion_parameters"]:
-            self.model.sample_from = package["sample_from"]
-            self.model.subregion_parameters = package["subregion_parameters"]
+        self.model.subregion_parameters = package["subregion_parameters"]
         if self.args.floco.pers_epoch > 0:  # Floco+
             self.global_params = OrderedDict(
                 (key, param.to(self.device))
@@ -59,9 +57,9 @@ class FlocoClient(FedAvgClient):
     @torch.no_grad()
     def evaluate(self):
         if self.args.floco.pers_epoch > 0:  # Floco+
-            super().evaluate(self.pers_model)
+            return super().evaluate(self.pers_model)
         else:
-            super().evaluate()
+            return super().evaluate()
 
 
 def training_loop(
@@ -93,6 +91,6 @@ def training_loop(
 
 
 def _regularize_pers_model(model, reg_model_params, lamda):
-    for pers_param, global_param in zip(model.parameters(), reg_model_params):
+    for pers_param, global_param in zip(model.parameters(), reg_model_params.values()):
         if pers_param.requires_grad and pers_param.grad is not None:
             pers_param.grad.data += lamda * pers_param.data - global_param.data
