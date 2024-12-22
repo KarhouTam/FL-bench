@@ -32,7 +32,9 @@ class ElasticServer(FedAvgServer):
         )
         self.init_trainer(ElasticClient)
 
-    def aggregate(self, client_packages: OrderedDict[int, dict[str, Any]]):
+    def aggregate_client_updates(
+        self, client_packages: OrderedDict[int, dict[str, Any]]
+    ):
         sensitivities = []
         weights = []
         for package in client_packages.values():

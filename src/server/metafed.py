@@ -86,7 +86,7 @@ class MetaFedServer(FedAvgServer):
             self.client_flags[client_id] = client_package[client_id]["client_flag"]
 
         self.warmup = False
-        self.test()
+        self.test_client_models()
 
         # client training phase
         avg_round_time = 0
@@ -104,13 +104,13 @@ class MetaFedServer(FedAvgServer):
                 client_package = self.trainer.train()
                 self.client_flags[client_id] = client_package[client_id]["client_flag"]
             end = time.time()
-            self.log_info()
+            self.display_metrics()
             avg_round_time = (avg_round_time * self.current_epoch + (end - begin)) / (
                 self.current_epoch + 1
             )
 
-            if (E + 1) % self.args.common.test_interval == 0:
-                self.test()
+            if (E + 1) % self.args.common.test.client.interval == 0:
+                self.test_client_models()
 
         self.logger.log(
             f"{self.algorithm_name}'s average time taken by each global epoch: {int(avg_round_time // 60)} m {(avg_round_time % 60):.2f} s."
@@ -131,5 +131,5 @@ class MetaFedServer(FedAvgServer):
             self.client_metrics[client_id][self.current_epoch] = client_package[
                 client_id
             ]["eval_results"]
-        self.log_info()
-        self.test()
+        self.display_metrics()
+        self.test_client_models()

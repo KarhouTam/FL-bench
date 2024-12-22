@@ -32,9 +32,11 @@ class FedDynServer(FedAvgServer):
         self.init_trainer(FedDynClient)
         param_numel = vectorize(self.public_model_params).numel()
         self.nabla = [torch.zeros(param_numel) for _ in range(self.client_num)]
-        clients_data_indices = self.get_clients_data_indices()
         self.client_weights = torch.tensor(
-            [len(clients_data_indices[i]["train"]) for i in self.train_clients]
+            [
+                len(self.data_partition["data_indices"][i]["train"])
+                for i in self.train_clients
+            ]
         )
         self.client_weights = (
             self.client_weights / self.client_weights.sum() * len(self.train_clients)
@@ -48,7 +50,9 @@ class FedDynServer(FedAvgServer):
         server_package["nabla"] = self.nabla[client_id]
         return server_package
 
-    def aggregate(self, client_packages: OrderedDict[int, dict[str, Any]]):
+    def aggregate_client_updates(
+        self, client_packages: OrderedDict[int, dict[str, Any]]
+    ):
         params_list = [
             list(package["regular_model_params"].values())
             for package in client_packages.values()

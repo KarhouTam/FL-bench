@@ -1,6 +1,6 @@
 import importlib
-import sys
 import inspect
+import sys
 from pathlib import Path
 
 import hydra
@@ -53,7 +53,7 @@ def main(config: DictConfig):
             )
 
     server = server_class(args=config)
-    server.run()
+    server.run_experiment()
 
 
 if __name__ == "__main__":

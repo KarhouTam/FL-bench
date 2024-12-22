@@ -33,7 +33,9 @@ class FedAvgMServer(FedAvgServer):
         )
 
     @torch.no_grad()
-    def aggregate(self, client_packages: OrderedDict[int, dict[str, Any]]):
+    def aggregate_client_updates(
+        self, client_packages: OrderedDict[int, dict[str, Any]]
+    ):
         self.global_optmizer.zero_grad()
 
         client_weights = [package["weight"] for package in client_packages.values()]

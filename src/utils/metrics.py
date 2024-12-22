@@ -74,3 +74,6 @@ class Metrics:
     @property
     def size(self):
         return len(self._targets)
+
+    def __bool__(self):
+        return len(self._targets) > 0 and len(self._predicts) > 0

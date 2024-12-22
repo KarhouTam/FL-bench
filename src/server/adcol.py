@@ -94,7 +94,7 @@ class ADCOLServer(FedAvgServer):
         self.feature_dataloader = None
         for cid in self.selected_clients:
             self.features[cid] = client_packages[cid]["features_list"]
-        self.aggregate(client_packages)
+        self.aggregate_client_updates(client_packages)
         self.train_and_test_discriminator()
 
     def package(self, client_id: int):
@@ -106,12 +106,12 @@ class ADCOLServer(FedAvgServer):
 
     def train_and_test_discriminator(self):
         self.generate_client_index()
-        if (self.current_epoch + 1) % self.args.common.test_interval == 0:
+        if (self.current_epoch + 1) % self.args.common.test.client.interval == 0:
             acc_before = self.test_discriminator()
 
         self.train_discriminator()
 
-        if (self.current_epoch + 1) % self.args.common.test_interval == 0:
+        if (self.current_epoch + 1) % self.args.common.test.client.interval == 0:
             acc_after = self.test_discriminator()
             if self.verbose:
                 self.logger.log(

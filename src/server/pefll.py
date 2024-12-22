@@ -58,7 +58,9 @@ class PeFLLServer(FedAvgServer):
         server_package["hyper_net_params"] = self.hyper_net.state_dict()
         return server_package
 
-    def aggregate(self, client_packages: OrderedDict[int, dict[str, Any]]):
+    def aggregate_client_updates(
+        self, client_packages: OrderedDict[int, dict[str, Any]]
+    ):
         all_embed_net_grads = [
             package["embed_net_grads"] for package in client_packages.values()
         ]
