@@ -1,10 +1,9 @@
-
 from collections import Counter
 import json
 import numpy as np
 import datasets
 
-from data.utils.process import class_from_string
+from data.utils.process import partitioner_class_from_flwr_datasets
 
 
 def flower_partition(
@@ -19,17 +18,16 @@ def flower_partition(
 ):
     target_indices = [i for i in range(len(target_indices)) if targets[i] in label_set]
     targets = targets[target_indices]
-    data = {
-        "data_indices": target_indices, 
-        "label": targets
-    }
+    data = {"data_indices": target_indices, "label": targets}
 
     # Create a Hugging Face Dataset
     dataset = datasets.Dataset.from_dict(data)
 
     flower_partitioner_kwargs = json.loads(flower_partitioner_kwargs)
-    partitioner_class = class_from_string(flower_partitioner_class)
-    partitioner = partitioner_class(num_partitions=client_num, **flower_partitioner_kwargs)
+    partitioner_class = partitioner_class_from_flwr_datasets(flower_partitioner_class)
+    partitioner = partitioner_class(
+        num_partitions=client_num, **flower_partitioner_kwargs
+    )
 
     # Assign the dataset to the partitioner
     partitioner.dataset = dataset
