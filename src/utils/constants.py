@@ -63,7 +63,6 @@ DEFAULTS = {
         "join_ratio": 0.1,
         "global_epoch": 100,
         "local_epoch": 5,
-        "finetune_epoch": 0,
         "batch_size": 32,
         "reset_optimizer_on_global_epoch": True,
         "straggler_ratio": 0,
@@ -71,7 +70,13 @@ DEFAULTS = {
         "buffers": "global",
         "client_side_evaluation": True,
         "test": {
-            "client": {"interval": 100, "train": False, "val": False, "test": True},
+            "client": {
+                "interval": 100,
+                "finetune_epoch": 0,
+                "train": False,
+                "val": False,
+                "test": True,
+            },
             "server": {
                 "interval": -1,
                 "train": False,

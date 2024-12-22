@@ -16,7 +16,7 @@ class FedPerClient(FedAvgClient):
             super().finetune()
         else:
             # fine-tune the classifier only
-            for _ in range(self.args.common.finetune_epoch):
+            for _ in range(self.args.common.test.client.finetune_epoch):
                 for x, y in self.trainloader:
                     if len(x) <= 1:
                         continue

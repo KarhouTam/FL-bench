@@ -126,7 +126,7 @@ class FedRoDClient(FedAvgClient):
     def finetune(self):
         self.model.train()
         self.dataset.train()
-        for _ in range(self.args.common.finetune_epoch):
+        for _ in range(self.args.common.test.client.finetune_epoch):
             for x, y in self.trainloader:
                 if len(x) <= 1:
                     continue

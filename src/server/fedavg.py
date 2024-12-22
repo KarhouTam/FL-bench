@@ -667,12 +667,13 @@ class FedAvgServer:
         self.model.load_state_dict(self.public_model_params, strict=False)
 
     def display_metrics(self):
-        """
-        Display aggregated client and server evaluation metrics at each round.
+        """Display aggregated client and server evaluation metrics at each
+        round.
 
-        This method aggregates metrics from selected clients for both 'before'
-        and 'after' stages of training for 'train', 'val', and 'test' splits.
-        It also logs the server's centralized evaluation results if available.
+        This method aggregates metrics from selected clients for both
+        'before' and 'after' stages of training for 'train', 'val', and
+        'test' splits. It also logs the server's centralized evaluation
+        results if available.
         """
         for split, client_side_test_flag, server_side_test_flag in [
             (

@@ -1,7 +1,8 @@
-from collections import Counter
 import json
-import numpy as np
+from collections import Counter
+
 import datasets
+import numpy as np
 
 from data.utils.process import partitioner_class_from_flwr_datasets
 

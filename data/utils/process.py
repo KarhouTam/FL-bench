@@ -555,8 +555,7 @@ def plot_distribution(client_num: int, label_counts: np.ndarray, save_path: str)
 
 
 def class_from_string(class_string: str) -> type:
-    """
-    Dynamically loads a class from a string representation.
+    """Dynamically loads a class from a string representation.
 
     Args:
         class_string (str): The string representation of the class, including the module path.
@@ -573,8 +572,8 @@ def class_from_string(class_string: str) -> type:
 
 
 def partitioner_class_from_flwr_datasets(flower_partitioner_class: str):
-    """
-    Dynamically loads a partitioner class from a string representation of a flwr.datasets.Dataset.
+    """Dynamically loads a partitioner class from a string representation of a
+    flwr.datasets.Dataset.
 
     Args:
         flower_partitioner_class (str): The string representation of the partitioner class, including the module path.

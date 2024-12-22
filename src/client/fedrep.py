@@ -33,7 +33,7 @@ class FedRepClient(FedPerClient):
         full_model = False
         if full_model:
             # fine-tune the full model
-            for E in range(self.args.common.finetune_epoch):
+            for E in range(self.args.common.test.client.finetune_epoch):
                 for x, y in self.trainloader:
                     if len(x) <= 1:
                         continue
@@ -46,7 +46,7 @@ class FedRepClient(FedPerClient):
                     # freeze body, train head
                     if (
                         E
-                        < self.args.common.finetune_epoch
+                        < self.args.common.test.client.finetune_epoch
                         - self.args.fedrep.train_body_epoch
                     ):
                         self.model.base.zero_grad()
@@ -56,7 +56,7 @@ class FedRepClient(FedPerClient):
                     self.optimizer.step()
         else:
             # fine-tune the classifier only
-            for _ in range(self.args.common.finetune_epoch):
+            for _ in range(self.args.common.test.client.finetune_epoch):
                 for x, y in self.trainloader:
                     if len(x) <= 1:
                         continue

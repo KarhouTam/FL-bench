@@ -24,7 +24,9 @@ class PerFedAvgServer(FedAvgServer):
         return_diff=False,
     ):
         algo = "Per-FedAvg(FO)" if args.perfedavg.version == "fo" else "Per-FedAvg(HF)"
-        args.common.finetune_epoch = max(1, args.common.finetune_epoch)
+        args.common.test.client.finetune_epoch = max(
+            1, args.common.test.client.finetune_epoch
+        )
         super().__init__(
             args, algorithm_name, unique_model, use_fedavg_client_cls, return_diff
         )

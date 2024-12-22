@@ -79,7 +79,6 @@ common:
   join_ratio: 0.1 # Ratio for (client each round) / (client num in total).
   global_epoch: 100 # Number of global epochs, also called communication round.
   local_epoch: 5 # Number if epochs of client local training.
-  finetune_epoch: 0 # Number of epochs of clients fine-tunning their models before test.
   batch_size: 32 # Data batch size for client local training.
   reset_optimizer_on_global_epoch: true # Whether to reset optimizer on each global epoch.
 
@@ -102,11 +101,11 @@ common:
 
   # The evaluation settings for client side and server side.
   test:
-    # For example, Set client.testset as true to evaluate on local testsets from selected clients this round with
-    # client local models before and after local training.
+    # For example, Set client.testset as true to evaluate on local testsets from selected clients with client local models.
     # Frequency is set by `client.interval`. Negative value for disabling.
     client:
       interval: 100
+      finetune_epoch: 0 # Number of epochs for clients fine-tunning their models before testing.
       train: false
       val: false
       test: true

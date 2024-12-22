@@ -306,7 +306,7 @@ class FedAvgClient:
         }
 
         results["before"] = self.evaluate()
-        if self.args.common.finetune_epoch > 0:
+        if self.args.common.test.client.finetune_epoch > 0:
             frz_params_dict = deepcopy(self.model.state_dict())
             self.finetune()
             results["after"] = self.evaluate()
@@ -322,7 +322,7 @@ class FedAvgClient:
         """
         self.model.train()
         self.dataset.train()
-        for _ in range(self.args.common.finetune_epoch):
+        for _ in range(self.args.common.test.client.finetune_epoch):
             for x, y in self.trainloader:
                 if len(x) <= 1:
                     continue
