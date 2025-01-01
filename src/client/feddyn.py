@@ -10,18 +10,15 @@ class FedDynClient(FedAvgClient):
     def __init__(self, **commons):
         super().__init__(**commons)
 
-        self.nabla: torch.Tensor
-        self.alpha: float
+        self.delta: torch.Tensor
 
     def set_parameters(self, package: dict[str, Any]):
         super().set_parameters(package)
-        self.nabla = package["nabla"].to(self.device)
-        self.alpha = package["alpha"]
+        self.delta = package["local_dual_correction"].to(self.device)
 
     def fit(self):
         self.model.train()
         self.dataset.train()
-        flatten_global_params = vectorize(self.model.parameters(), detach=True)
         for _ in range(self.local_epoch):
             for x, y in self.trainloader:
                 if len(x) <= 1:
@@ -31,13 +28,11 @@ class FedDynClient(FedAvgClient):
                 logit = self.model(x)
                 loss_ce = self.criterion(logit, y)
                 flatten_curr_params = vectorize(self.model.parameters(), detach=False)
-                loss_algo = self.alpha * torch.sum(
-                    flatten_curr_params * (-flatten_global_params + self.nabla)
-                )
-                loss = loss_ce + loss_algo
+                loss_correct = torch.sum(flatten_curr_params * self.delta)
+                loss = loss_ce + self.args.feddyn.alpha * loss_correct
                 self.optimizer.zero_grad()
                 loss.backward()
-                torch.nn.utils.clip_grad.clip_grad_norm_(
+                torch.nn.utils.clip_grad_norm_(
                     self.model.parameters(), max_norm=self.args.feddyn.max_grad_norm
                 )
                 self.optimizer.step()
