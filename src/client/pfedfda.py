@@ -68,7 +68,7 @@ class pFedFDAClient(FedAvgClient):
         self.covariances_beta = package["covariances_beta"].to(self.device)
         if self.testing:
             self.model.eval()
-            features, labels = self.compute_features(self.testloader)
+            features, labels = self.compute_features(self.trainloader)
             self.compute_beta_values(features, labels)
             means_mle, scatter_mle, counts = self.compute_mle_statistics(
                 features, labels
