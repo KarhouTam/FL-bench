@@ -1,5 +1,3 @@
-from torch.nn import BatchNorm2d
-
 from src.client.fedavg import FedAvgClient
 
 
