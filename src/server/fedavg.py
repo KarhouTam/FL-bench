@@ -11,7 +11,7 @@ import warnings
 from collections import OrderedDict
 from copy import deepcopy
 from pathlib import Path
-from typing import Any, Dict, List, Union
+from typing import Any, Dict, List, Optional, Union
 
 import numpy as np
 import ray
@@ -95,45 +95,7 @@ class FedAvgServer:
         self.client_num: int = self.data_partition["separation"]["total"]
 
         # init model(s) parameters
-        self.model: DecoupledModel = MODELS[self.args.model.name](
-            dataset=self.args.dataset.name,
-            pretrained=self.args.model.use_torchvision_pretrained_weights,
-        )
-        self.model.check_and_preprocess(self.args)
-
-        _init_global_params, _init_global_params_name = [], []
-        for key, param in self.model.named_parameters():
-            _init_global_params.append(param.data.clone())
-            _init_global_params_name.append(key)
-
-        self.public_model_param_names = _init_global_params_name
-        self.public_model_params: OrderedDict[str, torch.Tensor] = OrderedDict(
-            zip(_init_global_params_name, _init_global_params)
-        )
-
-        if self.args.model.external_model_weights_path is not None:
-            file_path = str(
-                (FLBENCH_ROOT / self.args.model.external_model_weights_path).absolute()
-            )
-            if os.path.isfile(file_path) and file_path.find(".pt") != -1:
-                self.public_model_params.update(
-                    torch.load(file_path, map_location="cpu")
-                )
-            elif not os.path.isfile(file_path):
-                raise FileNotFoundError(f"{file_path} is not a valid file path.")
-            elif file_path.find(".pt") == -1:
-                raise TypeError(f"{file_path} is not a valid .pt file.")
-
-        self.clients_personal_model_params = {i: {} for i in range(self.client_num)}
-
-        if self.args.common.buffers == "local":
-            _init_buffers = OrderedDict(self.model.named_buffers())
-            for i in range(self.client_num):
-                self.clients_personal_model_params[i] = deepcopy(_init_buffers)
-
-        if self.unique_model:
-            for params_dict in self.clients_personal_model_params.values():
-                params_dict.update(deepcopy(self.model.state_dict()))
+        self.init_model()
 
         self.client_optimizer_states = {i: {} for i in range(self.client_num)}
 
@@ -237,6 +199,50 @@ class FedAvgServer:
         ) = initialize_data_loaders(
             self.dataset, self.client_data_indices, self.args.common.batch_size
         )
+
+    def init_model(self, model: Optional[DecoupledModel] = None):
+        if model is None:
+            self.model: DecoupledModel = MODELS[self.args.model.name](
+                dataset=self.args.dataset.name,
+                pretrained=self.args.model.use_torchvision_pretrained_weights,
+            )
+        else:
+            self.model = model
+        self.model.check_and_preprocess(self.args)
+
+        _init_global_params, _init_global_params_name = [], []
+        for key, param in self.model.named_parameters():
+            _init_global_params.append(param.data.clone())
+            _init_global_params_name.append(key)
+
+        self.public_model_param_names = _init_global_params_name
+        self.public_model_params: OrderedDict[str, torch.Tensor] = OrderedDict(
+            zip(_init_global_params_name, _init_global_params)
+        )
+
+        if self.args.model.external_model_weights_path is not None:
+            file_path = str(
+                (FLBENCH_ROOT / self.args.model.external_model_weights_path).absolute()
+            )
+            if os.path.isfile(file_path) and file_path.find(".pt") != -1:
+                self.public_model_params.update(
+                    torch.load(file_path, map_location="cpu")
+                )
+            elif not os.path.isfile(file_path):
+                raise FileNotFoundError(f"{file_path} is not a valid file path.")
+            elif file_path.find(".pt") == -1:
+                raise TypeError(f"{file_path} is not a valid .pt file.")
+
+        self.clients_personal_model_params = {i: {} for i in range(self.client_num)}
+
+        if self.args.common.buffers == "local":
+            _init_buffers = OrderedDict(self.model.named_buffers())
+            for i in range(self.client_num):
+                self.clients_personal_model_params[i] = deepcopy(_init_buffers)
+
+        if self.unique_model:
+            for params_dict in self.clients_personal_model_params.values():
+                params_dict.update(deepcopy(self.model.state_dict()))
 
     def init_trainer(self, fl_client_cls=FedAvgClient, **extras):
         """Initiate the FL-bench trainier that responsible to client training.
