@@ -1,4 +1,4 @@
-from argparse import ArgumentParser
+from argparse import ArgumentParser, Namespace
 from collections import OrderedDict
 from copy import deepcopy
 
@@ -11,7 +11,6 @@ from src.client.floco import FlocoClient
 from src.server.fedavg import FedAvgServer
 from src.utils.constants import NUM_CLASSES
 from src.utils.models import MODELS, DecoupledModel
-from src.utils.tools import Namespace
 
 
 class FlocoServer(FedAvgServer):

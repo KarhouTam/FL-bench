@@ -12,7 +12,7 @@ FLBENCH_ROOT = Path(__file__).parent.absolute()
 if FLBENCH_ROOT not in sys.path:
     sys.path.append(FLBENCH_ROOT.as_posix())
 
-from src.utils.tools import parse_args
+from src.utils.functional import parse_args
 
 
 @hydra.main(config_path="config", config_name="defaults", version_base=None)

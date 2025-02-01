@@ -6,7 +6,7 @@ from omegaconf import DictConfig
 from sklearn.cluster import AgglomerativeClustering
 
 from src.server.fedavg import FedAvgServer
-from src.utils.tools import vectorize
+from src.utils.functional import vectorize
 
 
 class CFLServer(FedAvgServer):

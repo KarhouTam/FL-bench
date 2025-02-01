@@ -35,7 +35,7 @@ from src.utils.constants import (
 )
 from src.utils.metrics import Metrics
 from src.utils.models import MODELS, DecoupledModel
-from src.utils.tools import (
+from src.utils.functional import (
     Logger,
     evaluate_model,
     fix_random_seed,

@@ -12,7 +12,7 @@ from typing import Optional
 import numpy as np
 
 from data.utils.schemes.flower import flower_partition
-from src.utils.tools import fix_random_seed
+from src.utils.functional import fix_random_seed
 from data.utils.process import (
     exclude_domain,
     plot_distribution,
