@@ -33,8 +33,6 @@ from src.utils.constants import (
     MODE,
     OPTIMIZERS,
 )
-from src.utils.metrics import Metrics
-from src.utils.models import MODELS, DecoupledModel
 from src.utils.functional import (
     Logger,
     evaluate_model,
@@ -42,6 +40,8 @@ from src.utils.functional import (
     get_optimal_cuda_device,
     initialize_data_loaders,
 )
+from src.utils.metrics import Metrics
+from src.utils.models import MODELS, DecoupledModel
 from src.utils.trainer import FLbenchTrainer
 
 
