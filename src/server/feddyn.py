@@ -8,7 +8,7 @@ from omegaconf import DictConfig
 
 from src.client.feddyn import FedDynClient
 from src.server.fedavg import FedAvgServer
-from src.utils.tools import vectorize
+from src.utils.functional import vectorize
 
 
 # Fixed according to FedDyn implementation in FL-Simulator (issue #133)

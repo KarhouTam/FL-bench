@@ -69,6 +69,7 @@ FL-bench welcomes PR on everything that can make this project better.
 - ***FedRep*** -- [Exploiting Shared Representations for Personalized Federated Learning](http://arxiv.org/abs/2102.07078) (ICML'21)
 - ***Per-FedAvg*** -- [Personalized Federated Learning with Theoretical Guarantees: A Model-Agnostic Meta-Learning Approach](https://proceedings.neurips.cc/paper/2020/hash/24389bfe4fe2eba8bf9a9203a44cdad-Abstract.html) (NeurIPS'20)
 - ***pFedMe*** -- [Personalized Federated Learning with Moreau Envelopes](http://arxiv.org/abs/2006.08848) (NeurIPS'20)
+- ***FedEM*** -- [Federated Multi-Task Learning under a Mixture of Distributions](https://arxiv.org/abs/2108.10252) (NIPS'21)
 - ***Ditto*** -- [Ditto: Fair and Robust Federated Learning Through Personalization](http://arxiv.org/abs/2012.04221) (ICML'21)
 - ***pFedHN*** -- [Personalized Federated Learning using Hypernetworks](http://arxiv.org/abs/2103.04628) (ICML'21)
 - ***pFedLA*** -- [Layer-Wised Model Aggregation for Personalized Federated Learning](https://openaccess.thecvf.com/content/CVPR2022/html/Ma_Layer-Wised_Mdel_Aggregation_for_Personalized_Federated_Learning_CVPR_2022_paper.html) (CVPR'22)

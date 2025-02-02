@@ -21,7 +21,7 @@ FL_BENCH_ROOT = Path(__file__).parent.parent.parent.parent.absolute()
 # Append the FL_BENCH_ROOT directory to the system path
 sys.path.append(FL_BENCH_ROOT.as_posix())
 
-from src.utils.tools import get_optimal_cuda_device
+from src.utils.functional import get_optimal_cuda_device
 
 # Define efficient net models and their weights
 EFFICIENT_NETS = [

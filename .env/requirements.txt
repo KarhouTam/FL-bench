@@ -1,6 +1,6 @@
-torch~=2.2.0
+torch~=2.4.1
 rich~=13.7.1
-torchvision~=0.17.0
+torchvision~=0.19.1
 numpy<2.0
 visdom==0.2.4
 Pillow~=10.3.0

@@ -7,7 +7,7 @@ import torch.nn.functional as F
 from torch.utils.data import DataLoader, Subset
 
 from src.client.fedavg import FedAvgClient
-from src.utils.tools import evaluate_model
+from src.utils.functional import evaluate_model
 
 
 class MetaFedClient(FedAvgClient):

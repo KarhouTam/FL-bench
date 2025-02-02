@@ -5,7 +5,7 @@ from typing import Any
 import torch
 
 from src.client.fedavg import FedAvgClient
-from src.utils.tools import evaluate_model, vectorize
+from src.utils.functional import evaluate_model, vectorize
 
 
 class FedFomoClient(FedAvgClient):

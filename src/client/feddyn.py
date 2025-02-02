@@ -3,7 +3,7 @@ from typing import Any
 import torch
 
 from src.client.fedavg import FedAvgClient
-from src.utils.tools import vectorize
+from src.utils.functional import vectorize
 
 
 class FedDynClient(FedAvgClient):

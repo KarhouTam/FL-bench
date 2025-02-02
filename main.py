@@ -12,7 +12,7 @@ FLBENCH_ROOT = Path(__file__).parent.absolute()
 if FLBENCH_ROOT not in sys.path:
     sys.path.append(FLBENCH_ROOT.as_posix())
 
-from src.utils.tools import parse_args
+from src.utils.functional import parse_args
 
 
 @hydra.main(config_path="config", config_name="defaults", version_base=None)
@@ -35,6 +35,18 @@ def main(config: DictConfig):
 
     config = parse_args(config, method_name, get_method_hyperparams_func)
 
+    useful_config_groups = [
+        "dataset",
+        "model",
+        "method",
+        "common",
+        "mode",
+        "parallel",
+        "optimizer",
+        "lr_scheduler",
+        config.method,
+    ]
+
     # target method is not inherited from FedAvgServer
     if server_class.__bases__[0] != FedAvgServer and server_class != FedAvgServer:
         parent_server_class = server_class.__bases__[0]
@@ -51,6 +63,13 @@ def main(config: DictConfig):
             setattr(
                 config, parent_method_name, getattr(parent_config, parent_method_name)
             )
+
+        useful_config_groups.append(parent_method_name)
+    
+    # remove all unused config groups
+    for config_group in list(config.keys()):
+        if config_group not in useful_config_groups:
+            delattr(config, config_group)
 
     server = server_class(args=config)
     server.run_experiment()
