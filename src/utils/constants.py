@@ -94,8 +94,6 @@ DEFAULTS = {
         "save_metrics": True,
         "delete_useless_run": True,
     },
-    "fedprox": {"mu": 0.01},
-    "pfedsim": {"warmup_round": 0.5},
 }
 
 
