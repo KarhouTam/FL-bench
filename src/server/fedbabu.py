@@ -5,19 +5,14 @@ from src.server.fedavg import FedAvgServer
 
 
 class FedBabuServer(FedAvgServer):
-    def __init__(
-        self,
-        args: DictConfig,
-        algorithm_name: str = "FedBabu",
-        unique_model=False,
-        use_fedavg_client_cls=False,
-        return_diff=False,
-    ):
+    algorithm_name = "FedBabu"
+    all_model_params_personalized = False  # `True` indicates that clients have their own fullset of personalized model parameters.
+    return_diff = False  # `True` indicates that clients return `diff = W_global - W_local` as parameter update; `False` for `W_local` only.
+    client_cls = FedBabuClient
+
+    def __init__(self, args: DictConfig):
         # Fine-tuning is indispensable to FedBabu.
         assert (
             args.common.test.client.finetune_epoch > 0
         ), f"FedBABU needs finetuning. Now finetune_epoch = {args.common.test.client.finetune_epoch}"
-        super().__init__(
-            args, algorithm_name, unique_model, use_fedavg_client_cls, return_diff
-        )
-        self.init_trainer(FedBabuClient)
+        super().__init__(args)

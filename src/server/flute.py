@@ -3,7 +3,6 @@ from argparse import ArgumentParser, Namespace
 from typing import Any
 
 import torch
-from omegaconf import DictConfig
 
 from src.client.flute import FLUTEClient
 from src.server.fedavg import FedAvgServer
@@ -11,6 +10,11 @@ from src.utils.constants import NUM_CLASSES
 
 
 class FLUTEServer(FedAvgServer):
+    algorithm_name: str = "FLUTE"
+    all_model_params_personalized = False  # `True` indicates that clients have their own fullset of personalized model parameters.
+    return_diff = False  # `True` indicates that clients return `diff = W_global - W_local` as parameter update; `False` for `W_local` only.
+    client_cls = FLUTEClient
+
     @staticmethod
     def get_hyperparams(args_list=None) -> Namespace:
         parser = ArgumentParser()
@@ -22,19 +26,6 @@ class FLUTEServer(FedAvgServer):
         parser.add_argument("--gamma2", type=float, default=1)
         parser.add_argument("--nc2_lr", type=float, default=0.5)
         return parser.parse_args(args_list)
-
-    def __init__(
-        self,
-        args: DictConfig,
-        algorithm_name: str = "FLUTE",
-        unique_model=False,
-        use_fedavg_client_cls=False,
-        return_diff=False,
-    ):
-        super().__init__(
-            args, algorithm_name, unique_model, use_fedavg_client_cls, return_diff
-        )
-        self.init_trainer(FLUTEClient)
 
     def train_one_round(self):
         clients_package = self.trainer.train()

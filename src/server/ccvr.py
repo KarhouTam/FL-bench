@@ -1,10 +1,8 @@
 from argparse import ArgumentParser, Namespace
-from collections import OrderedDict
 from copy import deepcopy
 
 import numpy as np
 import torch
-from omegaconf import DictConfig
 from torch.utils.data import DataLoader, Dataset
 
 from src.client.ccvr import CCVRClient
@@ -13,24 +11,16 @@ from src.utils.constants import NUM_CLASSES
 
 
 class CCVRServer(FedAvgServer):
+    algorithm_name: str = "CCVR"
+    all_model_params_personalized = False  # `True` indicates that clients have their own fullset of personalized model parameters.
+    return_diff = False  # `True` indicates that clients return `diff = W_global - W_local` as parameter update; `False` for `W_local` only.
+    client_cls = CCVRClient
+
     @staticmethod
     def get_hyperparams(args_list=None) -> Namespace:
         parser = ArgumentParser()
         parser.add_argument("--sample_per_class", type=int, default=200)
         return parser.parse_args(args_list)
-
-    def __init__(
-        self,
-        args: DictConfig,
-        algorithm_name: str = "CCVR",
-        unique_model=False,
-        use_fedavg_client_cls=False,
-        return_diff=False,
-    ):
-        super().__init__(
-            args, algorithm_name, unique_model, use_fedavg_client_cls, return_diff
-        )
-        self.init_trainer(CCVRClient)
 
     def test_client_models(self):
         frz_global_params_dict = deepcopy(self.public_model_params)

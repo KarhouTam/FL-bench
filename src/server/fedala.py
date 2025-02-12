@@ -1,12 +1,15 @@
 from argparse import ArgumentParser, Namespace
 
-from omegaconf import DictConfig
-
 from src.client.fedala import FedALAClient
 from src.server.fedavg import FedAvgServer
 
 
 class FedALAServer(FedAvgServer):
+    algorithm_name = "FedALA"
+    all_model_params_personalized = False  # `True` indicates that clients have their own fullset of personalized model parameters.
+    return_diff = False  # `True` indicates that clients return `diff = W_global - W_local` as parameter update; `False` for `W_local` only.
+    client_cls = FedALAClient
+
     @staticmethod
     def get_hyperparams(args_list=None) -> Namespace:
         parser = ArgumentParser()
@@ -38,16 +41,3 @@ class FedALAServer(FedAvgServer):
             help="The percent of the local training data to sample.",
         )
         return parser.parse_args(args_list)
-
-    def __init__(
-        self,
-        args: DictConfig,
-        algorithm_name: str = "FedALA",
-        unique_model=False,
-        use_fedavg_client_cls=False,
-        return_diff=False,
-    ):
-        super().__init__(
-            args, algorithm_name, unique_model, use_fedavg_client_cls, return_diff
-        )
-        self.init_trainer(FedALAClient)

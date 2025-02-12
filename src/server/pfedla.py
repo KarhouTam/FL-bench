@@ -11,6 +11,10 @@ from src.server.fedavg import FedAvgServer
 
 
 class pFedLAServer(FedAvgServer):
+    algorithm_name: str = "pFedLA"
+    all_model_params_personalized = True
+    return_diff = True
+
     @staticmethod
     def get_hyperparams(args_list=None) -> Namespace:
         parser = ArgumentParser()
@@ -21,20 +25,11 @@ class pFedLAServer(FedAvgServer):
         parser.add_argument("--hidden_dim", type=int, default=100)
         return parser.parse_args(args_list)
 
-    def __init__(
-        self,
-        args: DictConfig,
-        algorithm_name: str = None,
-        unique_model=True,
-        use_fedavg_client_cls=True,
-        return_diff=True,
-    ):
+    def __init__(self, args: DictConfig):
         if args.mode == "parallel":
             raise NotImplementedError("pFedHN does not support paralell mode.")
-        algo = "pFedLA" if args.pfedla.k == 0 else "HeurpFedLA"
-        super().__init__(
-            args, algorithm_name, unique_model, use_fedavg_client_cls, return_diff
-        )
+        self.algorithm_name = "pFedLA" if args.pfedla.k == 0 else "HeurpFedLA"
+        super().__init__(args)
         self.hypernet = HyperNetwork(
             embedding_dim=self.args.pfedla.embedding_dim,
             layer_num=len(self.public_model_param_names),

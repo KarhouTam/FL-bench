@@ -8,6 +8,11 @@ from src.server.fedavg import FedAvgServer
 
 
 class DittoServer(FedAvgServer):
+    algorithm_name: str = "Ditto"
+    all_model_params_personalized = False  # `True` indicates that clients have their own fullset of personalized model parameters.
+    return_diff = False  # `True` indicates that clients return `diff = W_global - W_local` as parameter update; `False` for `W_local` only.
+    client_cls = DittoClient
+
     @staticmethod
     def get_hyperparams(args_list=None) -> Namespace:
         parser = ArgumentParser()
@@ -15,18 +20,8 @@ class DittoServer(FedAvgServer):
         parser.add_argument("--lamda", type=float, default=1)
         return parser.parse_args(args_list)
 
-    def __init__(
-        self,
-        args: DictConfig,
-        algorithm_name: str = "Ditto",
-        unique_model=False,
-        use_fedavg_client_cls=False,
-        return_diff=False,
-    ):
-        super().__init__(
-            args, algorithm_name, unique_model, use_fedavg_client_cls, return_diff
-        )
-        self.init_trainer(DittoClient)
+    def __init__(self, args: DictConfig):
+        super().__init__(args)
         self.clients_personalized_model_params = {
             i: deepcopy(self.model.state_dict()) for i in self.train_clients
         }

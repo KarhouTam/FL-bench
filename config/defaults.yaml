@@ -19,8 +19,8 @@ model:
   use_torchvision_pretrained_weights: true
 
   # The model parameters `.pt` file relative path to the directory of FL-bench.
-  # This feature is enabled only when `unique_model=False`,
-  # which is pre-defined and fixed by each FL method.
+  # This feature is enabled only when `all_model_params_personalized=False`,
+  # which is defined and fixed by each FL method.
   external_model_weights_path: null
 
 # The learning rate scheduler that used for client local training.
@@ -71,7 +71,7 @@ parallel:
 
   # Should be set larger than 1, or training mode fallback to `serial`
   # Set a larger `num_workers` can further boost efficiency,
-  # but also let each worker have less computational resources.
+  # but also increases the computational overhead.
   num_workers: 2
 
 common:
@@ -101,7 +101,7 @@ common:
 
   # The evaluation settings for client side and server side.
   test:
-    # For example, Set client.testset as true to evaluate on local testsets from selected clients with client local models.
+    # For example, Set client.test as true to evaluate on local testsets from selected clients with client local models.
     # Frequency is set by `client.interval`. Negative value for disabling.
     client:
       interval: 100
@@ -109,9 +109,10 @@ common:
       train: false
       val: false
       test: true
-    # For example, set server.trainset as true to evaluate on a centralized testset (created by aggregating all clients' local testsets)
+    # For example, set server.test as true to evaluate on a centralized testset (created by aggregating all clients' local testsets)
     # with the updated global model at the end of a communication round.
     # Frequency is set by `server.interval`. Negative value for disabling.
+    # NOTE: If clients have personalized model parameters like local buffers or classifiers, centralized evaluation for the global model is disabled.
     server:
       interval: -1
       train: false
@@ -138,7 +139,7 @@ common:
 # FL-bench uses FL method arguments by args.<method>.<arg>.
 # You need to follow the key set in `get_hyperparams()` in class <method>Server, src/server/<method>.py
 # FL-bench will ignore these arguments if they are not supported by the selected method,
-# e.g., if you are running FedProx, then pfedsim arguments will be ignored.
+# e.g., if you are running FedProx, then pFedSim arguments will be ignored.
 fedprox:
   mu: 0.01
 pfedsim:

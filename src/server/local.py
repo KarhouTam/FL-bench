@@ -1,20 +1,10 @@
-from omegaconf import DictConfig
-
 from src.server.fedavg import FedAvgServer
 
 
 class LocalServer(FedAvgServer):
-    def __init__(
-        self,
-        args: DictConfig,
-        algorithm_name: str = "Local-only",
-        unique_model=True,
-        use_fedavg_client_cls=True,
-        return_diff=False,
-    ):
-        super().__init__(
-            args, algorithm_name, unique_model, use_fedavg_client_cls, return_diff
-        )
+    algorithm_name: str = "Local-only"
+    all_model_params_personalized = True  # `True` indicates that clients have their own fullset of personalized model parameters.
+    return_diff = False  # `True` indicates that clients return `diff = W_global - W_local` as parameter update; `False` for `W_local` only.
 
     def train_one_round(self):
         client_packages = self.trainer.train()

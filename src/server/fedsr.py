@@ -1,4 +1,3 @@
-import os
 from argparse import ArgumentParser, Namespace
 
 import torch
@@ -9,8 +8,8 @@ from omegaconf import DictConfig
 
 from src.client.fedsr import FedSRClient
 from src.server.fedavg import FedAvgServer
-from src.utils.constants import FLBENCH_ROOT, NUM_CLASSES
-from src.utils.models import DecoupledModel
+from src.utils.constants import NUM_CLASSES
+from src.utils.models import MODELS, DecoupledModel
 
 
 class FedSRModel(DecoupledModel):
@@ -46,6 +45,11 @@ class FedSRModel(DecoupledModel):
 
 
 class FedSRServer(FedAvgServer):
+    algorithm_name: str = "FedSR"
+    all_model_params_personalized = False  # `True` indicates that clients have their own fullset of personalized model parameters.
+    return_diff = False  # `True` indicates that clients return `diff = W_global - W_local` as parameter update; `False` for `W_local` only.
+    client_cls = FedSRClient
+
     @staticmethod
     def get_hyperparams(args_list=None) -> Namespace:
         parser = ArgumentParser()
@@ -53,34 +57,16 @@ class FedSRServer(FedAvgServer):
         parser.add_argument("--CMI_coeff", type=float, default=5e-4)
         return parser.parse_args(args_list)
 
-    def __init__(
-        self,
-        args: DictConfig,
-        algorithm_name: str = "FedSR",
-        unique_model=False,
-        use_fedavg_client_cls=False,
-        return_diff=False,
-    ):
-        super().__init__(
-            args, algorithm_name, unique_model, use_fedavg_client_cls, return_diff
-        )
+    def __init__(self, args: DictConfig):
+        super().__init__(args, False, False)
         # reload the model
-        self.model = FedSRModel(self.model, self.args.dataset.name)
-        self.model.check_and_preprocess(self.args)
-
-        _init_global_params, _init_global_params_name = [], []
-        for key, param in self.model.named_parameters():
-            _init_global_params.append(param.data.clone())
-            _init_global_params_name.append(key)
-        self.public_model_param_names = list(self.public_model_params.keys())
-
-        if self.args.model.external_model_weights_path is not None:
-            file_path = str(
-                (FLBENCH_ROOT / self.args.model.external_model_weights_path).absolute()
+        self.init_model(
+            model=FedSRModel(
+                base_model=MODELS[self.args.model.name](
+                    dataset=self.args.dataset.name,
+                    pretrained=self.args.model.use_torchvision_pretrained_weights,
+                ),
+                dataset=self.args.dataset.name,
             )
-            if os.path.isfile(file_path) and file_path.find(".pt") != -1:
-                self.public_model_params.update(
-                    torch.load(file_path, map_location="cpu")
-                )
-
-        self.init_trainer(FedSRClient)
+        )
+        self.init_trainer()

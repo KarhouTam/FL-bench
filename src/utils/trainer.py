@@ -1,5 +1,5 @@
 from collections import OrderedDict, deque
-from typing import Any, Callable
+from typing import Any, Callable, Optional
 
 import ray
 import ray.actor
@@ -143,7 +143,7 @@ class FLbenchTrainer:
         self,
         func_name: str,
         clients: list[int],
-        package_func: Callable[[int], dict[str, Any]] = None,
+        package_func: Optional[Callable[[int], dict[str, Any]]] = None,
     ):
         if package_func is None:
             package_func = getattr(self.server, "package")
@@ -158,7 +158,7 @@ class FLbenchTrainer:
         self,
         func_name: str,
         clients: list[int],
-        package_func: Callable[[int], dict[str, Any]] = None,
+        package_func: Optional[Callable[[int], dict[str, Any]]] = None,
     ):
         if package_func is None:
             package_func = getattr(self.server, "package")

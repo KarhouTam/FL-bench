@@ -11,6 +11,11 @@ from src.server.fedavg import FedAvgServer
 
 # about other hyperparameter settings, most you can find in the common section.
 class PeFLLServer(FedAvgServer):
+    algorithm_name: str = "PeFLL"
+    all_model_params_personalized = True  # `True` indicates that clients have their own fullset of personalized model parameters.
+    return_diff = False  # `True` indicates that clients return `diff = W_global - W_local` as parameter update; `False` for `W_local` only.
+    client_cls = PeFLLClient
+
     @staticmethod
     def get_hyperparams(args_list=None) -> Namespace:
         parser = ArgumentParser()
@@ -24,19 +29,10 @@ class PeFLLServer(FedAvgServer):
         parser.add_argument("--clip_norm", type=float, default=50.0)
         return parser.parse_args(args_list)
 
-    def __init__(
-        self,
-        args: DictConfig,
-        algorithm_name: str = "PeFLL",
-        unique_model=True,
-        use_fedavg_client_cls=False,
-        return_diff=False,
-    ):
+    def __init__(self, args: DictConfig):
         if args.common.buffers == "global":
             raise NotImplementedError("PeFLL doesn't support global buffers.")
-        super().__init__(
-            args, algorithm_name, unique_model, use_fedavg_client_cls, return_diff
-        )
+        super().__init__(args, False)
         if self.args.pefll.embed_dim <= 0:
             self.args.pefll.embed_dim = int(1 + self.client_num / 4)
         self.embed_net = EmbedNetwork(self.args)
@@ -45,9 +41,7 @@ class PeFLLServer(FedAvgServer):
             list(self.embed_net.parameters()) + list(self.hyper_net.parameters()),
             lr=self.args.pefll.hyper_embed_lr,
         )
-        self.init_trainer(
-            PeFLLClient, embed_net=self.embed_net, hyper_net=self.hyper_net
-        )
+        self.init_trainer(embed_net=self.embed_net, hyper_net=self.hyper_net)
 
     def package(self, client_id: int):
         server_package = super().package(client_id)

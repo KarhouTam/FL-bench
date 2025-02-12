@@ -7,17 +7,13 @@ from src.server.fedavg import FedAvgServer
 
 
 class FedBNServer(FedAvgServer):
-    def __init__(
-        self,
-        args: DictConfig,
-        algorithm_name: str = "FedBN",
-        unique_model=False,
-        use_fedavg_client_cls=False,
-        return_diff=False,
-    ):
-        super().__init__(
-            args, algorithm_name, unique_model, use_fedavg_client_cls, return_diff
-        )
+    algorithm_name = "FedBN"
+    all_model_params_personalized = False  # `True` indicates that clients have their own fullset of personalized model parameters.
+    return_diff = False  # `True` indicates that clients return `diff = W_global - W_local` as parameter update; `False` for `W_local` only.
+    client_cls = FedBNClient
+
+    def __init__(self, args: DictConfig):
+        super().__init__(args)
         init_bn_params = dict(
             (key, param)
             for key, param in self.model.state_dict().items()
@@ -25,4 +21,3 @@ class FedBNServer(FedAvgServer):
         )
         for params_dict in self.clients_personal_model_params.values():
             params_dict.update(deepcopy(init_bn_params))
-        self.init_trainer(FedBNClient)

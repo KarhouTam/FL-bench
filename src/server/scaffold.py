@@ -10,28 +10,23 @@ from src.server.fedavg import FedAvgServer
 
 
 class SCAFFOLDServer(FedAvgServer):
+    algorithm_name: str = "SCAFFOLD"
+    all_model_params_personalized = False  # `True` indicates that clients have their own fullset of personalized model parameters.
+    return_diff = True  # `True` indicates that clients return `diff = W_global - W_local` as parameter update; `False` for `W_local` only.
+    client_cls = SCAFFOLDClient
+
     @staticmethod
     def get_hyperparams(args_list=None) -> Namespace:
         parser = ArgumentParser()
         parser.add_argument("--global_lr", type=float, default=1.0)
         return parser.parse_args(args_list)
 
-    def __init__(
-        self,
-        args: DictConfig,
-        algorithm_name: str = "SCAFFOLD",
-        unique_model=False,
-        use_fedavg_client_cls=False,
-        return_diff=True,
-    ):
-        super().__init__(
-            args, algorithm_name, unique_model, use_fedavg_client_cls, return_diff
-        )
+    def __init__(self, args: DictConfig):
+        super().__init__(args)
         self.c_global = [
             torch.zeros_like(param) for param in self.public_model_params.values()
         ]
         self.c_local = [deepcopy(self.c_global) for _ in self.train_clients]
-        self.init_trainer(SCAFFOLDClient)
 
     def package(self, client_id: int):
         server_package = super().package(client_id)

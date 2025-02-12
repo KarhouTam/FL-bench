@@ -17,6 +17,11 @@ from src.utils.constants import DATA_SHAPE
 
 
 class FedFedServer(FedAvgServer):
+    algorithm_name: str = "FedFed"
+    all_model_params_personalized = False  # `True` indicates that clients have their own fullset of personalized model parameters.
+    return_diff = False  # `True` indicates that clients return `diff = W_global - W_local` as parameter update; `False` for `W_local` only.
+    client_cls = FedFedClient
+
     @staticmethod
     def get_hyperparams(arg_list=None) -> Namespace:
         parser = ArgumentParser()
@@ -42,17 +47,8 @@ class FedFedServer(FedAvgServer):
         )
         return parser.parse_args(arg_list)
 
-    def __init__(
-        self,
-        args: DictConfig,
-        algorithm_name: str = "FedFed",
-        unique_model=False,
-        use_fedavg_client_cls=False,
-        return_diff=False,
-    ):
-        super().__init__(
-            args, algorithm_name, unique_model, use_fedavg_client_cls, return_diff
-        )
+    def __init__(self, args: DictConfig):
+        super().__init__(args, False)
         dummy_VAE_model = VAE(self.args)
         VAE_optimizer_cls = partial(
             torch.optim.AdamW,
@@ -60,9 +56,7 @@ class FedFedServer(FedAvgServer):
             weight_decay=self.args.fedfed.VAE_weight_decay,
         )
         dummy_VAE_optimizer = VAE_optimizer_cls(params=dummy_VAE_model.parameters())
-        self.init_trainer(
-            FedFedClient, VAE_cls=VAE, VAE_optimizer_cls=VAE_optimizer_cls
-        )
+        self.init_trainer(VAE_cls=VAE, VAE_optimizer_cls=VAE_optimizer_cls)
         self.global_VAE_params = OrderedDict()
         for key, param in dummy_VAE_model.named_parameters():
             self.global_VAE_params[key] = param.data.clone()

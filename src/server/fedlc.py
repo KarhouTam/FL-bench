@@ -1,7 +1,5 @@
 from argparse import ArgumentParser, Namespace
 
-from omegaconf import DictConfig
-
 from src.client.fedlc import FedLCClient
 from src.server.fedavg import FedAvgServer
 
@@ -16,21 +14,13 @@ More discussions about FedLC: https://github.com/KarhouTam/FL-bench/issues/5
 
 
 class FedLCServer(FedAvgServer):
+    algorithm_name: str = "FedLC"
+    all_model_params_personalized = False  # `True` indicates that clients have their own fullset of personalized model parameters.
+    return_diff = False  # `True` indicates that clients return `diff = W_global - W_local` as parameter update; `False` for `W_local` only.
+    client_cls = FedLCClient
+
     @staticmethod
     def get_hyperparams(args_list=None) -> Namespace:
         parser = ArgumentParser()
         parser.add_argument("--tau", type=float, default=1.0)
         return parser.parse_args(args_list)
-
-    def __init__(
-        self,
-        args: DictConfig,
-        algorithm_name: str = "FedLC",
-        unique_model=False,
-        use_fedavg_client_cls=False,
-        return_diff=False,
-    ):
-        super().__init__(
-            args, algorithm_name, unique_model, use_fedavg_client_cls, return_diff
-        )
-        self.init_trainer(FedLCClient)

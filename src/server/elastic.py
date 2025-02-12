@@ -3,14 +3,17 @@ from collections import OrderedDict
 from typing import Any
 
 import torch
-from omegaconf import DictConfig
-from torch._tensor import Tensor
 
 from src.client.elastic import ElasticClient
 from src.server.fedavg import FedAvgServer
 
 
 class ElasticServer(FedAvgServer):
+    algorithm_name: str = "Elastic"
+    all_model_params_personalized = False  # `True` indicates that clients have their own fullset of personalized model parameters.
+    return_diff = True  # `True` indicates that clients return `diff = W_global - W_local` as parameter update; `False` for `W_local` only.
+    client_cls = ElasticClient
+
     @staticmethod
     def get_hyperparams(args_list=None) -> Namespace:
         parser = ArgumentParser()
@@ -18,19 +21,6 @@ class ElasticServer(FedAvgServer):
         parser.add_argument("--tau", type=float, default=0.5)
         parser.add_argument("--mu", type=float, default=0.95)
         return parser.parse_args(args_list)
-
-    def __init__(
-        self,
-        args: DictConfig,
-        algorithm_name: str = "Elastic",
-        unique_model=False,
-        use_fedavg_client_cls=False,
-        return_diff=True,
-    ):
-        super().__init__(
-            args, algorithm_name, unique_model, use_fedavg_client_cls, return_diff
-        )
-        self.init_trainer(ElasticClient)
 
     def aggregate_client_updates(
         self, client_packages: OrderedDict[int, dict[str, Any]]
