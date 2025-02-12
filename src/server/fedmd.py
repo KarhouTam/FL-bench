@@ -22,6 +22,11 @@ class FedMDServer(FedAvgServer):
     2. (public: CIFAR10, private: CIFAR100 but under 20 superclasses)
     """
 
+    algorithm_name: str = "FedMD"
+    all_model_params_personalized = True  # `True` indicates that clients have their own fullset of personalized model parameters.
+    return_diff = False  # `True` indicates that clients return `diff = W_global - W_local` as parameter update; `False` for `W_local` only.
+    client_cls = FedMDClient
+
     @staticmethod
     def get_hyperparams(args_list=None) -> Namespace:
         parser = ArgumentParser()
@@ -31,14 +36,7 @@ class FedMDServer(FedAvgServer):
         parser.add_argument("--public_batch_num", type=int, default=5)
         return parser.parse_args(args_list)
 
-    def __init__(
-        self,
-        args: DictConfig,
-        algorithm_name: str = "FedMD",
-        unique_model=True,
-        use_fedavg_client_cls=False,
-        return_diff=False,
-    ):
+    def __init__(self, args: DictConfig):
         if args.fedmd.public_dataset == "mnist" and args.dataset.name not in [
             "femnist",
             "emnist",
@@ -52,9 +50,7 @@ class FedMDServer(FedAvgServer):
                 "The public dataset is cifar10 and the dataset "
                 f"should be cifar100 (now: {args.dataset.name})"
             )
-        super().__init__(
-            args, algorithm_name, unique_model, use_fedavg_client_cls, return_diff
-        )
+        super().__init__(args)
         test_data_transform = transforms.Compose(
             [
                 transforms.Normalize(
@@ -92,8 +88,6 @@ class FedMDServer(FedAvgServer):
         self.iter_public_loader = iter(self.public_dataset_loader)
         self.public_data: list[torch.Tensor] = []
         self.consensus: list[torch.Tensor] = []
-
-        self.init_trainer(FedMDClient)
 
     def load_public_data_batches(self):
         for _ in range(self.args.fedmd.public_batch_num):

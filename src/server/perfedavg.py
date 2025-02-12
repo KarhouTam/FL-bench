@@ -7,6 +7,11 @@ from src.server.fedavg import FedAvgServer
 
 
 class PerFedAvgServer(FedAvgServer):
+    algorithm_name: str = "Per-FedAvg"
+    all_model_params_personalized = False  # `True` indicates that clients have their own fullset of personalized model parameters.
+    return_diff = False  # `True` indicates that clients return `diff = W_global - W_local` as parameter update; `False` for `W_local` only.
+    client_cls = PerFedAvgClient
+
     @staticmethod
     def get_hyperparams(args_list=None) -> Namespace:
         parser = ArgumentParser()
@@ -15,19 +20,9 @@ class PerFedAvgServer(FedAvgServer):
         parser.add_argument("--delta", type=float, default=1e-3)
         return parser.parse_args(args_list)
 
-    def __init__(
-        self,
-        args: DictConfig,
-        algorithm_name: str = "Per-FedAvg(FO)",
-        unique_model=False,
-        use_fedavg_client_cls=False,
-        return_diff=False,
-    ):
-        algo = "Per-FedAvg(FO)" if args.perfedavg.version == "fo" else "Per-FedAvg(HF)"
+    def __init__(self, args: DictConfig):
+        self.algorithm_name += "(FO)" if args.perfedavg.version == "fo" else "(HF)"
         args.common.test.client.finetune_epoch = max(
             1, args.common.test.client.finetune_epoch
         )
-        super().__init__(
-            args, algorithm_name, unique_model, use_fedavg_client_cls, return_diff
-        )
-        self.init_trainer(PerFedAvgClient)
+        super().__init__(args)

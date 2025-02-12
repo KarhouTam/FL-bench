@@ -11,6 +11,11 @@ from src.server.fedavg import FedAvgServer
 
 
 class MetaFedServer(FedAvgServer):
+    algorithm_name: str = "MetaFed"
+    all_model_params_personalized = True  # `True` indicates that clients have their own fullset of personalized model parameters.
+    return_diff = False  # `True` indicates that clients return `diff = W_global - W_local` as parameter update; `False` for `W_local` only.
+    client_cls = MetaFedClient
+
     @staticmethod
     def get_hyperparams(args_list=None) -> Namespace:
         parser = ArgumentParser()
@@ -21,14 +26,7 @@ class MetaFedServer(FedAvgServer):
         parser.add_argument("--threshold_2", type=float, default=0.5)
         return parser.parse_args(args_list)
 
-    def __init__(
-        self,
-        args: DictConfig,
-        algorithm_name: str = "MetaFed",
-        unique_model=True,
-        use_fedavg_client_cls=False,
-        return_diff=False,
-    ):
+    def __init__(self, args: DictConfig):
         # NOTE: MetaFed does not support to select part of clients to train. So the join_raio is always set to 1.
         args.join_ratio = 1
         if args.mode == "parallel":
@@ -36,12 +34,9 @@ class MetaFedServer(FedAvgServer):
                 "MetaFed does not support parallel training, so running mode is fallback to serial."
             )
             args.mode = "serial"
-        super().__init__(
-            args, algorithm_name, unique_model, use_fedavg_client_cls, return_diff
-        )
+        super().__init__(args)
         self.warmup = True
         self.client_flags = [True for _ in self.train_clients]
-        self.init_trainer(MetaFedClient)
 
     def package(self, client_id: int):
         server_package = super().package(client_id)

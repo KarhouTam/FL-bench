@@ -10,13 +10,15 @@ from src.server.fedavg import FedAvgServer
 
 
 class pFedSimServer(FedAvgServer):
+    algorithm_name = "pFedSim"
+
     @staticmethod
     def get_hyperparams(args_list=None) -> Namespace:
         parser = ArgumentParser()
         parser.add_argument("-wr", "--warmup_round", type=float, default=0.5)
         return parser.parse_args(args_list)
 
-    def __init__(self, args: DictConfig, algorithm_name: str = "pFedSim"):
+    def __init__(self, args: DictConfig):
         # layers join aggregation in personalization phase
         self.params_name_join_aggregation = None
         self.warmup_round = 0
@@ -30,7 +32,7 @@ class pFedSimServer(FedAvgServer):
             raise ValueError(
                 "warmup_round need to be set in the range of [0, 1) or [1, global_epoch)."
             )
-        super().__init__(args, algorithm_name)
+        super().__init__(args)
         self.weight_matrix = torch.eye(self.client_num)
 
     def train(self):
@@ -81,13 +83,17 @@ class pFedSimServer(FedAvgServer):
                         }
                     )
             self.update_weight_matrix()
-            self.display_metrics()
             avg_round_time = (avg_round_time * self.current_epoch + (end - begin)) / (
                 self.current_epoch + 1
             )
 
-            if (E + 1) % self.args.common.test.client.interval == 0:
+            if (
+                self.args.common.test.client.interval > 0
+                and (E + 1) % self.args.common.test.client.interval == 0
+            ):
                 self.test_client_models()
+
+            self.display_metrics()
 
         self.logger.log(
             f"{self.algorithm_name}'s average time taken by each global epoch: "

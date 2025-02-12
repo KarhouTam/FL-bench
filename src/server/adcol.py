@@ -49,6 +49,11 @@ class DiscriminateDataset(Dataset):
 
 
 class ADCOLServer(FedAvgServer):
+    algorithm_name: str = "ADCOL"
+    all_model_params_personalized = False  # `True` indicates that clients have their own fullset of personalized model parameters.
+    return_diff = False  # `True` indicates that clients return `diff = W_global - W_local` as parameter update; `False` for `W_local` only.
+    client_cls = ADCOLClient
+
     @staticmethod
     def get_hyperparams(args_list=None) -> Namespace:
         parser = ArgumentParser()
@@ -64,25 +69,14 @@ class ADCOLServer(FedAvgServer):
         )
         return parser.parse_args(args_list)
 
-    def __init__(
-        self,
-        args: DictConfig,
-        algorithm_name: str = "ADCOL",
-        unique_model=False,
-        use_fedavg_client_cls=False,
-        return_diff=False,
-    ):
-        super().__init__(
-            args, algorithm_name, unique_model, use_fedavg_client_cls, return_diff
-        )
+    def __init__(self, args: DictConfig):
+        super().__init__(args, init_trainer=False)
         self.train_client_num = len(self.train_clients)
         self.discriminator = Discriminator(
             base_model=self.model, client_num=len(self.train_clients)
         )
         self.init_trainer(
-            ADCOLClient,
-            discriminator=deepcopy(self.discriminator),
-            client_num=self.client_num,
+            discriminator=deepcopy(self.discriminator), client_num=self.client_num
         )
         self.feature_dataloader: DataLoader = None
         self.features = {}

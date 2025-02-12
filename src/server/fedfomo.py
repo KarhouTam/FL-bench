@@ -8,6 +8,11 @@ from src.server.fedavg import FedAvgServer
 
 
 class FedFomoServer(FedAvgServer):
+    algorithm_name: str = "FedFomo"
+    all_model_params_personalized = True  # `True` indicates that clients have their own fullset of personalized model parameters.
+    return_diff = False  # `True` indicates that clients return `diff = W_global - W_local` as parameter update; `False` for `W_local` only.
+    client_cls = FedFomoClient
+
     @staticmethod
     def get_hyperparams(args_list=None) -> Namespace:
         parser = ArgumentParser()
@@ -15,18 +20,8 @@ class FedFomoServer(FedAvgServer):
         parser.add_argument("--valset_ratio", type=float, default=0.2)
         return parser.parse_args(args_list)
 
-    def __init__(
-        self,
-        args: DictConfig,
-        algorithm_name: str = "FedFomo",
-        unique_model=True,
-        use_fedavg_client_cls=False,
-        return_diff=False,
-    ):
-        super().__init__(
-            args, algorithm_name, unique_model, use_fedavg_client_cls, return_diff
-        )
-        self.init_trainer(FedFomoClient)
+    def __init__(self, args: DictConfig):
+        super().__init__(args)
         self.P = torch.eye(self.client_num, device=self.device)
 
     def train_one_round(self):

@@ -10,6 +10,10 @@ from src.utils.functional import vectorize
 
 
 class CFLServer(FedAvgServer):
+    algorithm_name: str = "CFL"
+    all_model_params_personalized = True  # `True` indicates that clients have their own fullset of personalized model parameters.
+    return_diff = True  # `True` indicates that clients return `diff = W_global - W_local` as parameter update; `False` for `W_local` only.
+
     @staticmethod
     def get_hyperparams(args_list=None) -> Namespace:
         parser = ArgumentParser()
@@ -19,17 +23,8 @@ class CFLServer(FedAvgServer):
         parser.add_argument("--start_clustering_round", type=int, default=20)
         return parser.parse_args(args_list)
 
-    def __init__(
-        self,
-        args: DictConfig,
-        algorithm_name: str = "CFL",
-        unique_model=True,
-        use_fedavg_client_cls=True,
-        return_diff=True,
-    ):
-        super().__init__(
-            args, algorithm_name, unique_model, use_fedavg_client_cls, return_diff
-        )
+    def __init__(self, args: DictConfig):
+        super().__init__(args)
         assert (
             len(self.train_clients) == self.client_num
         ), "CFL doesn't support `User` type split."

@@ -10,6 +10,11 @@ from src.server.fedavg import FedAvgServer
 
 
 class pFedMeServer(FedAvgServer):
+    algorithm_name: str = "pFedMe"
+    all_model_params_personalized = False  # `True` indicates that clients have their own fullset of personalized model parameters.
+    return_diff = False  # `True` indicates that clients return `diff = W_global - W_local` as parameter update; `False` for `W_local` only.
+    client_cls = pFedMeClient
+
     @staticmethod
     def get_hyperparams(args_list=None) -> Namespace:
         parser = ArgumentParser()
@@ -20,21 +25,11 @@ class pFedMeServer(FedAvgServer):
         parser.add_argument("--k", type=int, default=5)
         return parser.parse_args(args_list)
 
-    def __init__(
-        self,
-        args: DictConfig,
-        algorithm_name: str = "pFedMe",
-        unique_model=False,
-        use_fedavg_client_cls=False,
-        return_diff=False,
-    ):
-        super().__init__(
-            args, algorithm_name, unique_model, use_fedavg_client_cls, return_diff
-        )
+    def __init__(self, args: DictConfig):
+        super().__init__(args)
         self.clients_personalized_model_params = {
             i: deepcopy(self.model.state_dict()) for i in self.train_clients
         }
-        self.init_trainer(pFedMeClient)
 
     def package(self, client_id: int):
         server_package = super().package(client_id)

@@ -14,6 +14,11 @@ from src.utils.models import MODELS, DecoupledModel
 
 
 class FlocoServer(FedAvgServer):
+    algorithm_name: str = "Floco"
+    all_model_params_personalized = False  # `True` indicates that clients have their own fullset of personalized model parameters.
+    return_diff = False  # `True` indicates that clients return `diff = W_global - W_local` as parameter update; `False` for `W_local` only.
+    client_cls = FlocoClient
+
     @staticmethod
     def get_hyperparams(args_list=None) -> Namespace:
         parser = ArgumentParser()
@@ -27,31 +32,14 @@ class FlocoServer(FedAvgServer):
 
         return parser.parse_args(args_list)
 
-    def __init__(
-        self,
-        args: DictConfig,
-        algorithm_name: str = "Floco",
-        unique_model=False,
-        use_fedavg_client_cls=True,
-        return_diff=False,
-    ):
-        super().__init__(
-            args, algorithm_name, unique_model, use_fedavg_client_cls, return_diff
-        )
-        self.model = SimplexModel(self.args)
-        self.model.check_and_preprocess(self.args)
-        _init_global_params, _init_global_params_name = [], []
-        for key, param in self.model.named_parameters():
-            _init_global_params.append(param.data.clone())
-            _init_global_params_name.append(key)
-        self.public_model_param_names = _init_global_params_name
-        self.public_model_params: OrderedDict[str, torch.Tensor] = OrderedDict(
-            zip(_init_global_params_name, _init_global_params)
-        )
-        self.init_trainer(FlocoClient)
+    def __init__(self, args: DictConfig):
+        super().__init__(args, False, False)
+        self.init_model(SimplexModel(self.args))
+        self.init_trainer()
         self.projected_clients = None
 
         if self.args.floco.pers_epoch > 0:  # Floco+
+            self.all_model_params_personalized = True
             self.clients_personalized_model_params = {
                 i: deepcopy(self.model.state_dict()) for i in self.train_clients
             }

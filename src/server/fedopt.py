@@ -9,6 +9,10 @@ from src.server.fedavg import FedAvgServer
 
 
 class FedOptServer(FedAvgServer):
+    algorithm_name: str = "FedOpt"
+    all_model_params_personalized = False  # `True` indicates that clients have their own fullset of personalized model parameters.
+    return_diff = True  # `True` indicates that clients return `diff = W_global - W_local` as parameter update; `False` for `W_local` only.
+
     @staticmethod
     def get_hyperparams(args_list=None) -> Namespace:
         parser = ArgumentParser()
@@ -21,20 +25,13 @@ class FedOptServer(FedAvgServer):
         parser.add_argument("--tau", type=float, default=1e-3)
         return parser.parse_args(args_list)
 
-    algo_names = {"adagrad": "FedAdagrad", "yogi": "FedYogi", "adam": "FedAdam"}
-
-    def __init__(
-        self,
-        args: DictConfig,
-        algorithm_name: str = "FedAvg",
-        unique_model=False,
-        use_fedavg_client_cls=True,
-        return_diff=True,
-    ):
-        algo = self.algo_names[args.fedopt.type]
-        super().__init__(
-            args, algorithm_name, unique_model, use_fedavg_client_cls, return_diff
-        )
+    def __init__(self, args: DictConfig):
+        self.algorithm_name = {
+            "adagrad": "FedAdagrad",
+            "yogi": "FedYogi",
+            "adam": "FedAdam",
+        }[args.fedopt.type]
+        super().__init__(args)
         self.adaptive_optimizer = AdaptiveOptimizer(
             optimizer_type=self.args.fedopt.type,
             params_dict=self.public_model_params,

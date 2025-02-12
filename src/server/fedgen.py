@@ -15,6 +15,11 @@ from src.utils.constants import DATA_SHAPE, NUM_CLASSES
 
 
 class FedGenServer(FedAvgServer):
+    algorithm_name: str = "FedGen"
+    all_model_params_personalized = False  # `True` indicates that clients have their own fullset of personalized model parameters.
+    return_diff = False  # `True` indicates that clients return `diff = W_global - W_local` as parameter update; `False` for `W_local` only.
+    client_cls = FedGenClient
+
     @staticmethod
     def get_hyperparams(args_list=None) -> Namespace:
         parser = ArgumentParser()
@@ -35,22 +40,14 @@ class FedGenServer(FedAvgServer):
         parser.add_argument("--min_samples_per_label", type=int, default=1)
         return parser.parse_args(args_list)
 
-    def __init__(
-        self,
-        args: DictConfig,
-        algorithm_name: str = "FedGen",
-        unique_model=False,
-        use_fedavg_client_cls=False,
-        return_diff=False,
-    ):
-        super().__init__(
-            args, algorithm_name, unique_model, use_fedavg_client_cls, return_diff
-        )
+    def __init__(self, args: DictConfig):
+        super().__init__(args, False)
         self.generator = Generator(self)
-        self.init_trainer(FedGenClient, generator=self.generator)
+        self.init_trainer(generator=self.generator)
         self.generator_optimizer = torch.optim.Adam(
             self.generator.parameters(), self.args.fedgen.ensemble_lr
         )
+
         self.generator_lr_scheduler = torch.optim.lr_scheduler.ExponentialLR(
             self.generator_optimizer, gamma=0.98
         )

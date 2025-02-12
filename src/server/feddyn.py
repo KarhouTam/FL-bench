@@ -1,6 +1,5 @@
 from argparse import ArgumentParser, Namespace
 from collections import OrderedDict
-from copy import deepcopy
 from typing import Any
 
 import torch
@@ -13,6 +12,11 @@ from src.utils.functional import vectorize
 
 # Fixed according to FedDyn implementation in FL-Simulator (issue #133)
 class FedDynServer(FedAvgServer):
+    algorithm_name = "FedDyn"
+    all_model_params_personalized = "False"
+    return_diff = True  # `True` indicates that clients return `diff = W_global - W_local` as parameter update; `False` for `W_local` only.
+    client_cls = FedDynClient
+
     @staticmethod
     def get_hyperparams(args_list=None) -> Namespace:
         parser = ArgumentParser()
@@ -20,18 +24,8 @@ class FedDynServer(FedAvgServer):
         parser.add_argument("--max_grad_norm", type=float, default=10)
         return parser.parse_args(args_list)
 
-    def __init__(
-        self,
-        args: DictConfig,
-        algorithm_name: str = "FedDyn",
-        unique_model=False,
-        use_fedavg_client_cls=False,
-        return_diff=True,
-    ):
-        super().__init__(
-            args, algorithm_name, unique_model, use_fedavg_client_cls, return_diff
-        )
-        self.init_trainer(FedDynClient)
+    def __init__(self, args: DictConfig):
+        super().__init__(args)
         param_numel = vectorize(self.public_model_params).numel()
         self.nabla = torch.zeros(size=(self.client_num, param_numel))
 

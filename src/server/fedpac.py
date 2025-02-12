@@ -12,6 +12,11 @@ from src.utils.constants import NUM_CLASSES
 
 
 class FedPACServer(FedAvgServer):
+    algorithm_name: str = "FedPAC"
+    all_model_params_personalized = False  # `True` indicates that clients have their own fullset of personalized model parameters.
+    return_diff = False  # `True` indicates that clients return `diff = W_global - W_local` as parameter update; `False` for `W_local` only.
+    client_cls = FedPACClient
+
     @staticmethod
     def get_hyperparams(args_list=None):
         parser = ArgumentParser()
@@ -20,19 +25,9 @@ class FedPACServer(FedAvgServer):
         parser.add_argument("--classifier_lr", type=float, default=0.1)
         return parser.parse_args(args_list)
 
-    def __init__(
-        self,
-        args: DictConfig,
-        algorithm_name: str = "FedPAC",
-        unique_model=False,
-        use_fedavg_client_cls=False,
-        return_diff=False,
-    ):
-        super().__init__(
-            args, algorithm_name, unique_model, use_fedavg_client_cls, return_diff
-        )
+    def __init__(self, args: DictConfig):
+        super().__init__(args)
         self.global_prototypes = {}
-        self.init_trainer(FedPACClient)
 
     def package(self, client_id: int):
         server_package = super().package(client_id)

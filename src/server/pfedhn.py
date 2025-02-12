@@ -5,11 +5,16 @@ import torch
 import torch.nn as nn
 from omegaconf import DictConfig
 
+from src.client.fedavg import FedAvgClient
 from src.client.fedper import FedPerClient
 from src.server.fedavg import FedAvgServer
 
 
 class pFedHNServer(FedAvgServer):
+    algorithm_name: str = "pFedHN"
+    all_model_params_personalized = False  # `True` indicates that clients have their own fullset of personalized model parameters.
+    return_diff = True  # `True` indicates that clients return `diff = W_global - W_local` as parameter update; `False` for `W_local` only.
+
     @staticmethod
     def get_hyperparams(args_list=None) -> Namespace:
         parser = ArgumentParser()
@@ -26,26 +31,18 @@ class pFedHNServer(FedAvgServer):
         parser.add_argument("--norm_clip", type=int, default=50)
         return parser.parse_args(args_list)
 
-    def __init__(
-        self,
-        args: DictConfig,
-        algorithm_name: str = None,
-        unique_model=False,
-        use_fedavg_client_cls=True,
-        return_diff=True,
-    ):
+    def __init__(self, args: DictConfig):
         if args.mode == "parallel":
             raise NotImplementedError("pFedHN does not support parallel mode.")
         if args.common.buffers == "global":
             raise NotImplementedError("pFedHN does not support global buffers.")
-        algo = "pFedHN" if args.pfedhn.version == "pfedhn" else "pFedHN-PC"
-        use_fedavg_client_cls = True if args.pfedhn.version == "pfedhn" else False
-        super().__init__(
-            args, algorithm_name, unique_model, use_fedavg_client_cls, return_diff
+        self.algorithm_name = (
+            "pFedHN" if args.pfedhn.version == "pfedhn" else "pFedHN-PC"
         )
-
-        if self.args.pfedhn.version == "pfedhn_pc":
-            self.init_trainer(FedPerClient)
+        self.client_cls = (
+            FedPerClient if args.pfedhn.version == "pfedhn_pc" else FedAvgClient
+        )
+        super().__init__(args)
 
         self.hypernet = HyperNetwork(self.model, self.args.pfedhn, self.client_num)
         embed_lr = (
