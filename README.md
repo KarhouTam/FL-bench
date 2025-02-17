@@ -354,7 +354,7 @@ class YourClient(FedBNClient):
 ```
 
 
-- For customizing your server-side process, consider to override the `package()` and `aggregate()`.
+- For customizing your server-side process, consider to override the `package()` and `aggregate_client_updates()`.
 
 - For customizing your client-side training, consider to override the `fit()`, `set_parameters()` and `package()`.
 
