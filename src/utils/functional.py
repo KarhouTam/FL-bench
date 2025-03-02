@@ -49,7 +49,6 @@ def get_optimal_cuda_device(use_cuda: bool) -> torch.device:
     gpu_memory = []
     if "CUDA_VISIBLE_DEVICES" in os.environ.keys():
         gpu_ids = [int(i) for i in os.environ["CUDA_VISIBLE_DEVICES"].split(",")]
-        assert max(gpu_ids) < torch.cuda.device_count()
     else:
         gpu_ids = range(torch.cuda.device_count())
 
