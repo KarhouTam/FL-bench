@@ -53,6 +53,7 @@ class FedOptServer(FedAvgServer):
             clients_model_params_diff=clients_model_params_diff,
             weights=torch.tensor(client_weights) / sum(client_weights),
         )
+        # self.model.load_state_dict(self.public_model_params, strict=False)
 
 
 class AdaptiveOptimizer:
