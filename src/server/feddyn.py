@@ -13,7 +13,7 @@ from src.utils.functional import vectorize
 # Fixed according to FedDyn implementation in FL-Simulator (issue #133)
 class FedDynServer(FedAvgServer):
     algorithm_name = "FedDyn"
-    all_model_params_personalized = "False"
+    all_model_params_personalized = False
     return_diff = True  # `True` indicates that clients return `diff = W_global - W_local` as parameter update; `False` for `W_local` only.
     client_cls = FedDynClient
 
