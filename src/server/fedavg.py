@@ -574,6 +574,7 @@ class FedAvgServer:
             for params_dict in self.clients_personal_model_params.values()
         ):
             return
+        self.model.load_state_dict(self.public_model_params, strict=False)
         self.testing = True
         metrics = self.evaluate(
             model_in_train_mode=self.args.common.test.server.model_in_train_mode
