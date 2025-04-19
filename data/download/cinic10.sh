@@ -6,8 +6,6 @@ fi
 
 cd ../cinic10/raw
 
-wget https://datashare.ed.ac.uk/download/DS_10283_3192.zip
-
-unzip DS_10283_3192.zip
+curl -o CINIC-10.tar.gz --tlsv1.2 https://datashare.ed.ac.uk/bitstream/handle/10283/3192/CINIC-10.tar.gz
 
 tar -zxvf CINIC-10.tar.gz
