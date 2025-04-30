@@ -4,6 +4,7 @@ from typing import Any
 import torch
 
 from src.client.fedavg import FedAvgClient
+from src.utils.models import DecoupledModel
 
 
 class APFLClient(FedAvgClient):
@@ -95,9 +96,12 @@ class APFLClient(FedAvgClient):
 
 class MixedModel(torch.nn.Module):
     def __init__(
-        self, local_model: torch.nn.Module, global_model: torch.nn.Module, alpha: float
+        self, local_model: DecoupledModel, global_model: DecoupledModel, alpha: float
     ):
         super().__init__()
+        # placeholder for base and classifier, as we are not using them in this model
+        assert local_model.device == global_model.device
+        self.device = local_model.device
         self.local_model = local_model
         self.global_model = global_model
         self.alpha = alpha

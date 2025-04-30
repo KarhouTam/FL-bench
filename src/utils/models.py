@@ -19,6 +19,11 @@ class DecoupledModel(nn.Module):
         self.base: nn.Module = None
         self.classifier: nn.Module = None
         self.dropout: list[nn.Module] = []
+        self.device = torch.device("cpu")
+
+    def to(self, device: torch.device):
+        self.device = device
+        return super().to(device)
 
     def need_all_features(self):
         target_modules = [

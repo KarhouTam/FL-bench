@@ -14,6 +14,7 @@ from torch.utils.data import DataLoader, Dataset, Subset
 
 from src.utils.constants import DEFAULTS
 from src.utils.metrics import Metrics
+from src.utils.models import DecoupledModel
 
 
 def fix_random_seed(seed: int, use_cuda=False) -> None:
@@ -87,7 +88,7 @@ def vectorize(
 
 @torch.no_grad()
 def evaluate_model(
-    model: torch.nn.Module,
+    model: DecoupledModel,
     dataloader: DataLoader,
     criterion=torch.nn.CrossEntropyLoss(reduction="sum"),
     device=torch.device("cpu"),
@@ -96,7 +97,7 @@ def evaluate_model(
     """For evaluating the `model` over `dataloader` and return metrics.
 
     Args:
-        model (torch.nn.Module): Target model.
+        model (DecoupledModel): Target model.
         dataloader (DataLoader): Target dataloader.
         criterion (optional): The metric criterion. Defaults to torch.nn.CrossEntropyLoss(reduction="sum").
         device (torch.device, optional): The device that holds the computation. Defaults to torch.device("cpu").
@@ -109,6 +110,7 @@ def evaluate_model(
         model.train()
     else:
         model.eval()
+    old_device = model.device
     model.to(device)
     metrics = Metrics()
     for x, y in dataloader:
@@ -117,6 +119,7 @@ def evaluate_model(
         loss = criterion(logits, y).item()
         pred = torch.argmax(logits, -1)
         metrics.update(Metrics(loss, pred, y))
+    model.to(old_device)
     return metrics
 
 
