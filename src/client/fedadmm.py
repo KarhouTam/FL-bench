@@ -24,7 +24,7 @@ class FedADMMClient(FedAvgClient):
         super().set_parameters(package)
         # Store theta (global model parameters)
         self.theta = deepcopy(OrderedDict(
-            (key, param.clone())
+            (key, param.clone().to(self.device))
             for key, param in self.model.state_dict().items()
             if key in self.regular_params_name
         ))
@@ -42,7 +42,7 @@ class FedADMMClient(FedAvgClient):
             local_epochs = self.local_epoch
         else:
             # Random number of local epochs between 1 and local_epoch
-            local_epochs = torch.randint(1, self.local_epoch + 1, (1,)).item()
+            local_epochs = torch.randint(1, self.local_epoch + 1, (1,), device=self.device).item()
         
         for _ in range(local_epochs):
             for x, y in self.trainloader:
@@ -66,7 +66,7 @@ class FedADMMClient(FedAvgClient):
                         # Add Lagrangian term and proximal term to gradient
                         param.grad = param.grad + (self.alpha[name] + 
                                                   self.args.fedadmm.rho * 
-                                                  (model_weights_pre[name] - self.theta[name]))
+                                                  (model_weights_pre[name].to(self.device) - self.theta[name].to(self.device)))
                 
                 self.optimizer.step()
 
@@ -77,7 +77,7 @@ class FedADMMClient(FedAvgClient):
         weights = self.model.state_dict()
         for key in self.alpha.keys():
             if key in self.regular_params_name:
-                self.alpha[key] = self.alpha[key] + self.args.fedadmm.rho * (weights[key] - self.theta[key])
+                self.alpha[key] = self.alpha[key] + self.args.fedadmm.rho * (weights[key].to(self.device) - self.theta[key].to(self.device))
 
     def package(self):
         """Package data that client needs to transmit to the server.
@@ -93,7 +93,7 @@ class FedADMMClient(FedAvgClient):
         
         for key in self.regular_params_name:
             if key in weights and key in self.model_prev and key in self.alpha and key in self.alpha_prev:
-                local_sum[key] = (weights[key] - self.model_prev[key]) + (1/self.args.fedadmm.rho) * (self.alpha[key] - self.alpha_prev[key])
+                local_sum[key] = (weights[key].to(self.device) - self.model_prev[key].to(self.device)) + (1/self.args.fedadmm.rho) * (self.alpha[key] - self.alpha_prev[key])
         
         # Add local_sum to the package
         base_package['local_sum'] = local_sum

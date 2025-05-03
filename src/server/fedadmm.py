@@ -18,7 +18,9 @@ class FedADMMServer(FedAvgServer):
     def __init__(self, *args, **kwargs):
         super(FedADMMServer, self).__init__(*args, **kwargs)
         # Initialize theta (global model parameters)
-        self.theta = deepcopy(self.public_model_params)
+        self.theta = OrderedDict()
+        for key, param in self.public_model_params.items():
+            self.theta[key] = param.clone().to(self.device)
         # Current learning rate for global model update
         self.current_eta = self.args.fedadmm.eta
 
@@ -74,7 +76,7 @@ class FedADMMServer(FedAvgServer):
                 stacked_updates = torch.stack([
                     local_sum[key] * (client_weight / total_weight)
                     for local_sum, client_weight in zip(local_sums, client_weights)
-                ], dim=0)
+                ], dim=0).to(self.device)
                 
                 # Sum along client dimension
                 update_msg[key] = torch.sum(stacked_updates, dim=0)
@@ -82,7 +84,7 @@ class FedADMMServer(FedAvgServer):
         # Update theta using the learning rate
         for key in self.theta.keys():
             if key in update_msg:
-                self.theta[key] = self.theta[key] + self.current_eta * update_msg[key]
+                self.theta[key] = self.theta[key].to(self.device) + self.current_eta * update_msg[key]
         
         # Update global model parameters
         self.public_model_params = deepcopy(self.theta)
