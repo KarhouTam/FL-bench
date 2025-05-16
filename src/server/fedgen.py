@@ -53,6 +53,7 @@ class FedGenServer(FedAvgServer):
         )
         self.unique_labels = range(NUM_CLASSES[self.args.dataset.name])
         self.teacher_model = deepcopy(self.model)
+        
 
     def package(self, client_id: int):
         server_package = super().package(client_id)
@@ -161,10 +162,14 @@ class Generator(nn.Module):
         # obtain the latent dim
         x = torch.zeros(1, *DATA_SHAPE[server.args.dataset.name])
         self.use_embedding = server.args.fedgen.use_embedding
-        self.latent_dim = server.model.base(x).shape[-1]
+        self.input_shape = server.model.base(x).shape[1:]
+        self.latent_dim = self.input_shape[0]
         self.hidden_dim = server.args.fedgen.hidden_dim
         self.noise_dim = server.args.fedgen.noise_dim
         self.class_num = NUM_CLASSES[server.args.dataset.name]
+        with torch.no_grad():
+            dummy_input = torch.zeros(1, *DATA_SHAPE[server.args.dataset.name], device=server.model.device)
+        self.classifier_input_shape = server.model.base(dummy_input).shape[1:]
 
         if server.args.fedgen.use_embedding:
             self.embedding = nn.Embedding(self.class_num, server.args.fedgen.noise_dim)
@@ -194,6 +199,7 @@ class Generator(nn.Module):
         z = torch.cat([eps, y], dim=1)
         z = self.mlp(z)
         z = self.latent_layer(z)
+        z = z.view(z.shape[0], *self.classifier_input_shape)
         return z, eps
 
 
