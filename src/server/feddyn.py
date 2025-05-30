@@ -36,8 +36,10 @@ class FedDynServer(FedAvgServer):
         )
         return server_package
 
-    def aggregate(self, client_packages: OrderedDict[int, dict[str, Any]]):
-        super().aggregate(client_packages)
+    def aggregate_client_updates(
+        self, client_packages: OrderedDict[int, dict[str, Any]]
+    ):
+        super().aggregate_client_updates(client_packages)
         param_shapes = [
             (param.numel(), param.shape) for param in self.public_model_params.values()
         ]

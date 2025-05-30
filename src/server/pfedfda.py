@@ -63,9 +63,9 @@ class pFedFDAServer(FedAvgServer):
         package["covariances_beta"] = self.client_covariances_beta[client_id]
         return package
 
-    def aggregate(self, client_packages: Dict[str, Dict[str, Any]]):
+    def aggregate_client_updates(self, client_packages: Dict[str, Dict[str, Any]]):
         # common aggregation
-        super().aggregate(client_packages)
+        super().aggregate_client_updates(client_packages)
 
         # save client-specific variables
         for client_id, package in client_packages.items():
