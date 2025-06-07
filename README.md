@@ -88,6 +88,7 @@ FL-bench welcomes PR on everything that can make this project better.
 - ***FedAS*** -- [FedAS: Bridging Inconsistency in Personalized Federated Learning](https://openaccess.thecvf.com/content/CVPR2024/html/Yang_FedAS_Bridging_Inconsistency_in_Personalized_Federated_Learning_CVPR_2024_paper.html) (CVPR'24)
 - ***pFedFDA*** -- [pFedFDA: Personalized Federated Learning via Feature Distribution Adaptation](http://arxiv.org/abs/2411.00329) (NeurIPS 2024)
 - ***Floco*** -- [Federated Learning over Connected Modes](https://openreview.net/forum?id=JL2eMCfDW8) (NeurIPS'24)
+- ***FedAH*** -- [FedAH: Aggregated Head for Personalized Federated Learning](https://arxiv.org/abs/2412.01295) (ArXiv'24)
 <!-- </details> -->
 
 
