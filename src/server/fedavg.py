@@ -50,12 +50,7 @@ class FedAvgServer:
     return_diff = False  # `True` indicates that clients return `diff = W_global - W_local` as parameter update; `False` for `W_local` only.
     client_cls = FedAvgClient
 
-    def __init__(
-        self,
-        args: DictConfig,
-        init_trainer=True,
-        init_model=True,
-    ):
+    def __init__(self, args: DictConfig, init_trainer=True, init_model=True):
         """
         Args:
             `args`: A DictConfig object of the arguments.
@@ -86,6 +81,14 @@ class FedAvgServer:
                 self.data_partition = pickle.load(f)
         except:
             raise FileNotFoundError(f"Please partition {self.args.dataset.name} first.")
+        if (
+            self.args.dataset.split == "user"
+            and self.args.common.test.client.funetune_epoch > 0
+        ):
+            raise RuntimeError(
+                "User-based data partition is not compatible with client-side fine-tuning."
+            )
+
         self.train_clients: List[int] = self.data_partition["separation"]["train"]
         self.test_clients: List[int] = self.data_partition["separation"]["test"]
         self.val_clients: List[int] = self.data_partition["separation"]["val"]

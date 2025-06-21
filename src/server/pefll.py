@@ -33,6 +33,11 @@ class PeFLLServer(FedAvgServer):
         if args.common.buffers == "global":
             raise NotImplementedError("PeFLL doesn't support global buffers.")
         super().__init__(args, False)
+        if self.args.dataset.split == "user":
+            raise NotImplementedError(
+                "PeFLL is not available with user-based data partition"
+                "(i.e., users are divided into train users and test users, the latter has no data for training at all.)."
+            )
         if self.args.pefll.embed_dim <= 0:
             self.args.pefll.embed_dim = int(1 + self.client_num / 4)
         self.embed_net = EmbedNetwork(self.args)

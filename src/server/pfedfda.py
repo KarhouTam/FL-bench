@@ -26,7 +26,11 @@ class pFedFDAServer(FedAvgServer):
 
     def __init__(self, args: DictConfig):
         super().__init__(args)
-
+        if self.args.dataset.split == "user":
+            raise NotImplementedError(
+                "pFedFDA is not available with user-based data partition"
+                "(i.e., users are divided into train users and test users, the latter has no data for training at all.)."
+            )
         self.global_means = torch.rand(
             [NUM_CLASSES[self.args.dataset.name], self.model.classifier.in_features]
         )
