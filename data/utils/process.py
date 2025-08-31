@@ -54,12 +54,11 @@ def prune_args(args: Namespace) -> dict:
         args_dict["sample_seed"] = preprocess_args["smplseed"]
         args_dict["split_seed"] = preprocess_args["spltseed"]
         args_dict["min_samples_per_client"] = preprocess_args["k"]
-        args_dict["test_ratio"] = 1.0 - preprocess_args["tf"]
+        args_dict["test_ratio"] = 1.0 - float(preprocess_args["tf"])
         args_dict["val_ratio"] = 0.0
-        args_dict["monitor_window_name_suffix"] = "{}-{}clients-k{}-{}".fotmat(
+        args_dict["monitor_window_name_suffix"] = "{}-{}clients-k{}-{}".format(
             args.dataset, args.client_num, preprocess_args["k"], preprocess_args["t"]
         )
-        args_dict.pop("seed")
         if preprocess_args["s"] == "iid":
             args_dict["iid"] = True
             args_dict["monitor_window_name_suffix"] += f"-IID"
