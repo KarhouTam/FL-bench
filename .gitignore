@@ -39,6 +39,7 @@ data/domain/raw
 # data files
 *.npy
 *.pkl
+partition_md5.txt
 
 # output files
 *.csv
