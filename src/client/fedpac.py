@@ -126,7 +126,7 @@ class FedPACClient(FedAvgClient):
                         for i, label in enumerate(y.cpu().tolist()):
                             target_prototypes[i] = self.global_prototypes.get(
                                 label, local_prototypes[label]
-                            )
+                            ).to(self.device)
                     loss_mse = torch.nn.functional.mse_loss(features, target_prototypes)
                     loss = loss_ce + self.args.fedpac.lamda * loss_mse
                     self.optimizer.zero_grad()
