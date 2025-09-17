@@ -1,8 +1,6 @@
 import json
 import os
 
-import numpy as np
-
 TARGET_NAME = "Smiling"
 parent_path = os.path.dirname(os.path.dirname(os.path.realpath(__file__)))
 

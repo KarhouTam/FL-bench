@@ -31,7 +31,7 @@ def main(config: DictConfig):
         if attribute[0].lower() == method_name + "server"
     ][0][1]
 
-    get_method_hyperparams_func = getattr(server_class, f"get_hyperparams", None)
+    get_method_hyperparams_func = getattr(server_class, "get_hyperparams", None)
 
     config = parse_args(config, method_name, get_method_hyperparams_func)
 
@@ -52,7 +52,7 @@ def main(config: DictConfig):
         parent_server_class = server_class.__bases__[0]
         if hasattr(parent_server_class, "get_hyperparams"):
             get_parent_method_hyperparams_func = getattr(
-                parent_server_class, f"get_hyperparams", None
+                parent_server_class, "get_hyperparams", None
             )
             # class name: <METHOD_NAME>Server, only want <METHOD_NAME>
             parent_method_name = parent_server_class.__name__.lower()[:-6]
@@ -65,7 +65,7 @@ def main(config: DictConfig):
             )
 
         useful_config_groups.append(parent_method_name)
-    
+
     # remove all unused config groups
     for config_group in list(config.keys()):
         if config_group not in useful_config_groups:

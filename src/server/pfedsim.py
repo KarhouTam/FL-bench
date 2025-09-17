@@ -39,7 +39,7 @@ class pFedSimServer(FedAvgServer):
         # Warm-up Phase
         self.train_progress_bar = track(
             range(self.warmup_round),
-            f"[bold cyan]Warming-up...",
+            "[bold cyan]Warming-up...",
             console=self.logger.stdout,
         )
         super().train()

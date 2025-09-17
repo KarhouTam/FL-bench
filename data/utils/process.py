@@ -61,7 +61,7 @@ def prune_args(args: Namespace) -> dict:
         )
         if preprocess_args["s"] == "iid":
             args_dict["iid"] = True
-            args_dict["monitor_window_name_suffix"] += f"-IID"
+            args_dict["monitor_window_name_suffix"] += "-IID"
 
     if args.ood_domains is not None:
         args_dict["ood_domains"] = args.ood_domains
@@ -83,7 +83,7 @@ def prune_args(args: Namespace) -> dict:
         elif args.semantic:
             args_dict["pca_components"] = args.pca_components
             args_dict["efficient_net_type"] = args.efficient_net_type
-            args_dict["monitor_window_name_suffix"] += f"-semantic"
+            args_dict["monitor_window_name_suffix"] += "-semantic"
 
     if args.dataset not in ["femnist", "celeba"]:
         args_dict["monitor_window_name_suffix"] += f"-seed{args.seed}"
@@ -565,8 +565,8 @@ def class_from_string(class_string: str) -> type:
     Example:
         class_from_string('path.to.module.ClassName') returns the class 'ClassName' from the module 'path.to.module'.
     """
-    module = importlib.import_module('.'.join(class_string.split('.')[:-1]))
-    class_ = getattr(module, class_string.split('.')[-1])
+    module = importlib.import_module(".".join(class_string.split(".")[:-1]))
+    class_ = getattr(module, class_string.split(".")[-1])
     return class_
 
 

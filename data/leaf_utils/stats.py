@@ -3,13 +3,12 @@ data."""
 
 import argparse
 import json
-import math
 import os
 
 import matplotlib.pyplot as plt
 import numpy as np
 from constants import DATASETS
-from scipy import io, stats
+from scipy import stats
 
 parser = argparse.ArgumentParser()
 

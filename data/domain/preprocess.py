@@ -119,4 +119,4 @@ if __name__ == "__main__":
             indent=4,
         )
 
-    os.system(f"python ../../generate_data.py -d domain")
+    os.system("python ../../generate_data.py -d domain")

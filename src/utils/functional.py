@@ -2,14 +2,12 @@ import os
 import random
 from argparse import Namespace
 from collections import OrderedDict
-from pathlib import Path
-from typing import Callable, Dict, Iterator, List, Sequence, Tuple, Union
+from typing import Callable, Dict, Iterator, List, Sequence, Tuple
 
 import numpy as np
 import pynvml
 import torch
 from omegaconf import DictConfig
-from rich.console import Console
 from torch.utils.data import DataLoader, Dataset, Subset
 
 from src.utils.constants import DEFAULTS

@@ -1,34 +1,34 @@
+import hashlib
 import json
 import os
 import pickle
 import random
-import hashlib
-from copy import deepcopy
-from collections import Counter
 from argparse import ArgumentParser
+from collections import Counter
+from copy import deepcopy
 from pathlib import Path
 from typing import Optional
 
 import numpy as np
 
-from data.utils.schemes.flower import flower_partition
-from src.utils.functional import fix_random_seed
+from data.utils.datasets import DATASETS, BaseDataset
 from data.utils.process import (
     exclude_domain,
-    plot_distribution,
-    prune_args,
     generate_synthetic_data,
+    plot_distribution,
     process_celeba,
     process_femnist,
+    prune_args,
 )
 from data.utils.schemes import (
+    allocate_shards,
     dirichlet,
     iid_partition,
     randomly_assign_classes,
-    allocate_shards,
     semantic_partition,
 )
-from data.utils.datasets import DATASETS, BaseDataset
+from data.utils.schemes.flower import flower_partition
+from src.utils.functional import fix_random_seed
 
 CURRENT_DIR = Path(__file__).parent.absolute()
 

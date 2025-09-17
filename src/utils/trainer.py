@@ -26,7 +26,7 @@ class FLbenchTrainer:
                 ray_client.remote(**init_args) for _ in range(self.num_workers)
             ]
         else:
-            raise ValueError(f"Unrecongnized running mode.")
+            raise ValueError("Unrecongnized running mode.")
 
         if self.mode == MODE.SERIAL:
             self.train = self._serial_train

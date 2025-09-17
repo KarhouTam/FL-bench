@@ -53,7 +53,6 @@ class FedGenServer(FedAvgServer):
         )
         self.unique_labels = range(NUM_CLASSES[self.args.dataset.name])
         self.teacher_model = deepcopy(self.model)
-        
 
     def package(self, client_id: int):
         server_package = super().package(client_id)
@@ -168,7 +167,9 @@ class Generator(nn.Module):
         self.noise_dim = server.args.fedgen.noise_dim
         self.class_num = NUM_CLASSES[server.args.dataset.name]
         with torch.no_grad():
-            dummy_input = torch.zeros(1, *DATA_SHAPE[server.args.dataset.name], device=server.model.device)
+            dummy_input = torch.zeros(
+                1, *DATA_SHAPE[server.args.dataset.name], device=server.model.device
+            )
         self.classifier_input_shape = server.model.base(dummy_input).shape[1:]
 
         if server.args.fedgen.use_embedding:
