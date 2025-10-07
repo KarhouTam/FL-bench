@@ -1,4 +1,6 @@
 name: Sync requirements.txt with pyproject.toml
+permissions:
+  contents: write
 
 on:
   push:
