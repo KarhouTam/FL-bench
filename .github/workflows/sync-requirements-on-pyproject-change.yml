@@ -1,0 +1,59 @@
+name: Sync requirements.txt with pyproject.toml
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - '.env/pyproject.toml'
+  workflow_dispatch:
+
+jobs:
+  sync-requirements:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install Poetry
+        run: |
+          pip install poetry
+
+      - name: Configure Poetry
+        run: |
+          poetry config virtualenvs.create false
+
+      - name: Install dependencies
+        run: |
+          cd .env
+          poetry install --only=main
+
+      - name: Export dependencies to requirements.txt
+        run: |
+          cd .env
+          poetry export -o requirements.txt -f requirements.txt --without-hashes
+
+      - name: Check if there are changes
+        id: changes
+        run: |
+          if git diff --exit-code .env/requirements.txt; then
+            echo "changed=false" >> $GITHUB_OUTPUT
+          else
+            echo "changed=true" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Commit and push changes
+        if: steps.changes.outputs.changed == 'true'
+        run: |
+          git config --local user.email "github-actions[bot]@users.noreply.github.com"
+          git config --local user.name "github-actions[bot]"
+          git add .env/requirements.txt
+          git commit -m "chore(deps): Sync requirements.txt with pyproject.toml"
+          git push
