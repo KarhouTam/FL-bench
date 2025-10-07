@@ -67,7 +67,7 @@ def main(args):
         # NOTE: If `args.ood_domains`` is not empty, then FL-bench will map all labels (class space) to the domain space
         # and partition data according to the new `targets` array.
         dataset = DATASETS[args.dataset](dataset_root, args)
-        targets = np.array(dataset.targets, dtype=np.int32)
+        targets = dataset.targets.numpy().astype(np.int32)
         target_indices = np.arange(len(targets), dtype=np.int32)
         valid_label_set = set(range(len(dataset.classes)))
         if args.dataset in ["domain"] and args.ood_domains:
