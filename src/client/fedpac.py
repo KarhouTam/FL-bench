@@ -88,7 +88,7 @@ class FedPACClient(FedAvgClient):
             if isinstance(proto, torch.Tensor):
                 prototypes.append(proto.detach().cpu().clone())
             elif isinstance(proto, list) and len(proto) == 0:  # void prototype
-                prototypes.append(proto)
+                prototypes.append(None)
         client_package["prototypes"] = prototypes
         client_package["label_distrib"] = self.label_distribs[self.client_id]
         client_package["v"] = deepcopy(self.v)
@@ -124,9 +124,14 @@ class FedPACClient(FedAvgClient):
                     target_prototypes = features.clone().detach()
                     if self.global_prototypes is not None:
                         for i, label in enumerate(y.cpu().tolist()):
-                            target_prototypes[i] = self.global_prototypes.get(
-                                label, local_prototypes[label]
-                            ).to(self.device)
+                            if (
+                                label in self.global_prototypes
+                                or local_prototypes[label] != []
+                            ):
+                                target_prototypes[i] = self.global_prototypes.get(
+                                    label, local_prototypes[label]
+                                ).to(self.device)
+
                     loss_mse = torch.nn.functional.mse_loss(features, target_prototypes)
                     loss = loss_ce + self.args.fedpac.lamda * loss_mse
                     self.optimizer.zero_grad()
