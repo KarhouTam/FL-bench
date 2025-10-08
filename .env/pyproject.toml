@@ -18,7 +18,7 @@ priority = "primary"
 [tool.poetry.dependencies]
 python = "3.13.5"
 torch = "^2.8.0"
-torchvision = "^0.19.1"
+torchvision = "^0.23.0"
 rich = "^13.9.4"
 numpy = "^2.3.3"
 pandas = "^2.2.3"
@@ -34,7 +34,7 @@ ray = { extras = ["default"], version = "^2.49.2" }
 tensorboard = "^2.17.1"
 cvxpy = "^1.7.3"
 hydra-core = "^1.3.2"
-flwr-datasets = "^0.4.0"
+flwr-datasets = "^0.5.0"
 statsmodels = "^0.14.4"
 pytorch-minimize = "^0.0.2"
 
