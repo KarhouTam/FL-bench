@@ -16,7 +16,7 @@ url = "https://mirrors.sustech.edu.cn/pypi/simple"
 priority = "primary"
 
 [tool.poetry.dependencies]
-python = ">=3.12, <=3.13"
+python = "3.13.5"
 torch = "^2.8.0"
 torchvision = "^0.19.1"
 rich = "^13.9.4"
