@@ -5,7 +5,8 @@ permissions:
 on:
   push:
     branches:
-      - main
+      - master
+      - dev
     paths:
       - '.env/pyproject.toml'
   workflow_dispatch:
