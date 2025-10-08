@@ -45,18 +45,25 @@ class FedPACServer(FedAvgServer):
         for i, (prototypes, weights) in enumerate(
             zip(zip(*prototypes_list), zip(*weights_list))
         ):
-            prototypes = list(filter(lambda p: isinstance(p, torch.Tensor), prototypes))
-            weights = torch.tensor(
-                list(filter(lambda w: w > 0, weights)),
-                dtype=torch.float,
-                device=self.device,
+            weights_prototypes = list(
+                filter(
+                    lambda wp: wp[0] > 0 and isinstance(wp[1], torch.Tensor),
+                    zip(weights, prototypes),
+                )
             )
-            if len(prototypes) > 0:
-                weights /= weights.sum()
-                prototypes = torch.stack(prototypes, dim=-1).to(self.device)
-                self.global_prototypes[i] = torch.sum(
-                    prototypes * weights, dim=-1
-                ).cpu()
+            
+            if weights_prototypes:
+                weights, prototypes = zip(*weights_prototypes)
+                
+                weights = torch.tensor(weights, dtype=torch.float, device=self.device)
+                # 添加权重和为0的检查，避免除零错误
+                weight_sum = weights.sum()
+                if len(prototypes) > 0 and weight_sum > 0:
+                    weights /= weight_sum
+                    prototypes = torch.stack(prototypes, dim=-1).to(self.device)
+                    self.global_prototypes[i] = torch.sum(
+                        prototypes * weights, dim=-1
+                    ).cpu()
 
     def aggregate_client_updates(
         self, client_packages: OrderedDict[int, dict[str, Any]]
