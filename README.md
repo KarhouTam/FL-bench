@@ -115,7 +115,7 @@ poetry install --no-root -C .env
 ```
 For others
 ```sh
-cd .env && sed -i "10,14d" pyproject.toml && poetry lock --no-update && poetry install --no-root
+cd .env && sed -i "10,14d" pyproject.toml && poetry lock && poetry install --no-root
 ```
 
 ### Docker 🐳
