@@ -101,6 +101,15 @@ FL-bench welcomes PR on everything that can make this project better.
 - ***FedIIR*** -- [Out-of-Distribution Generalization of Federated Learning via Implicit Invariant Relationships](https://openreview.net/pdf?id=JC05k0E2EM) (ICML'23)
 <!-- </details> -->
 
+<!-- <details> -->
+<summary><b>Privacy-enhanced FL Methods</b></summary>
+
+- ***FedCEO*** -- [Clients Collaborate: Flexible Differentially Private Federated Learning with Guaranteed Improvement of Utility-Privacy Trade-off](https://arxiv.org/abs/2402.07002) [[Code](https://github.com/6lyc/FedCEO_Collaborate-with-Each-Other)] (ICML'25)
+- ***CENTAUR*** -- [Share your representation only: Guaranteed improvement of the privacy-utility tradeoff in federated learning](https://arxiv.org/pdf/2309.05505) (ICLR'23)
+- ***PPSGD*** -- [Personalization improves privacy-accuracy tradeoffs in federated learning](https://proceedings.mlr.press/v162/bietti22a/bietti22a.pdf) (ICML'22)
+- ***LDP-FedSGD*** -- [Federated learning with local differential privacy: Trade-offs between privacy, utility, and communication](https://arxiv.org/pdf/2102.04737) (ICASSP'21)
+<!-- </details> -->
+
 ## Environment Preparation 🧩
 
 ### PyPI 🐍
