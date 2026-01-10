@@ -11,7 +11,7 @@ RUN apt update && \
 
 COPY ./ /root/FL-bench
 
-RUN pip install --upgrade pip setuptools wheel && \
+RUN pip install --upgrade --ignore-installed pip setuptools wheel && \
     pip install -r /root/FL-bench/.env/requirements.txt
 
 WORKDIR /root
