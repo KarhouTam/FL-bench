@@ -5,6 +5,7 @@ __pycache__
 # configs
 config/*
 !config/defaults.yaml
+!config/dp_fedavg.yaml
 
 # IDE configurations
 .idea

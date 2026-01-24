@@ -17,3 +17,4 @@ hydra-core
 flwr-datasets
 statsmodels
 pytorch-minimize
+opacus
