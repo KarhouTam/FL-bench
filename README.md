@@ -101,24 +101,16 @@ FL-bench welcomes PR on everything that can make this project better.
 - ***FedIIR*** -- [Out-of-Distribution Generalization of Federated Learning via Implicit Invariant Relationships](https://openreview.net/pdf?id=JC05k0E2EM) (ICML'23)
 <!-- </details> -->
 
+<summary><b>Differential Privacy FL Methods</b></summary>
+
+- ***DP-FedAvg*** -- [Learning Differentially Private Recurrent Language Models](https://arxiv.org/abs/1710.06963) (ICLR 2018)
+
 ## Environment Preparation 🧩
 
 ### PyPI 🐍
 ```sh
 pip install -r .env/requirements.txt
 ```
-
-### Docker 🐳
-
-```sh
-docker pull ghcr.io/karhoutam/fl-bench:master
-```
-
-An example of building container
-```sh
-docker run -it --name fl-bench -v path/to/FL-bench:/root/FL-bench --privileged --gpus all ghcr.io/karhoutam/fl-bench:master
-```
-
 
 ## Easy Run 🏃‍♂️
 
