@@ -54,7 +54,7 @@ FL-bench welcomes PR on everything that can make this project better.
 - ***FedADMM*** -- [FedADMM: A robust federated deep learning framework with adaptivity to system heterogeneity](https://ieeexplore.ieee.org/abstract/document/9835545) (ICDE'22)
 - ***Elastic Aggregation*** -- [Elastic Aggregation for Federated Optimization](https://openaccess.thecvf.com/content/CVPR2023/html/Chen_Elastic_Aggregation_for_Federated_Optimization_CVPR_2023_paper.html) (CVPR'23)
 - ***FedFed*** -- [FedFed: Feature Distillation against Data Heterogeneity in Federated Learning](http://arxiv.org/abs/2310.05077) (NeurIPS'23)
-- ***Dynamic Tiering FL*** -- [Speed Up Federated Learning in Heterogeneous Environments: A Dynamic Tiering Approach](https://doi.org/10.1109/JIOT.2024.3468511) (IEEE IoT-J'24)
+- ***DTFL*** -- [Speed Up Federated Learning in Heterogeneous Environments: A Dynamic Tiering Approach](https://doi.org/10.1109/JIOT.2024.3468511) (IEEE IoT-J'24)
 
 <!-- </details> -->
 
