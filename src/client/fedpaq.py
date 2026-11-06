@@ -17,7 +17,9 @@ class FedPAQClient(FedAvgClient):
         super(FedPAQClient, self).__init__(**commons)
 
     @torch.no_grad()
-    def _quantize_tensor(self, tensor: torch.Tensor, num_bits: int, stochastic: bool) -> torch.Tensor:
+    def _quantize_tensor(
+        self, tensor: torch.Tensor, num_bits: int, stochastic: bool
+    ) -> torch.Tensor:
         if tensor.numel() == 0:
             return tensor
 
