@@ -144,3 +144,6 @@ fedprox:
   mu: 0.01
 pfedsim:
   warmup_round: 0.5
+fedpaq:
+  num_bits: 4
+  stochastic: 0
